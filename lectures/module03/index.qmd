@@ -1,0 +1,799 @@
+---
+title: "Module 3: Stationarity, Mean Functions, and Autocovariance"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Taylor R. Brown"
+format:
+  revealjs:
+    theme: [default, ../uva-theme.scss]
+    slide-number: c/t
+    footer: "{{< var course.code >}} – {{< var course.title >}} · Module 3"
+    toc: true
+    toc-depth: 1
+    smaller: true
+    scrollable: true
+    html-math-method: katex
+execute:
+  echo: true
+  eval: false
+---
+
+# Part 1: Shifting Gears
+
+## From Portfolios to Time Series
+
+In Part 1 we emphasized **cross-sectional** structure:
+
+- 1-period returns across $k$ assets at a single point in time
+- Covariance matrices, regression, factor models
+- Portfolio weights that optimize risk/return
+
+Now we shift to **temporal** structure:
+
+- A single time series $\{X_t\}$ over $n$ time periods
+- How does the series behave over time?
+- Can we forecast it? Model its risk?
+
+## Why Univariate Models?
+
+**Practical reasons:**
+
+- Forecasting the market returns in a more advanced way could improve our multivariate forecasts
+- Univariate models are the building blocks for multivariate ones.
+
+**Our case study for Part 2:**
+
+The **FX carry trade** produces exactly this: a single time series of daily returns. We introduce it now and build tools to analyze it over Modules 3–6.
+
+## Prelude: The Carry Trade
+
+The carry trade:
+
+- **Borrow** in a low-interest-rate currency (e.g., JPY, historically near 0%)
+- **Invest** in a high-interest-rate currency (e.g., AUD, historically 3–5%)
+
+Each day you earn or lose money. String those daily returns together and you get a time series $\{X_1, X_2, \ldots, X_n\}$.
+
+We will ask and answer a bunch of questions regarding this in modules 3–6.
+
+# Part 2: The Mean Function and Autocovariance
+
+## Random Sequences
+
+A **time series** $\{X_t\}_{t \in \mathbb{Z}}$ is a sequence of random variables indexed by time.
+
+At each time point $t$, the random variable $X_t$ has its own distribution. The draws across time are generally **not** independent.
+
+We observe a single **realization** $\{x_1, x_2, \ldots, x_n\}$ — one run of the process.
+
+The challenge of time series analysis: we want to learn about the distribution of $\{X_t\}$ from a single observed path.
+
+**Marginal vs. conditional:** The distribution of $X_t$ alone is its **marginal** distribution. The distribution of $X_t$ given past values $X_{t-1}, X_{t-2}, \ldots$ is a **conditional** distribution. 
+
+We will use both.
+
+## The Mean Function
+
+```{python}
+#| label: module03-1
+#| echo: false
+#| eval: true
+#| output: false
+import subprocess, sys
+from pathlib import Path
+
+if not Path("../data/fx_rates.csv").exists():
+    subprocess.run([sys.executable, "../fetch_data.py"], check=True)
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+_fx = pd.read_csv("../data/fx_rates.csv", index_col=0, parse_dates=True)
+_rates = pd.read_csv("../data/rates.csv", index_col=0, parse_dates=True)
+
+_audjpy = _fx["AUDJPY"].dropna()
+_log_ret = np.log(_audjpy).diff().dropna() * 100  # spot return in %
+
+_aud_rate = _rates["AUD_rate"].reindex(_log_ret.index, method="ffill")
+_jpy_rate = _rates["JPY_rate"].reindex(_log_ret.index, method="ffill")
+_daily_carry = (_aud_rate - _jpy_rate) / 252  # annualised % → daily %
+_carry_pnl = (_log_ret + _daily_carry).rename("carry_pnl")
+```
+
+Let $\{X_t\}$ be a time series with $E[X_t^2] < \infty$ for all $t$.
+
+The **mean function** is:
+$$
+\mu_X(t) = E[X_t]
+$$
+
+This can depend on $t$.
+
+## Example: IID Normal Variates
+
+$X_t \overset{iid}{\sim} N(0,1)$ for $t = 1, \ldots, 200$.
+
+This could be a model for investment returns.
+
+What's the mean function $\mu_X(t)$?
+
+::: {.fragment}
+```{python}
+#| label: module03-2
+#| echo: false
+#| eval: true
+rng = np.random.default_rng(42)
+_iid = rng.standard_normal(200)
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.plot(_iid)
+ax.axhline(0, color="red", linewidth=1.2, linestyle="--", label="$\\mu_X(t) = 0$")
+ax.set_xlabel("$t$")
+ax.set_ylabel("$X_t$")
+ax.set_title("IID $N(0,1)$ — mean function is 0 everywhere")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+The mean function is $\mu_X(t) = 0$ for all $t$.
+:::
+
+## Example: Random Walk — One Path
+
+A random walk: $X_t = X_{t-1} + \varepsilon_t$, $\varepsilon_t \overset{iid}{\sim} N(0,1)$.
+
+This could be a model for the log-price or price of something.
+
+**What is the mean function $\mu_X(t) = E[X_t]$?**
+
+```{python}
+#| label: module03-3
+#| echo: false
+#| eval: true
+rng2 = np.random.default_rng(7)
+_rw_one = np.cumsum(rng2.standard_normal(200))
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.plot(_rw_one)
+ax.set_xlabel("$t$")
+ax.set_ylabel("$X_t$")
+ax.set_title("Random Walk — one realization")
+plt.tight_layout()
+plt.show()
+```
+
+## Example: Random Walk — Many Paths
+
+Don't be duped! Simulate many paths from the same starting point.
+
+The mean function is $\mu_X(t) = 0$ for all $t$ — the paths fan out, but they average to zero.
+
+```{python}
+#| label: module03-4
+#| echo: false
+#| eval: true
+rng3 = np.random.default_rng(99)
+_rw_many = np.cumsum(rng3.standard_normal((200, 300)), axis=0)
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.plot(_rw_many, color="steelblue", alpha=0.05, linewidth=0.8)
+ax.plot(_rw_many.mean(axis=1), color="red", linewidth=2, label="$\\hat{\\mu}_X(t)$ (sample mean at each time point)")
+ax.axhline(0, color="black", linewidth=1, linestyle="--", label="$\\mu_X(t) = 0$")
+ax.set_xlabel("$t$")
+ax.set_ylabel("$X_t$")
+ax.set_title("Random Walk — 300 realizations")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+
+## The Covariance Function
+
+The **covariance function** captures how two time points co-vary:
+
+$$
+\gamma_X(r, s) = \text{Cov}(X_r, X_s) = E\!\left[(X_r - \mu_X(r))(X_s - \mu_X(s))\right]
+$$
+
+Same function as previous modules. Instead of two different stocks, it's two different time points $r$ and $s$.
+
+## Why Does Temporal Structure Matter?
+
+If tomorrow's carry return $X_{t+1}$ is positively correlated with today's $X_t$:
+
+- Knowing $X_t$ helps predict $X_{t+1}$
+- Covariances/correlations at nonzero lags means your forecasts could vary a lot day-to-day
+- The estimate of the long run rate of return is usually the sample mean. The variance of that estimate depends on this correlation structure. It's not just $\sigma^2/n$ like it is in introductory classes.
+
+
+## Bilinearity of Covariance
+
+The **covariance operator is (still) bilinear:**
+
+$$
+\text{Cov}(aX + bZ,\, Y) = a\,\text{Cov}(X, Y) + b\,\text{Cov}(Z, Y)
+$$
+
+$$
+\text{Cov}(X,\, aY + bZ) = \text{Cov}(X, Y) a + \text{Cov}(X,Z) b
+$$
+
+Bilinearity is (still) the primary tool for calculating anything involving covariances.
+
+
+
+## Special Case: Variance
+
+$$
+\gamma_X(t, t) = E\!\left[(X_t - \mu_X(t))^2\right] = \text{Var}(X_t)
+$$
+
+One variance for each $t$.
+
+**What is $\text{Var}(X_t)$ for our IID $N(0,1)$ example?**
+
+::: {.fragment}
+```{python}
+#| label: module03-5
+#| echo: false
+#| eval: true
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.plot(_iid)
+ax.axhline(0, color="red", linewidth=1.2, linestyle="--", label="$\\mu_X(t) = 0$")
+ax.fill_between(range(200), -1, 1, color="red", alpha=0.1, label="$\\pm 1$ theoretical SD")
+ax.set_xlabel("$t$")
+ax.set_ylabel("$X_t$")
+ax.set_title("IID $N(0,1)$ — what is $\\text{Var}(X_t)$?")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+Answer: $\text{Var}(X_t) = 1$ for all $t$ — constant.
+:::
+
+## Special Case: Variance — Random Walk
+
+**What is $\text{Var}(X_t)$ for the random walk $X_t = X_{t-1} + \varepsilon_t$?** 
+
+```{python}
+#| label: module03-6
+#| echo: false
+#| eval: true
+_rw_var = _rw_many.var(axis=1)
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.plot(_rw_many, color="steelblue", alpha=0.05, linewidth=0.8)
+ax.set_title("Random Walk — 300 realizations")
+ax.set_xlabel("$t$")
+ax.set_ylabel("$X_t$")
+plt.tight_layout()
+plt.show()
+```
+
+
+::: {.fragment}
+Answer: if $X_0 := 0$, then  $\text{Var}(X_t) = t$ — the variance **grows** with time.
+
+
+```{python}
+#| label: module03-7
+#| echo: false
+#| eval: true
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.plot(_rw_var, color="red")
+ax.set_title("Sample variance across paths at each $t$")
+ax.set_xlabel("$t$")
+ax.set_ylabel("$\\widehat{\\text{Var}}(X_t)$")
+plt.tight_layout()
+plt.show()
+```
+
+:::
+
+## Lag-1 Covariance: IID Normal
+
+$$
+\gamma_X(t, t-1) = \text{Cov}(X_t, X_{t-1})
+$$
+
+For $X_t \overset{iid}{\sim} N(0,1)$: independence means $\text{Cov}(X_t, X_{t-1}) = 0$ for all $t$.
+
+```{python}
+#| label: module03-8
+#| echo: false
+#| eval: true
+fig, ax = plt.subplots(figsize=(5, 5))
+ax.scatter(_iid[:-1], _iid[1:], alpha=0.4, s=15)
+ax.set_xlabel("$X_{t-1}$")
+ax.set_ylabel("$X_t$")
+ax.set_title(f"IID $N(0,1)$: lag-1 scatter\n$\\hat{{\\gamma}}(1) = {np.cov(_iid[:-1], _iid[1:])[0,1]:.3f}$")
+plt.tight_layout()
+plt.show()
+```
+
+No structure — knowing $X_{t-1}$ tells you nothing about $X_t$. 
+
+## Lag-1 Covariance: Random Walk
+
+For random walk $X_t = X_{t-1} + \varepsilon_t$:
+
+$$
+\text{Cov}(X_t, X_{t-1}) = \text{Cov}(X_{t-1} + \varepsilon_t,\, X_{t-1}) = \text{Var}(X_{t-1}) = t - 1
+$$
+
+The lag-1 covariance **depends on $t$** — it grows without bound.
+
+```{python}
+#| label: module03-9
+#| echo: false
+#| eval: true
+_rw_flat = _rw_many.T
+_lag1_cov = np.array([
+    np.cov(_rw_flat[:, t-1], _rw_flat[:, t])[0, 1]
+    for t in range(1, 200)
+])
+fig, ax = plt.subplots(figsize=(10, 3))
+ax.plot(_lag1_cov)
+ax.plot(range(1, 200), np.arange(1, 200) - 1, linestyle="--", color="red", label="$t - 1$ (theory)")
+ax.set_xlabel("$t$")
+ax.set_ylabel("$\\widehat{\\text{Cov}}(X_t, X_{t-1})$")
+ax.set_title("Random Walk: lag-1 covariance grows with $t$")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+Note that this plot is only available for simulated data from a theoretical model.
+
+## The Covariance Function: All Lags
+
+
+With $n$ observations, there are $\binom{n}{2} \approx n^2/2$ distinct pairwise covariances. For $n = 1000$ daily returns, that is nearly 500,000 covariances.
+
+**In practice, we don't have many realizations from the same process.** We can't use the same calculations we used on simulated data just now. 
+
+Our approach will be to a.) deal only with stationary processes, and then b.) use an alternative estimator that we will describe next module. 
+
+```{python}
+#| label: module03-10
+#| echo: false
+#| eval: true
+fig, ax = plt.subplots(figsize=(10, 3))
+_log_ret.plot(ax=ax, title="AUD/JPY Log Returns × 100")
+ax.set_ylabel("Log Return (%)")
+plt.tight_layout()
+plt.show()
+```
+
+
+
+# Part 3: Stationarity
+
+## Strict Stationarity
+
+$\{X_t\}$ is **strictly stationary** if, for any integer $h$ and any collection of time points $t_1, \ldots, t_k$:
+
+$$
+(X_{t_1}, \ldots, X_{t_k}) \overset{d}{=} (X_{t_1 + h}, \ldots, X_{t_k + h})
+$$
+
+The **joint distribution** is unchanged by a time shift.
+
+Intuitively: the process "looks the same" no matter when you start observing it.
+
+E.g. the behavior of this week's daily returns is distributed exactly the same as next week's daily returns.
+
+## Weak (Covariance) Stationarity
+
+$\{X_t\}$ is **weakly stationary** if:
+
+1. $\mu_X(t) = \mu$ is constant (does not depend on $t$)
+2. $\gamma_X(t, t+h)$ depends only on $h$, not on $t$
+
+The mean is fixed and covariances depend only on the **lag**, not on where in time you are.
+
+Possible violations: 
+
+  - nonconstant mean (some kind of trend)
+  - nonconstant variance (e.g. random walk)
+  - something more complicated we haven't talked about
+
+
+## Strict vs. Weak Stationarity
+
+Strict stationarity with $E[X_t^2] < \infty$ implies weak stationarity — but not vice versa.
+
+A process can be weakly stationary without being strictly stationary: the first two moments behave well (constant mean, lag-only covariance structure), but higher-order features of the joint distribution may still shift over time.
+
+In practice, it's too difficult to talk about anything besides means, variances and covariances/correlations.
+
+**So, from now on, we only focus on weakly stationary models.**
+
+## The Autocovariance Function
+
+We start calling the covariance function an **autocovariance function** when we know we're dealing with a stationary process. 
+
+Recall for a stationary process, the covariance between $X_t$ and $X_{t+h}$ depends only on the lag $h$:
+
+$$
+\gamma_X(h) = \text{Cov}(X_{t+h}, X_t) = E\!\left[(X_{t+h} - \mu)(X_t - \mu)\right]
+$$
+
+This is the **autocovariance function (ACVF)**. "Auto" means "self" — it measures how the series covaries with its own past.
+
+## Variance as a Special Case
+
+$$
+\gamma_X(0) = \text{Cov}(X_t, X_t) = \text{Var}(X_t)
+$$
+
+The autocovariance at lag zero is just the (constant) variance of the process. 
+
+For a stationary process this is constant across time — and it is the baseline against which we measure all other lags.
+
+We can't use this for the random walk, but we could use it for the iid model.
+
+## The Autocorrelation Function
+
+The **autocorrelation function (ACF)** normalizes the ACVF so it is unitless and bounded:
+
+$$
+\rho_X(h) = \frac{\gamma_X(h)}{\gamma_X(0)} = \text{Cor}(X_{t+h}, X_t)
+$$
+
+Properties: $\rho_X(0) = 1$, $|\rho_X(h)| \leq 1$, $\rho_X(h) = \rho_X(-h)$.
+
+The ACF is one of the primary tools for detecting temporal dependence in a time series. We'll talk about how to estimate it with data soon.
+
+
+## Is Financial Data Stationary? — Prices
+
+Prices are **(pretty much) never stationary.**
+
+- FX rates wander without returning to a fixed level.
+- $\text{Var}(P_t)$ grows with $t$, consistent with a random walk.
+- Taking the mean across this is meaningless (more on this later)
+
+```{python}
+#| label: module03-11
+#| echo: false
+#| eval: true
+fig, ax = plt.subplots(figsize=(10, 3))
+_audjpy.plot(ax=ax, title="AUD/JPY Spot Rate (non-stationary)")
+ax.set_ylabel("Rate")
+plt.tight_layout()
+plt.show()
+```
+
+## Is Financial Data Stationary? — Log Returns
+
+Log returns are usually considered stationary.
+
+$$
+r_t = \log\!\left(\frac{P_t}{P_{t-1}}\right) = \log P_t - \log P_{t-1}
+$$
+
+- Sample mean is meaningfully estimating long run rate of return
+- Variance does not grow with $t$.
+- Work with returns, not prices.
+
+```{python}
+#| label: module03-12
+#| echo: false
+#| eval: true
+fig, ax = plt.subplots(figsize=(10, 3))
+_log_ret.plot(ax=ax, title="AUD/JPY Log Returns × 100 (approximately stationary)")
+ax.set_ylabel("Log Return (%)")
+plt.tight_layout()
+plt.show()
+```
+
+## Making Non-Stationary Data Stationary
+
+The go-to transformation for prices is **first differencing** of log prices (i.e., log returns):
+
+$$
+r_t = \nabla \log P_t = \log P_t - \log P_{t-1}
+$$
+
+For bond yields, sometimes differencing yields is appropriate; sometimes percentage changes are preferred. Context matters.
+
+**Key principle:** Before fitting any time series model, verify (or at least assume) that your series is stationary. We will revisit this with formal tests in Module 4.
+
+# Part 4: CS 2 — The FX Carry Trade
+
+## The Spot Exchange Rate
+
+The **spot exchange rate** $S_t$ is the price at which two currencies can be exchanged *right now*.
+
+In a currency pair **BASE/QUOTE**, the rate states how many units of the **quote** currency buy one unit of the **base** currency:
+
+$$
+\textbf{AUD/JPY}: \quad \underbrace{\text{AUD}}_{\text{base}} \;/\; \underbrace{\text{JPY}}_{\text{quote}} \quad \Longrightarrow \quad S_t = 95 \text{ means } 1 \text{ AUD} = 95 \text{ JPY}
+$$
+
+**Buying** AUD/JPY = buying the base (AUD), selling the quote (JPY).
+
+**Selling** AUD/JPY = selling the base (AUD), buying the quote (JPY).
+
+**To convert AUD → JPY:** multiply by $S_t$. &nbsp; (e.g., AUD 1 × 95 = JPY 95)
+
+**To convert JPY → AUD:** divide by $S_t$. &nbsp; (e.g., JPY 9,500 ÷ 95 = AUD 100)
+
+The spot rate changes every second as buyers and sellers trade. When AUD strengthens against JPY, $S_t$ rises; when AUD weakens, $S_t$ falls.
+
+## Risk-Free Interest Rates
+
+Every country has a short-term **risk-free interest rate** set (or heavily influenced) by its central bank.
+
+| Country | Central Bank | Recent Rate |
+|---|---|---|
+| Japan | Bank of Japan (BOJ) | ≈ 0–0.5% |
+| Australia | Reserve Bank of Australia (RBA) | ≈ 3–5% |
+
+If you **deposit** money at rate $i$, after one year ¥1 becomes ¥$(1 + i)$.
+
+If you **borrow** money at rate $i$, after one year you owe ¥$(1 + i)$ per ¥1 borrowed.
+
+These rates differ across countries because of different inflation expectations, growth prospects, and monetary policy stances. That gap is the raw material of the carry trade.
+
+## Entering the Trade at a Broker
+
+In a brokerage account you execute the carry trade with a single order:
+
+**Buy AUD/JPY** — buy the base (AUD), sell the quote (JPY).
+
+One standard lot = 100,000 units of the base. At $S_t = 95$:
+
+| Account balance | Before | After (bought 1 lot) |
+|---|---|---|
+| AUD | 0 | **+100,000** |
+| JPY | 0 | **−9,500,000** (= 100,000 × 95) |
+
+No separate borrowing step. The broker handles everything automatically.
+
+## The Interest Component: Setup
+
+The broker automatically credits and debits interest on these balances every night.
+
+Each rate has a spread built in:
+
+| Balance | Benchmark | Broker spread | Effective rate |
+|---|---|---|---|
+| +AUD 100,000 | RBA ≈ 4% | −0.5% | **3.5% earned** |
+| −¥9,500,000 | BOJ ≈ 0.1% | +0.5% | **0.6% paid** |
+
+The two flows are in different currencies, so we need to convert to a common one before netting.
+
+## The Interest Component: The Calculation
+
+**① AUD interest earned** (in AUD):
+$$\frac{3.5\%}{365} \times \text{AUD }100{,}000 = \frac{0.035}{365} \times 100{,}000 = \text{AUD }9.59\text{/day}$$
+
+**② Convert to JPY** at $S_t = 95$:
+$$\text{AUD }9.59 \times 95 = ¥911\text{/day}$$
+
+**③ JPY interest paid** (in JPY):
+$$\frac{0.6\%}{365} \times ¥9{,}500{,}000 = \frac{0.006}{365} \times 9{,}500{,}000 = ¥156\text{/day}$$
+
+**④ Net credit:**
+$$¥911 - ¥156 = ¥755\text{/day}$$
+
+Or in one step: $\dfrac{3.5\% - 0.6\%}{365} \times ¥9{,}500{,}000 \approx ¥755\text{/day}$
+
+## What's the Risk? The Spot Rate
+
+So far the interest credit of ¥755/day looks like easy money. The catch: **the spot rate moves every day too.**
+
+**Setup:** $S_t = 95$, position = AUD 100,000. Daily interest credit = ¥755.
+
+In the data, the typical daily AUD/JPY move is ±0.53% (1 standard deviation) — about ±¥50,000 on this position, or **66× the daily interest credit.**
+
+**The good case — AUD/JPY rises from 95 to 96 (+1.05%):**
+
+Mark-to-market: AUD $100{,}000 \times (96 - 95) = +¥100{,}000$
+
+Plus interest: $+¥755$
+
+**Total daily P&L: +¥100,755**
+
+**The bad case — AUD/JPY falls from 95 to 94 (−1.05%):**
+
+Mark-to-market: AUD $100{,}000 \times (94 - 95) = -¥100{,}000$
+
+Plus interest: $+¥755$
+
+**Total daily P&L: −¥99,245**
+
+A single ordinary bad day wipes out **133 days** of interest income.
+
+## The Payoff Formula
+
+Per ¥1 borrowed (Burnside, Eichenbaum & Rebelo 2011), the carry trade payoff is:
+
+$$
+z_{t+1} = (1 + i_{\text{AUD},t})\,\frac{S_{t+1}}{S_t} - (1 + i_{\text{JPY},t})
+$$
+
+Reading left to right:
+
+1. Borrow ¥1 → convert to $1/S_t$ AUD
+2. Invest: grows to $(1 + i_\text{AUD})/S_t$ AUD
+3. Convert back to JPY: $(1 + i_\text{AUD}) \cdot S_{t+1}/S_t$ JPY
+4. Repay: subtract $(1 + i_\text{JPY})$ JPY
+
+## The Two-Component Decomposition
+
+Using $\log(1+x) \approx x$ for small rates and writing $\Delta s_{t+1} = \log(S_{t+1}/S_t)$:
+
+$$
+z_{t+1} \approx \underbrace{(i_{\text{AUD},t} - i_{\text{JPY},t})}_{\text{carry (predictable)}} + \underbrace{\Delta s_{t+1}}_{\text{spot return (random)}}
+$$
+
+The **carry** component is known at time $t$ — it is the interest rate differential. Small and steady.
+
+The **spot return** component is unknown at time $t$ — it is the dominant source of day-to-day volatility.
+
+This decomposition is what we compute in our data.
+
+## Uncovered Interest Rate Parity (UIP)
+
+**If markets are efficient and investors are risk-neutral,** the expected payoff should be zero — otherwise everyone would pile into the trade and the profit would be arbitraged away.
+
+Setting $E_t[z_{t+1}] = 0$ in the payoff formula:
+
+$$
+E_t[\Delta s_{t+1}] = i_{\text{JPY},t} - i_{\text{AUD},t}
+$$
+
+This is **Uncovered Interest Rate Parity (UIP):** the high-yield currency (AUD) is *expected* to depreciate by exactly the interest rate gap.
+
+In our example: if $i_{\text{AUD}} - i_{\text{JPY}} = 3.9\%$, UIP predicts AUD should fall ~3.9% against JPY over the year. Expected profit = 0.
+
+**UIP is the no-free-lunch benchmark.** 
+
+## The Forward Premium Puzzle
+
+**Empirically:** UIP does not hold. The puzzle has two parts:
+
+1. **High-yield currencies depreciate less than predicted** — and sometimes *appreciate* — leaving carry traders with positive average profits.
+
+2. **Regression evidence** (Bilson 1981, Fama 1984): in the regression
+$$\Delta s_{t+1} = \alpha + \beta\,(i_{\text{AUD},t} - i_{\text{JPY},t}) + \varepsilon_{t+1}$$
+UIP predicts $\beta = 1$. Empirically $\hat\beta < 0$ in many samples — the opposite sign.
+
+This is the **forward premium puzzle**, one of the most replicated anomalies in international finance. It implies carry trades earn positive expected profits, which is why the strategy is so widely used.
+
+Why UIP fails is still debated: risk compensation, peso problems, price pressure, limits to arbitrage. We return to this in Module 6.
+
+## Getting the Data
+
+```{python}
+#| label: module03-13
+# run once to download FX rates and FRED interest rates
+import subprocess, sys
+subprocess.run([sys.executable, "../fetch_data.py"], check=True)
+```
+
+```{python}
+#| label: module03-14
+import numpy as np
+import pandas as pd
+
+fx = pd.read_csv("../data/fx_rates.csv", index_col=0, parse_dates=True)
+rates = pd.read_csv("../data/rates.csv", index_col=0, parse_dates=True)
+
+# spot log return (daily %)
+spot_ret = np.log(fx["AUDJPY"]).diff().dropna() * 100
+
+# daily carry: annualised rate differential / 252 trading days
+aud_rate = rates["AUD_rate"].reindex(spot_ret.index, method="ffill")
+jpy_rate = rates["JPY_rate"].reindex(spot_ret.index, method="ffill")
+daily_carry = (aud_rate - jpy_rate) / 252
+
+carry_pnl = (spot_ret + daily_carry).rename("carry_pnl")
+print(carry_pnl.describe())
+```
+
+## Decomposing the P&L
+
+```{python}
+#| label: module03-15
+#| echo: false
+#| eval: true
+_spot_ret = _log_ret
+_daily_carry_plot = (_aud_rate - _jpy_rate) / 252
+
+fig, axes = plt.subplots(3, 1, figsize=(10, 7))
+_spot_ret.plot(ax=axes[0], title="Spot Return (%)", alpha=0.7, color="steelblue")
+axes[0].set_ylabel("%")
+_daily_carry_plot.plot(ax=axes[1], title="Daily Carry (annualised differential / 252)", color="darkorange")
+axes[1].set_ylabel("%")
+_carry_pnl.cumsum().plot(ax=axes[2], title="Cumulative Total P&L (%)", color="green")
+axes[2].set_ylabel("Cumulative (%)")
+plt.tight_layout()
+plt.show()
+```
+
+## Questions We Will Answer
+
+Using the time series tools from Modules 3–6, we will answer:
+
+| Question | Tool | Module |
+|---|---|---|
+| Is the mean return positive? How uncertain? | Sample mean + inference | 4 |
+| Is the return series predictable? | ACF, ARMA models | 4–5 |
+| Does volatility cluster? | GARCH models | 6 |
+| Can we scale positions to control risk? | Volatility targeting | 6 |
+
+The goal of CS 2 is to go from raw FX data to a complete analysis of the carry trade strategy.
+
+# Part 5: Revisiting Module 2 — Why We Regressed Returns
+
+## The Danger of Regressing Price Levels
+
+In Module 2 we ran CAPM regressions on **returns**, not prices. Now we can say precisely why.
+
+Prices are non-stationary — they behave like random walks. When you regress one random walk on another, OLS produces dramatic-looking results even when the two series are completely independent. This is called **spurious regression** (Granger & Newbold, 1974).
+
+The $t$-statistic for $\hat\beta$ should asymptotically (i.e. for large data sets) follow $N(0,1)$ under the null of no relationship. But when both variables are random walks, the standard error formula is wrong — residuals inherit long-range dependence from the levels — and the $t$-stat is wildly overdispersed.
+
+## Spurious Regression: Simulation
+
+```{python}
+#| label: module03-spurious
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+
+rng = np.random.default_rng(42)
+n, B = 500, 3000
+
+betas, tstats = np.zeros(B), np.zeros(B)
+for i in range(B):
+    y = rng.normal(0, 1, n).cumsum()          # independent random walk
+    x = rng.normal(0, 1, n).cumsum()          # another, completely unrelated
+    res = sm.OLS(y, sm.add_constant(x)).fit()
+    betas[i]  = res.params[1]
+    tstats[i] = res.tvalues[1]
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+
+axes[0].hist(betas, bins=60, color="steelblue", alpha=0.75, density=True)
+axes[0].axvline(0, color="black", lw=1, ls="--")
+axes[0].set_title(r"Distribution of $\hat{\beta}$ — true $\beta = 0$")
+axes[0].set_xlabel(r"$\hat{\beta}$")
+
+axes[1].hist(tstats, bins=80, color="firebrick", alpha=0.75, density=True)
+xs = np.linspace(-5, 5, 300)
+axes[1].plot(xs, 1/np.sqrt(2*np.pi)*np.exp(-xs**2/2),
+             color="black", lw=1.5, ls="--", label="$N(0,1)$")
+axes[1].axvline(-1.96, color="gray", lw=1, ls=":")
+axes[1].axvline( 1.96, color="gray", lw=1, ls=":", label="±1.96")
+axes[1].set_xlim(-15, 15)
+axes[1].set_title(r"$t$-statistic for $\hat{\beta}$ — should be $N(0,1)$")
+axes[1].set_xlabel("$t$-statistic")
+axes[1].legend(fontsize=9)
+
+frac_sig = np.mean(np.abs(tstats) > 1.96)
+plt.suptitle(
+    f"B = {B} independent random walk pairs, n = {n} each"
+    f" — {frac_sig:.0%} 'significant' at 5% (should be 5%)"
+)
+plt.tight_layout()
+plt.show()
+```
+
+## What the Simulation Shows
+
+The $t$-statistic distribution is nothing like $N(0,1)$ — values of $\pm 10$ are routine, and roughly **60–70% of regressions appear significant at 5%** when none of them have any true relationship.
+
+This is not a small-sample curiosity. The problem gets **worse** as $n$ grows, because longer random walks wander further and the spurious correlation strengthens.
+
+**Connecting back to Module 2:**
+
+- CAPM on **returns** — stationary, OLS inference valid
+- CAPM on **prices** — non-stationary, $t$-stats and $p$-values are meaningless
+
+Any time you see a regression with a very high $R^2$ and very significant coefficients between two financial price series, ask: did the author difference first?

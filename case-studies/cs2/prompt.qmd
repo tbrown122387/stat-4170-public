@@ -1,0 +1,218 @@
+---
+title: "Case Study 2: The G10 FX Carry Trade"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Due: see Gradescope"
+format:
+  html:
+    theme: default
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    math: mathjax
+    self-contained: true
+execute:
+  echo: true
+  eval: false
+---
+
+## Overview
+
+**The scenario:** You've just rotated onto the G10 rates/FX desk at a macro hedge fund. In Modules 3–6 you built a complete analytical pipeline — stationarity checks, IID/random-walk diagnostics, ARMA identification, and GARCH volatility modeling — around a single trade: borrow JPY, invest in AUD, pocket the rate differential. Your PM read that analysis and asked the obvious next question: *"Nobody runs a carry book with one pair. Show me the G10 basket."*
+
+That question is not a formality. A single-pair carry trade is a concentrated bet on one country's monetary policy path relative to another's, with real crash risk (the 2008 unwind, the 2015 SNB peg break, the August 2024 JPY unwind). The way real desks and macro funds actually run carry is **cross-sectionally**: rank a basket of G10 currencies by interest-rate differential, go long the highest-yielders and short the lowest-yielders, size each leg by its own risk, and defend the result against the strategy's well-known tail risk — not trade one pair on a hunch that UIP will keep failing.
+
+This case study asks you to build that basket, using exactly the tools from Modules 3–6, and to confront the limitations the AUD/JPY analysis explicitly left on the table: one pair only, naive `/252` accrual, ignored regime change, no transaction costs, and look-ahead leakage in the volatility forecast. A cleaned-up version of Section 5 is a legitimate work sample of what a junior researcher on a macro or global-rates desk actually produces.
+
+Submit your work as a single, self-contained **Jupyter notebook** (`.ipynb`). Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error. Figures must render inline. Show all intermediate outputs that support your written interpretation.
+
+### Some Rookie Mistakes That Will Sink a Real Carry Book {.unnumbered}
+
+Every one of these has blown up a junior researcher's carry analysis before it ever got in front of a PM. Watch for them:
+
+- **Sign errors on the trade direction.** Buying a currency pair means going long the base currency and short the quote currency — get this backwards for even one leg of a 10-currency basket and your Sharpe ratio silently flips sign.
+- **Mixing accrual conventions.** The lecture's `/252` daily approximation is a simplification; compounding over actual calendar days (weekends and holidays still accrue interest) changes P&L, especially for high-rate currencies. Pick one convention, document it, and don't switch mid-notebook.
+- **Ranking by raw yield instead of risk-adjusted yield.** A currency with a high rate differential but also high FX volatility is not automatically attractive — that's why real desks size, not just rank.
+- **Look-ahead leakage in volatility forecasts.** Using a GARCH conditional-volatility estimate for day $t$ to size a position that trades *on* day $t$ (rather than $t+1$) is the same off-by-one bug as CS 1's trading loop, just relocated to the vol-targeting step (the lecture warns about exactly this — "beware the leakage").
+- **Treating the interbank/policy rate as the rate you actually earn.** Real desks pay a funding spread over the reference rate and don't capture the full quoted differential — a backtest with zero spread is fiction.
+- **Assuming the basket is well-diversified because it holds ten currencies.** G10 carry positions are highly correlated with each other and with global risk sentiment (they crash together) — nominal diversification across legs is not the same as diversification of risk.
+- **Reporting Sharpe ratio alone for a carry strategy.** Carry is famous for negative skewness and fat left tails ("picking up nickels in front of a steamroller"). A tearsheet that omits skewness, kurtosis, and max drawdown is hiding the strategy's actual risk.
+- **Silent stale-cache bugs and non-reproducible FRED/Yahoo pulls**, same as CS 1 — a grader re-running your notebook weeks later should get the same (or clearly documented, refreshed) numbers.
+
+---
+
+## Section 0 — Before You Start: What's Already Built
+
+The lecture slides for Modules 3–6 built a complete pipeline for **one pair**: AUD/JPY, using `lectures/data/fx_rates.csv`, `lectures/data/rates.csv` (AUD and JPY interbank rates from FRED), and `lectures/data/carry_pnl.csv`, plus `lectures/fetch_data.py` showing exactly how that data was pulled and how carry P&L was computed (spot log return plus the compounded rate differential, per Burnside, Eichenbaum & Rebelo 2011's payoff formula from Module 3).
+
+Read `fetch_data.py` before starting. You are extending it, not starting from scratch — but the extension is real work: FRED does not have interest-rate data sitting under one obvious, uniform naming convention across all ten currencies.
+
+---
+
+## Section 1 — Data Pipeline: Building the G10 Universe
+
+*In practice: this is the unglamorous data-sourcing work that gates everything else on a real desk — a basket strategy is only as good as its weakest data feed, and rate data is messier than equity prices.*
+
+Your universe is ten G10 currencies: **USD, EUR, JPY, GBP, CHF, CAD, AUD, NZD, SEK, NOK**. Use **USD as the funding/numeraire currency** — i.e., every other currency's carry is measured relative to the USD short rate, and spot rates are quoted as (or converted to) "USD per unit of foreign currency" or its inverse, consistently.
+
+### 1.1 — Short-Term Interest Rates
+
+FRED's OECD-sourced `IRSTCI01` series ("Immediate Rates (<24 Hours): Call Money/Interbank Rate") is what the lecture used for AUD and JPY (`IRSTCI01AUM156N`, `IRSTCI01JPM156N`). The same family covers most G10 currencies, but **you must verify each series ID yourself on the FRED website before using it** — series availability, frequency (monthly vs. annual), and exact suffixes are not perfectly uniform across countries, and a wrong or stale series ID is exactly the kind of silent bug that sinks a real analysis. As a starting point to verify (not to copy blindly): USD, EUR (quoted as the Euro Area aggregate), GBP, CHF, NZD, SEK, and NOK plausibly follow the `IRSTCI01{CC}M156N` pattern used for AUD and JPY; Canada may require checking a different frequency or a related interbank-rate series (e.g. the `IR3TIB01` "3-Month Interbank Rate" family) if the monthly call-money series isn't available. Document in a prose cell which series you used for each currency and why, including any substitutions.
+
+### 1.2 — Spot FX Rates
+
+Extend the `yfinance` pull from `fetch_data.py` to cover spot rates for all ten currencies against USD (following the same `"XXXUSD=X"` / `"USDXXX=X"` Yahoo ticker convention already used for AUDUSD, USDJPY, EURUSD, GBPUSD, and NZDUSD). Be deliberate and consistent about which currency is the base and which is the quote for each pair — this is exactly the sign-error rookie mistake above.
+
+### 1.3 — The Cache
+
+As in CS 1: write a disk-caching pipeline (CSV or Parquet) that avoids re-hitting FRED/Yahoo on every run, and only re-fetches when the local data doesn't cover the most recent available date. Include a prose cell on your cache invalidation logic.
+
+### 1.4 — Constructing Per-Currency Carry P&L
+
+For each of the nine non-USD currencies, construct a daily carry P&L series analogous to `carry_pnl.csv`: spot log return plus the compounded (or simple — be explicit and consistent) accrued rate differential versus USD. You should end this section with a single `DataFrame` of daily carry P&L, one column per currency, aligned on a common date index, with `NaN` handling made explicit.
+
+---
+
+## Section 2 — Revisiting Modules 3–4: Is the Single-Pair Story Robust?
+
+*In practice: before scaling a strategy from one instrument to ten, a quant desk asks whether the original finding was real or a fluke of that one pair.*
+
+### 2.1 — Random Walk / Stationarity Check, Basket-Wide
+
+Repeat the Module 3–4 analysis (log-price SACF, log-return SACF, visual and/or formal random-walk diagnostics) for **all ten** spot series, not just AUD/JPY. Produce a compact multi-panel figure (e.g., a grid of SACFs, or a summary table of a stationarity test statistic per currency). Does every currency's log-price behave like a random walk, or are there exceptions (e.g., pegged or heavily managed currencies)?
+
+### 2.2 — Mean Carry Return: Basket-Wide Significance
+
+Repeat Module 4's IID-model mean test (is the mean carry P&L significantly different from zero?) for each of the nine currency pairs individually. Present a summary table with each currency's mean daily carry P&L, standard error, and $t$-statistic. Which currencies show a statistically significant positive carry, and which don't? Is this consistent with the forward premium puzzle discussion from Module 3 — i.e., do the currencies with the largest average rate differential also show the most robust positive carry P&L, or does that relationship break down?
+
+### 2.3 — Bootstrap Robustness
+
+Choose two or three currencies (including AUD/JPY, for continuity with the lecture) and bootstrap the sample mean carry P&L (resample days with replacement, 500–1000 resamples). Visualize the bootstrap distributions. Is the single-pair AUD/JPY finding from the lecture robust to resampling, or fragile?
+
+---
+
+## Section 3 — Revisiting Module 5–6: Mean Predictability and Volatility per Currency
+
+*In practice: this is where the desk decides whether each leg of the basket needs its own volatility model, or whether one model fits all reasonably well.*
+
+### 3.1 — ARMA Identification, Basket-Wide
+
+For each currency's carry P&L series, look at ACF/PACF and use an information-criterion grid search (as in Module 5) to check for exploitable mean structure. Summarize in a table: best-fit ARMA order and whether the "no meaningful mean predictability" finding from the lecture holds across the whole basket, or whether one or two currencies are outliers.
+
+### 3.2 — GARCH Fitting, Basket-Wide
+
+Fit a GARCH(1,1) (Normal and Student-$t$ innovations, as in Module 6) to each currency's carry P&L. Report a summary table of $\hat\alpha_1$, $\hat\beta_1$, persistence ($\hat\alpha_1+\hat\beta_1$), and which innovation distribution wins by AIC/BIC for each currency. Run the standardized-residual Ljung-Box diagnostic from the lecture on each fit. Do all nine currencies show volatility clustering, or is it more pronounced in some than others?
+
+### 3.3 — The Fama Regression, Basket-Wide
+
+For each currency, run the Fama/UIP regression from Module 3:
+$$
+\Delta s_{t+1} = \alpha + \beta\,(i_{\text{foreign},t} - i_{\text{USD},t}) + \varepsilon_{t+1}
+$$
+Report $\hat\beta$ and its standard error for each currency in a summary table. UIP predicts $\beta=1$; the forward premium puzzle predicts $\hat\beta < 0$ (or at least $<1$) in practice. Does the puzzle show up basket-wide, or only for some currencies? This table is your empirical justification for why a cross-sectional carry basket should have positive expected P&L in the first place — treat it accordingly in your write-up.
+
+---
+
+## Section 4 — Building the G10 Carry Basket
+
+*In practice: this is the actual portfolio construction step — the difference between "I found an anomaly" and "I have a tradeable strategy."*
+
+### 4.1 — Rank-and-Sort Basket
+
+At the start of each month, rank the nine non-USD currencies by their **current** interest-rate differential versus USD (using only information available at that point — no look-ahead). Go long the top three, short the bottom three, equal-weighted within each leg, dollar-neutral overall (long leg notional = short leg notional). Hold for the month, then re-rank and rebalance. Compute the resulting daily P&L series.
+
+### 4.2 — Volatility-Targeted (Risk-Parity) Basket
+
+Using each currency's GARCH(1,1) one-step-ahead conditional volatility forecast from Section 3.2, weight each leg of the basket **inversely to its forecast volatility** rather than equally (as in Module 6's single-pair vol-targeting section) so that every currency contributes roughly equal risk. Be careful with timing: the position held on day $t+1$ must use volatility information known by the end of day $t$ — re-derive this correctly rather than copying the lecture's indexing blindly, since you now have nine parallel series instead of one.
+
+### 4.3 — Adding Realism: Costs and Funding Spread
+
+Extend the basket backtest with:
+
+- A **transaction cost** in basis points applied to turnover at each monthly rebalance (as in CS 1 Section 4.2), for both the rank-and-sort and vol-targeted baskets.
+- A **funding spread**: assume you earn/pay the quoted interbank rate *minus* (or *plus*, for the short leg) a spread of a few basis points, reflecting that no real desk transacts exactly at the reference rate.
+
+Compare net-of-cost performance across a couple of monthly cost levels and a couple of assumed funding spreads. How much of the gross carry P&L survives realistic frictions?
+
+### 4.4 — Basket vs. Single Pair
+
+Directly compare, over the same sample period: (a) the original single-pair AUD/JPY carry trade, (b) the equal-weight rank-and-sort basket, and (c) the vol-targeted basket. Report Sharpe ratio, annualized return, annualized volatility, and max drawdown for all three. Does diversifying across the G10 basket actually improve risk-adjusted returns relative to the single pair, and if so, by how much?
+
+---
+
+## Section 5 — Full Backtest and Risk Tearsheet
+
+*In practice: this is what would actually get shown to a PM deciding whether to allocate risk capital to a G10 carry book — and it needs to be honest about tail risk, not just average return.*
+
+### 5.1 — Walk-Forward Loop
+
+Build a walk-forward backtester analogous to CS 1 Section 5: at each monthly rebalance date $t$, use only rate and price history through $t$ to (a) rank currencies, (b) refit GARCH models (or reuse a fit refreshed at a reasonable frequency — justify your choice, since refitting GARCH daily may be overkill, echoing the lecture's own note that GARCH parameters are probably trusted longer than an ARMA fit), and (c) compute vol-targeted basket weights. Trade into those weights, apply transaction costs and funding spread as in Section 4.3, and record net P&L.
+
+### 5.2 — Performance Report: The Tearsheet
+
+Produce a one-page tearsheet (a markdown cell plus compact figures) with, at minimum:
+
+| Metric | Value |
+|---|---|
+| Annualized return | |
+| Annualized volatility | |
+| Sharpe ratio | |
+| **Skewness** | |
+| **Excess kurtosis** | |
+| Maximum drawdown | |
+| 95% conditional VaR (from your GARCH-$t$ fits, as in Module 6) | |
+| Total turnover (annualized) | |
+| Total costs + funding spread paid (% of initial capital) | |
+
+Skewness and kurtosis are **not optional** here, unlike a generic equity strategy — they are the whole point of evaluating a carry strategy honestly. Plot cumulative P&L for the basket against the single AUD/JPY pair and against a naive "long every currency, no ranking" benchmark.
+
+If your sample period includes a known carry-unwind episode (e.g., the 2008 financial crisis or the August 2024 JPY carry unwind), zoom in on that window specifically and show what happened to the basket's drawdown and to your GARCH-based VaR estimate in real time — did the model's risk estimate rise in time to be useful, or only after the damage was done?
+
+Close with a PM-facing recommendation paragraph (3–5 sentences): does the evidence support allocating risk capital to this basket, and under what conditions or caveats?
+
+### 5.3 — Interpretation
+
+Address each of the following in prose:
+
+- Did the vol-targeted basket meaningfully reduce drawdown or tail risk relative to the equal-weight basket, or was the improvement mostly cosmetic?
+- How much did transaction costs and funding spread change your conclusion relative to the frictionless Section 4.1/4.2 results?
+- Looking at the skewness/kurtosis and the crash-episode zoom-in: is this strategy better described as "a modest, steady edge" or as "collecting a small premium in exchange for rare, large losses"? Defend your answer with numbers from your own tearsheet.
+- If you were actually running this book, what single change (position sizing, a stop-loss, a crash hedge, fewer currencies) would you make first, and why?
+
+---
+
+## Section 6 — Bonus: A Trend Overlay to Manage Crash Risk (Optional, up to 5 extra points)
+
+Carry's negative skewness is well known, and one of the standard defenses real macro funds use is to combine carry with a **trend/momentum filter**: only hold a currency long if it is *also* in a spot uptrend (e.g., current spot above its trailing 3- or 12-month moving average), and only hold it short if it's in a downtrend. This doesn't eliminate crash risk, but it tends to get a fund out of a currency's long leg before (or during) a carry unwind, since unwinds are typically accompanied by a sharp trend reversal in the funding currency's favor.
+
+Implement this overlay on top of your Section 4.2 (or 5.1) vol-targeted basket: for each currency and each rebalance date, only take the carry-implied position if it agrees with the trend signal; otherwise go flat (or reduce size — your choice, justify it) in that leg. Compare the tearsheet metrics (especially skewness, max drawdown, and behavior in the crash episode you identified in Section 5.2) with and without the overlay. Did adding trend help, hurt, or mostly just cost you some of the average carry return in exchange for a smoother path?
+
+---
+
+## Deliverables and Grading
+
+Submit a single `.ipynb` that runs top-to-bottom without error. You do not need to commit your cached data files; include the caching functions so a grader can reproduce the downloads (noting that FRED/Yahoo series may update between your run and the grader's — document your as-of date). Where sections ask for "good visualizations," axis labels, legends, and titles are required.
+
+| Section | Points |
+|---|---|
+| 1 — Data pipeline (G10 rates + spot, caching, carry P&L construction) | 15 |
+| 2 — Revisiting Modules 3–4 basket-wide (random walk, mean carry, bootstrap) | 15 |
+| 3 — Revisiting Modules 5–6 basket-wide (ARMA, GARCH, Fama regression) | 20 |
+| 4 — Basket construction (rank-sort, vol-targeting, costs, comparison to single pair) | 25 |
+| 5 — Backtest and tearsheet (loop + skew/kurtosis + crash episode + interpretation) | 25 |
+| 6 — Bonus | up to +5 |
+| **Total** | **100 (+5 bonus)** |
+
+Partial credit is given for each section independently. A section that is attempted but incomplete receives more credit than a section that is skipped.
+
+**A note on why this matters beyond the grade:** the single-pair AUD/JPY analysis from lecture is a teaching example; the G10 basket in this case study — with honest transaction costs, a walk-forward backtest, and a tearsheet that doesn't hide skewness and drawdown — is close to what a junior researcher on an actual macro or global-rates desk would be asked to produce as a first pass on a carry strategy. Consider putting a polished version on GitHub.
+
+## References
+
+- Bilson, J. F. O. (1981). *The "speculative efficiency" hypothesis*. Journal of Business, 54(3), 435–451.
+- Bollerslev, T. (1986). *Generalized autoregressive conditional heteroskedasticity*. Journal of Econometrics, 31(3), 307–327.
+- Burnside, C., Eichenbaum, M., & Rebelo, S. (2011). *Carry trade and momentum in currency markets*. Annual Review of Financial Economics, 3(1), 511–535.
+- Engle, R. F. (1982). *Autoregressive conditional heteroscedasticity with estimates of the variance of United Kingdom inflation*. Econometrica, 50(4), 987–1007.
+- Fama, E. F. (1984). *Forward and spot exchange rates*. Journal of Monetary Economics, 14(3), 319–338.
+- Granger, C. W. J., & Newbold, P. (1974). *Spurious regressions in econometrics*. Journal of Econometrics, 2(2), 111–120.
+- Lustig, H., Roussanov, N., & Verdelhan, A. (2011). *Common risk factors in currency markets*. Review of Financial Studies, 24(11), 3731–3777.
+- Menkhoff, L., Sarno, L., Schmeling, M., & Schrimpf, A. (2012). *Carry trades and global foreign exchange volatility*. Journal of Finance, 67(2), 681–718.

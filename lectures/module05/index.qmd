@@ -1,0 +1,697 @@
+---
+title: "Module 5: AR and MA Models"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Taylor R. Brown"
+format:
+  revealjs:
+    theme: [default, ../uva-theme.scss]
+    slide-number: c/t
+    footer: "{{< var course.code >}} – {{< var course.title >}} · Module 5"
+    toc: true
+    toc-depth: 1
+    smaller: true
+    scrollable: true
+    html-math-method: katex
+execute:
+  echo: true
+  eval: false
+---
+
+# Part 0: Motivation
+
+## Motivation
+
+Every once in a while, you'll have some stationary process, but there will be some autocorrelation at lags $\ge 1$.
+
+In this module, we'll talk about two ways a time series can depend on its past. 
+
+We continue to restrict our attention to stationary models/data. 
+
+
+# Part 1: Moving Average Models
+
+## MA(1): First-Order Moving Average
+
+Let $\{Z_t\} \sim \text{WN}(0, \sigma^2)$. The **MA(1)** model is:
+
+$$
+X_t = Z_t + \theta Z_{t-1}
+$$
+
+- $\theta$ controls the strength and sign of lag-one autocorrelation.
+- Each observation is a linear combination of the current shock and the previous one.
+- $E[X_t] = 0$ by linearity.
+- This is stationary regardless of the value of $\theta$.
+
+## MA(1): Simulated Time Series
+
+What does an MA(1) path actually look like?
+
+```{python}
+#| label: module05-ma1-series
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(5005)
+theta = 0.6
+n = 500
+
+Z = np.random.normal(size=n + 1)
+X = Z[1:] + theta * Z[:-1]
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(X, color="C0", lw=1)
+ax.axhline(0, color="black", lw=1, ls="--")
+ax.set_title(f"Simulated MA(1), θ={theta}")
+ax.set_xlabel("t")
+ax.set_ylabel(r"$X_t$")
+plt.tight_layout()
+plt.show()
+```
+
+
+## MA(1): ACVF
+
+\begin{align*}
+\gamma_X(h) &= E[X_{t+h} X_t] \\
+&= E\!\left[(Z_{t+h} + \theta Z_{t+h-1})(Z_t + \theta Z_{t-1})\right] \\
+&= \begin{cases}
+\sigma^2(1 + \theta^2) & h = 0 \\
+\sigma^2 \theta & h = \pm 1 \\
+0 & |h| > 1
+\end{cases}
+\end{align*}
+
+**Key feature:** the ACF **cuts off** after lag 1.
+
+These models have finite "memory."
+
+
+## MA(1): ACF
+
+$$
+\rho_X(h) = \begin{cases}
+1 & h = 0 \\
+\dfrac{\theta}{1 + \theta^2} & h = \pm 1 \\
+0 & |h| > 1
+\end{cases}
+$$
+
+A sharp cutoff in the sample ACF is the **signature of an MA model**.
+
+Note: $|\rho_X(1)| = |\theta|/(1 + \theta^2) \leq 1/2$. The maximum one-lag correlation an MA(1) can produce is $1/2$, achieved at $|\theta| = 1$.
+
+
+## MA(1): Visualizing the ACF
+
+Simulate $X_t = Z_t + \theta Z_{t-1}$ and compare the **sample ACF** to the **theoretical ACF** derived above.
+
+```{python}
+#| label: module05-ma1-acf
+#| eval: true
+#| output-location: slide
+from matplotlib.lines import Line2D
+from statsmodels.graphics.tsaplots import plot_acf
+
+# reuse the same simulated X, theta, n from the previous slide
+lags = 15
+rho_theory = np.zeros(lags + 1)
+rho_theory[0] = 1
+rho_theory[1] = theta / (1 + theta**2)
+
+fig, ax = plt.subplots(figsize=(9, 5))
+plot_acf(X, lags=lags, ax=ax, title=f"MA(1), θ={theta}: Sample vs. Theoretical ACF")
+ax.scatter(range(lags + 1), rho_theory, color="red", zorder=5, label="Theoretical ACF")
+
+sample_handle = Line2D([0], [0], color="C0", marker="o", label="Sample ACF")
+theory_handle = Line2D([0], [0], color="red", marker="o", linestyle="", label="Theoretical ACF")
+ax.legend(handles=[sample_handle, theory_handle])
+plt.tight_layout()
+plt.show()
+```
+
+The sample ACF (blue bars, with confidence bands) closely tracks the theoretical values (red dots) — a sharp drop to (near) zero after lag 1.
+
+## Invertibility
+
+An MA(1) is **invertible** if $|\theta| < 1$. 
+
+Invertibility ensures the model is **uniquely identifiable** from its ACVF. For any non-invertible MA model, there is an equivalent invertible one with the same ACVF but parameter $1/\theta$ instead of $\theta$.
+
+In practice, estimation software always returns the invertible solution.
+
+
+## MA(q): General Case
+
+
+$$
+X_t = Z_t + \theta_1 Z_{t-1} + \cdots + \theta_q Z_{t-q}, \quad \{Z_t\} \sim \text{WN}(0, \sigma^2)
+$$
+
+ACVF:
+$$
+\gamma_X(h) = \sigma^2 \sum_{j=0}^{q - |h|} \theta_j \theta_{j + |h|}, \quad |h| \leq q \quad (\theta_0 = 1)
+$$
+
+and $\gamma_X(h) = 0$ for $|h| > q$.
+
+**The ACF of an MA($q$) is exactly zero beyond lag $q$.** This is the diagnostic used to identify $q$ from the sample ACF.
+
+## Invertibility of MA($q$)
+
+There is another (more complicated) way to ensure invertibility of an MA($q$) model, but writing the criterion requires discussing complex-valued polynomials. If you're interested in learning about those, see the supplementary lecture.
+
+It's easy to miss the forest through the trees on this: it's just a restriction of the parameter space so we don't get two different models that yield that same acf plot. 
+
+Nobody uses non-invertible MA models. Software will (should) always restrict its attention to this situation. It's just good to know that there is a restriction of the parameter space happening, though. 
+
+
+## MA(3): Simulated Time Series
+
+What does an MA(3) path actually look like?
+
+```{python}
+#| label: module05-ma3-series
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(5005)
+thetas = np.array([0.5, -0.3, 0.2])
+q = len(thetas)
+n = 500
+
+Z = np.random.normal(size=n + q)
+X = Z[q:].copy()
+for j, theta in enumerate(thetas, start=1):
+    X += theta * Z[q - j:n + q - j]
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(X, color="C0", lw=1)
+ax.axhline(0, color="black", lw=1, ls="--")
+ax.set_title(f"Simulated MA(3), θ={list(thetas)}")
+ax.set_xlabel("t")
+ax.set_ylabel(r"$X_t$")
+plt.tight_layout()
+plt.show()
+```
+
+## MA(3): Visualizing the ACF
+
+Simulate $X_t = Z_t + \theta_1 Z_{t-1} + \theta_2 Z_{t-2} + \theta_3 Z_{t-3}$ and compare the **sample ACF** to the **theoretical ACF**.
+
+```{python}
+#| label: module05-ma3-acf
+#| eval: true
+#| output-location: slide
+from matplotlib.lines import Line2D
+from statsmodels.graphics.tsaplots import plot_acf
+
+# reuse the same simulated X, thetas, q, n from the previous slide
+lags = 15
+theta_full = np.concatenate(([1.0], thetas))
+gamma_theory = np.array([
+    np.sum(theta_full[: q - h + 1] * theta_full[h : q + 1]) if h <= q else 0.0
+    for h in range(lags + 1)
+])
+rho_theory = gamma_theory / gamma_theory[0]
+
+fig, ax = plt.subplots(figsize=(9, 5))
+plot_acf(X, lags=lags, ax=ax, title=f"MA(3), θ={list(thetas)}: Sample vs. Theoretical ACF")
+ax.scatter(range(lags + 1), rho_theory, color="red", zorder=5)
+
+sample_handle = Line2D([0], [0], color="C0", marker="o", label="Sample ACF")
+theory_handle = Line2D([0], [0], color="red", marker="o", linestyle="", label="Theoretical ACF")
+ax.legend(handles=[sample_handle, theory_handle])
+plt.tight_layout()
+plt.show()
+```
+
+The sample ACF (blue bars, with confidence bands) closely tracks the theoretical values (red dots) — a sharp drop to (near) zero after lag 3.
+
+# Part 2: Autoregressive Models
+
+## AR(1): First-Order Autoregression
+
+Let $\{Z_t\} \sim \text{WN}(0, \sigma^2)$ with $|\phi| < 1$. The **AR(1)** model is:
+
+$$
+X_t = \phi X_{t-1} + Z_t
+$$
+
+- $\phi > 0$: positive autocorrelation (momentum / persistence)
+- $\phi < 0$: negative autocorrelation (mean-reversion / oscillation)
+- $\phi = 1$ random walk (nonstationary)
+
+## AR(1): Simulated Time Series
+
+Compare $\phi = 0.7$ (momentum) to $\phi = -0.7$ (oscillation).
+
+```{python}
+#| label: module05-ar1-series
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(5005)
+n = 500
+phis = [0.7, -0.7]
+
+series = {}
+for phi in phis:
+    Z = np.random.normal(size=n)
+    X = np.zeros(n)
+    for t in range(1, n):
+        X[t] = phi * X[t - 1] + Z[t]
+    series[phi] = X
+
+fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+for ax, phi in zip(axes, phis):
+    ax.plot(series[phi], color="C0", lw=1)
+    ax.axhline(0, color="black", lw=1, ls="--")
+    ax.set_title(f"Simulated AR(1), φ={phi}")
+    ax.set_ylabel(r"$X_t$")
+
+axes[-1].set_xlabel("t")
+plt.tight_layout()
+plt.show()
+```
+
+## AR(1): Stationarity via MA($\infty$) Representation
+
+Under $|\phi| < 1$, repeatedly substituting the AR equation gives:
+
+\begin{align*}
+X_t &= \phi X_{t-1} + Z_t \\
+&= \phi(\phi X_{t-2} + Z_{t-1}) + Z_t \\
+&= Z_t + \phi Z_{t-1} + \phi^2 Z_{t-2} + \cdots \\
+&= \sum_{j=0}^\infty \phi^j Z_{t-j}
+\end{align*}
+
+This is an MA($\infty$) representation with absolutely summable coefficients $\sum |\phi^j| = 1/(1 - |\phi|) < \infty$. When an AR process has such a representation, it is called **causal**.
+
+## AR(1): ACVF and ACF
+
+For the stationary AR(1):
+
+$$
+\gamma_X(0) = \frac{\sigma^2}{1 - \phi^2}
+$$
+
+For $h > 0$:
+
+\begin{align*}
+\gamma_X(h) &= E[X_{t+h} X_t] = E[(\phi X_{t+h-1} + Z_{t+h}) X_t] = \phi \gamma_X(h-1)
+\end{align*}
+
+Iterating: $\gamma_X(h) = \phi^h \gamma_X(0)$. So the ACF is:
+
+$$
+\rho_X(h) = \phi^{|h|}
+$$
+
+**Key feature:** the ACF **decays geometrically**, never cutting off.
+
+## AR(1): Visualizing the ACF
+
+Compare the **sample ACF** to the theoretical $\rho_X(h) = \phi^{|h|}$ for $\phi = 0.7$ and $\phi = -0.7$.
+
+## {data-menu-title="AR(1): Sample vs. Theoretical ACF (code)"}
+
+```{python}
+#| label: module05-ar1-acf
+#| eval: true
+#| output-location: slide
+from matplotlib.lines import Line2D
+from statsmodels.graphics.tsaplots import plot_acf
+
+# reuse the same simulated series, phis, n from the AR(1) time series slide
+lags = 15
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+for ax, phi in zip(axes, phis):
+    rho_theory = phi ** np.arange(lags + 1)
+    plot_acf(series[phi], lags=lags, ax=ax, title=f"AR(1), φ={phi}")
+    ax.scatter(range(lags + 1), rho_theory, color="red", zorder=5)
+
+sample_handle = Line2D([0], [0], color="C0", marker="o", label="Sample ACF")
+theory_handle = Line2D([0], [0], color="red", marker="o", linestyle="", label="Theoretical ACF")
+axes[0].legend(handles=[sample_handle, theory_handle])
+plt.tight_layout()
+plt.show()
+```
+
+The sample ACF tracks the theoretical geometric decay in both cases — note the **alternating sign** when $\phi < 0$, versus the smooth decay when $\phi > 0$. Unlike the MA case, there is no sharp cutoff.
+
+## AR(p): General Case
+
+When we have an AR($p$)
+$$
+X_t = \phi_1 X_{t-1} + \phi_2 X_{t-2} + \cdots + \phi_p X_{t-p} + Z_t
+$$
+
+there is a way to restrict our attention to causal models. However, writing it down requires discussion of complex-valued polynomials. If you're interested in learning about those, see the supplementary lecture.
+
+Most of the time people work with causal models, just because it makes sense that we **don't allow ourselves to condition on the future.**
+
+## AR(2): Simulated Time Series
+
+With complex-conjugate roots, an AR(2) can produce a **pseudo-periodic**, oscillating-but-decaying series.
+
+```{python}
+#| label: module05-ar2-series
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(5005)
+n = 200
+phi1, phi2 = 0.5, -0.7
+
+Z = np.random.normal(size=n)
+X = np.zeros(n)
+for t in range(2, n):
+    X[t] = phi1 * X[t - 1] + phi2 * X[t - 2] + Z[t]
+
+fig, ax = plt.subplots(figsize=(10, 4))
+ax.plot(X, color="C0", lw=1)
+ax.axhline(0, color="black", lw=1, ls="--")
+ax.set_title(f"Simulated AR(2), φ₁={phi1}, φ₂={phi2}")
+ax.set_xlabel("t")
+ax.set_ylabel(r"$X_t$")
+plt.tight_layout()
+plt.show()
+```
+
+## AR(2): Visualizing the ACF
+
+Compare the **sample ACF** to the theoretical ACF, obtained via the Yule-Walker recursion
+
+$$
+\rho_X(1) = \frac{\phi_1}{1 - \phi_2}, \qquad \rho_X(h) = \phi_1 \rho_X(h-1) + \phi_2 \rho_X(h-2), \quad h \geq 2
+$$
+
+
+```{python}
+#| label: module05-ar2-acf
+#| eval: true
+#| output-location: slide
+from matplotlib.lines import Line2D
+from statsmodels.graphics.tsaplots import plot_acf
+
+# reuse the same simulated X, phi1, phi2, n from the AR(2) time series slide
+lags = 15
+rho_theory = np.zeros(lags + 1)
+rho_theory[0] = 1
+rho_theory[1] = phi1 / (1 - phi2)
+for h in range(2, lags + 1):
+    rho_theory[h] = phi1 * rho_theory[h - 1] + phi2 * rho_theory[h - 2]
+
+fig, ax = plt.subplots(figsize=(9, 5))
+plot_acf(X, lags=lags, ax=ax, title=f"AR(2), φ₁={phi1}, φ₂={phi2}: Sample vs. Theoretical ACF")
+ax.scatter(range(lags + 1), rho_theory, color="red", zorder=5)
+
+sample_handle = Line2D([0], [0], color="C0", marker="o", label="Sample ACF")
+theory_handle = Line2D([0], [0], color="red", marker="o", linestyle="", label="Theoretical ACF")
+ax.legend(handles=[sample_handle, theory_handle])
+plt.tight_layout()
+plt.show()
+```
+
+The pseudo-periodic time series shows up in the ACF as a damped oscillation rather than a sharp cutoff — the signature of complex-conjugate roots. If you're interested in learning about complex polynomials, see the supplementary lecture.
+
+## The Partial Autocorrelation Function (PACF)
+
+The **PACF** at lag $h$ measures the correlation between $X_t$ and $X_{t-h}$ **after removing the linear effect** of the intermediate observations $X_{t-1}, \ldots, X_{t-h+1}$.
+
+Formally, it's the coefficient on $X_{t-h}$ in the best linear predictor of $X_t$ from $X_{t-1}, \ldots, X_{t-h}$ (computable via the Durbin-Levinson recursion).
+
+**Key feature:** for an AR($p$), the PACF is exactly zero beyond lag $p$.
+
+- Intuition: once you regress $X_t$ on its own $p$ lags, you've captured everything the model says about the past — an additional lag adds nothing.
+- This is the AR analogue of the ACF cutoff for MA($q$) models.
+
+## PACF of the Simulated AR Models
+
+Compare the **sample PACF** for AR(1), $\phi = 0.7$; AR(1), $\phi = -0.7$; and AR(2), $\phi_1 = 0.5, \phi_2 = -0.7$.
+
+```{python}
+#| label: module05-ar-pacf
+#| eval: true
+#| output-location: slide
+from statsmodels.graphics.tsaplots import plot_pacf
+
+# reuse series (AR(1) paths) and X (the AR(2) path) simulated earlier
+lags = 15
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+plot_pacf(series[0.7], lags=lags, ax=axes[0], title="AR(1), φ=0.7")
+plot_pacf(series[-0.7], lags=lags, ax=axes[1], title="AR(1), φ=-0.7")
+plot_pacf(X, lags=lags, ax=axes[2], title=f"AR(2), φ₁={phi1}, φ₂={phi2}")
+plt.tight_layout()
+plt.show()
+```
+
+Each PACF cuts off right after the true model order — lag 1 for the AR(1)s, lag 2 for the AR(2) — while the ACFs (previous slides) tail off geometrically instead.
+
+# Part 3: ARMA Models and ARIMA Models
+
+## ARMA(p, q)
+
+The **ARMA($p, q$)** model combines both:
+
+$$
+X_t - \phi_1 X_{t-1} - \cdots - \phi_p X_{t-p} = Z_t + \theta_1 Z_{t-1} + \cdots + \theta_q Z_{t-q}
+$$
+
+There are some technical restrictions on the parameter space. For more details see the supplementary lecture on complex polynomials. 
+
+## Why ARMA?
+
+Pure AR or MA models can require many parameters to capture complicated ACF shapes.
+
+An ARMA(1,1) may approximate data that would require AR(10) or MA(20) to describe. This is the **parsimony** principle: fewer parameters generalize better.
+
+If you don't have a compliated ACF/PACF, don't worry about it. If you do, you'll most likely use ARMA instead of a pure MA, or pure AR.
+
+## ARIMA(p, d, q)
+
+ARMA requires $\{X_t\}$ to already be stationary. Many series (e.g., (log-)price levels) aren't. But their **differences** often are.
+
+The **ARIMA($p, d, q$)** model applies ARMA($p, q$) to the series after differencing $d$ times. Let $W_t$ denote $X_t$ differenced $d$ times (e.g., $W_t = X_t - X_{t-1}$ when $d=1$). Then $\{W_t\}$ follows an ARMA($p,q$):
+
+$$
+W_t - \phi_1 W_{t-1} - \cdots - \phi_p W_{t-p} = Z_t + \theta_1 Z_{t-1} + \cdots + \theta_q Z_{t-q}
+$$
+
+**In practice:** $d=0$ recovers plain ARMA; $d=1$ models the differenced series (e.g., returns instead of prices); $d\ge2$ is rare.
+
+We've been modeling AUD/JPY **returns** directly, which are already stationary — so $d=0$ and ARMA suffices. ARIMA becomes necessary if you instead want to model the non-stationary **price/spot level**.
+
+# Part 4: Adding Deterministic Trend
+
+## Why Extend ARMA?
+
+Every model so far has assumed $E[X_t] = 0$ exactly, with no trend and no explanatory variables.
+
+Real series have nonzero means, trends, and — often — other economic variables that help explain them. This part shows how those pieces attach to the same ARMA machinery instead of requiring a new theory.
+
+The takeaway: ARMA is a **building block**, not a finished forecasting model on its own.
+
+## Intercept vs. Mean: An Easy Mix-Up
+
+Add a constant $c$ directly to the right-hand side of the ARMA equation — this is the **intercept**:
+
+$$
+X_t = c + \phi_1 X_{t-1} + \cdots + \phi_p X_{t-p} + Z_t + \theta_1 Z_{t-1} + \cdots + \theta_q Z_{t-q}
+$$
+
+Taking expectations of both sides (assuming stationarity, $d=0$) gives the **mean** $\mu = E[X_t]$:
+
+$$
+\mu = c + \phi_1 \mu + \cdots + \phi_p \mu \quad\Longrightarrow\quad \mu = \frac{c}{1 - \phi_1 - \cdots - \phi_p}
+$$
+
+**$c$ and $\mu$ are the same number only when $p = 0$** (pure MA, or white noise). Whenever there's an AR component, the raw intercept and the long-run mean differ — and software isn't always consistent about which one it reports or lets you fix, which is a common source of confusion when reading output.
+
+## The Same Constant After Differencing
+
+Now suppose $d \geq 1$ and we add a constant $c$ to the equation for the differenced series $W_t = X_t - X_{t-1}$:
+
+$$
+W_t = c + \phi_1 W_{t-1} + \cdots + Z_t + \theta_1 Z_{t-1} + \cdots
+$$
+
+By the same argument as above, $E[W_t] = c / (1 - \sum \phi_i)$ — a nonzero constant. Since $X_t = X_0 + \sum_{s \le t} W_s$, a nonzero mean for $W_t$ makes $X_t$ climb (or fall) by roughly that amount **every period** — a deterministic linear trend in the level, not just a fixed mean to revert to.
+
+This is why it matters which equation the constant sits in: a constant in the $d=0$ (ARMA) equation gives you a forecast that reverts to a flat mean; the same constant in a $d\geq1$ (ARIMA) equation gives you a forecast that keeps sloping upward (or downward) indefinitely.
+
+## Seeing It: ARMA(1,1) with an Intercept vs. Its Cumulative Sum
+
+Simulate $X_t = c + \phi X_{t-1} + Z_t + \theta Z_{t-1}$, then plot $X_t$ itself next to $\sum_{s \leq t} X_s$ — the cumulative sum stands in for what happens once you integrate a $d\geq1$ model back up to the level series:
+
+```{python}
+#| label: module05-arma-mean-cumsum
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(5005)
+n = 300
+phi, theta, c = 0.6, 0.4, 0.5
+mu = c / (1 - phi)
+
+Z = np.random.normal(size=n + 1)
+X = np.zeros(n)
+X[0] = mu + Z[1] + theta * Z[0]
+for t in range(1, n):
+    X[t] = c + phi * X[t - 1] + Z[t + 1] + theta * Z[t]
+
+X_cumsum = np.cumsum(X)
+
+fig, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
+axes[0].plot(X, color="C0", lw=1)
+axes[0].axhline(mu, color="black", ls="--", lw=1, label=fr"$\mu = {mu:.2f}$")
+axes[0].set_title(f"ARMA(1,1) with intercept c={c}, φ={phi}, θ={theta}")
+axes[0].set_ylabel(r"$X_t$")
+axes[0].legend()
+
+axes[1].plot(X_cumsum, color="C1", lw=1)
+axes[1].set_title(r"Cumulative Sum, $\sum_{s \leq t} X_s$")
+axes[1].set_xlabel("t")
+axes[1].set_ylabel(r"$\sum_{s \leq t} X_s$")
+plt.tight_layout()
+plt.show()
+```
+
+The top panel is exactly what an ARMA intercept gives you: fluctuation around a fixed mean $\mu$, never trending away. The bottom panel — built by summing that same series — climbs roughly linearly, with slope $\approx \mu$. That's the mechanism behind the previous slide: once you're working with the level series (undoing a difference), a nonzero mean in the differenced series shows up as a deterministic trend in the level.
+
+## Bringing in Predictors: Two Different Models
+
+Suppose you also have predictor variables $Z_{1,t}, \ldots, Z_{k,t}$ (e.g., interest rate differentials, momentum signals) you'd like to use alongside ARMA structure. There are two genuinely different ways to combine them.
+
+**Regression with ARMA errors:** the predictors explain the mean of $Y_t$; ARMA only cleans up whatever serial correlation is left in the noise:
+
+$$
+Y_t = \beta_0 + \beta_1 Z_{1,t} + \cdots + \beta_k Z_{k,t} + \eta_t, \qquad \eta_t \sim \text{ARMA}(p, q)
+$$
+
+**ARMAX:** the predictors sit directly on the right-hand side of the ARMA equation for $Y_t$ itself, alongside $Y_t$'s own lags:
+
+$$
+Y_t = \phi_1 Y_{t-1} + \cdots + \phi_p Y_{t-p} + \beta_1 Z_{1,t} + \cdots + \beta_k Z_{k,t} + Z_t + \theta_1 Z_{t-1} + \cdots + \theta_q Z_{t-q}
+$$
+
+## Why the Distinction Matters
+
+In **regression with ARMA errors**, $\beta_j$ keeps its usual regression interpretation: holding the other predictors fixed, a one-unit change in $Z_{j,t}$ shifts $Y_t$'s mean by $\beta_j$, full stop. The ARMA part is confined to the error term and doesn't touch that interpretation.
+
+In **ARMAX**, $Y_{t-1}, \ldots, Y_{t-p}$ are themselves regressors — so a change in $Z_{j,t}$ doesn't just move $Y_t$, it also propagates into $Y_{t+1}, Y_{t+2}, \ldots$ through the autoregressive feedback. $\beta_j$ is no longer a clean "holding everything else fixed" effect; the true effect of a change in $Z_j$ is a dynamic path, not a single number. (See Rob Hyndman's write-up on this exact point: [robjhyndman.com/hyndsight/arimax](https://robjhyndman.com/hyndsight/arimax).)
+
+**Default to regression with ARMA errors** unless you have a specific reason to want the feedback dynamics of ARMAX — it's usually what people actually mean when they say they want to "add ARMA to a regression."
+
+## ARMA Is a Building Block, Not an Endpoint
+
+Trend, exogenous predictors, and (next module) time-varying variance all **combine with** ARMA rather than replace it. The theory we've built — stationarity, ACF/PACF identification, invertibility — keeps paying off as we bolt on each extension.
+
+# Part 5: Identification and Estimation
+
+## ACF and PACF: The Identification Table
+
+The **partial autocorrelation function (PACF)** at lag $h$ measures the correlation between $X_t$ and $X_{t-h}$ after removing the linear effect of all intermediate lags.
+
+| Model | ACF | PACF |
+|---|---|---|
+| MA($q$) | Cuts off after lag $q$ | Tails off (geometric) |
+| AR($p$) | Tails off (geometric) | Cuts off after lag $p$ |
+| ARMA($p,q$) | Tails off | Tails off |
+| White noise | Near zero for $h > 0$ | Near zero for $h > 0$ |
+
+Use this table to make an initial guess for $p$ and $q$, then use information criteria to refine.
+
+## ACF and PACF in Python
+
+```{python}
+#| label: module05-1
+#| eval: true
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+
+fx = pd.read_csv("../data/fx_rates.csv", index_col=0, parse_dates=True)
+carry = np.log(fx["AUDJPY"]).diff().dropna() * 100
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+plot_acf(carry, lags=20, ax=axes[0], title="Sample ACF: AUD/JPY Returns")
+plot_pacf(carry, lags=20, ax=axes[1], title="Sample PACF: AUD/JPY Returns")
+plt.tight_layout()
+plt.show()
+```
+
+## Information Criteria
+
+Rather than relying solely on ACF/PACF patterns, compare models with **information criteria**:
+
+$$
+\text{AIC} = -2\log L(\hat{\boldsymbol{\theta}}) + 2k
+$$
+$$
+\text{BIC} = -2\log L(\hat{\boldsymbol{\theta}}) + k \log n
+$$
+
+where $k$ = number of parameters, $n$ = sample size, $\hat{\boldsymbol{\theta}}$ = MLE.
+
+**Lower is better.** BIC penalizes complexity more than AIC — it tends to select smaller models.
+
+## Fitting ARMA in Python
+
+```{python}
+#| label: module05-2
+#| eval: true
+from statsmodels.tsa.arima.model import ARIMA
+import numpy as np
+import pandas as pd
+
+fx = pd.read_csv("../data/fx_rates.csv", index_col=0, parse_dates=True)
+carry = np.log(fx["AUDJPY"]).diff().dropna() * 100
+
+result = ARIMA(carry, order=(1, 0, 1)).fit()
+print(result.summary())
+```
+
+## Model Selection Over a Grid
+
+```{python}
+#| label: module05-3
+#| eval: true
+#| output-location: slide
+import warnings
+import pandas as pd
+import numpy as np
+from statsmodels.tsa.arima.model import ARIMA
+
+warnings.filterwarnings("ignore")
+
+fx = pd.read_csv("../data/fx_rates.csv", index_col=0, parse_dates=True)
+carry = np.log(fx["AUDJPY"]).diff().dropna() * 100
+
+rows = []
+for p in range(0, 4):
+    for q in range(0, 4):
+        try:
+            m = ARIMA(carry, order=(p, 0, q)).fit()
+            rows.append({"p": p, "q": q, "AIC": round(m.aic, 1), "BIC": round(m.bic, 1)})
+        except Exception:
+            pass
+
+df = pd.DataFrame(rows)
+print(df.sort_values("BIC").head(8).to_string(index=False))
+```
+

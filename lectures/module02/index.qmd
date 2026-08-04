@@ -1,0 +1,603 @@
+---
+title: "Week 2: Regression, Rebalancing, and CS 1 Walkthrough"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Taylor R. Brown"
+format:
+  revealjs:
+    theme: [default, ../uva-theme.scss]
+    slide-number: c/t
+    footer: "{{< var course.code >}} – {{< var course.title >}} · Module 2"
+    toc: true
+    toc-depth: 1
+    smaller: true
+    scrollable: true
+    html-math-method: katex
+execute:
+  echo: true
+  eval: false
+---
+
+```{python}
+#| label: module02-1
+#| echo: false
+#| eval: true
+#| output: false
+import subprocess, sys, numpy as np, pandas as pd
+from pathlib import Path
+from IPython.display import display, Markdown
+
+_data_path = Path("../data/prices.csv")
+if not _data_path.exists():
+    subprocess.run([sys.executable, "../fetch_data.py"], check=True)
+
+_prices = pd.read_csv(_data_path, index_col=0, parse_dates=True)
+_rets   = _prices[["AAPL", "TSLA"]].pct_change().dropna()
+
+_mu_daily    = _rets.mean().values
+_Sigma_daily = _rets.cov().values
+_mu_ann      = _mu_daily * 252
+_Sigma_ann   = _Sigma_daily * 252
+```
+
+# Part 1: Estimating Cross-Sectional Regression Models
+
+## The Estimation Problem
+
+To use $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$ in practice, we need to **estimate** them from data.
+
+The simplest approach: use the sample mean and sample covariance of historical returns. We'll discover what the drawbacks are from this approach in our case study.
+
+Another approach (maybe the most common): **cross-sectional regression models** like CAPM.
+
+## The Estimation Problem
+
+CAPM stands for the "Capital Asset Pricing Model"
+
+CAPM says that each asset's return is a linear function of one or more **common factors**.
+
+This gives us more "efficient" estimates, especially when $k$ is large relative to the sample size $n$. We'll talk more about this in our case study.
+
+## The Estimation Problem
+
+From a data scientist's perspective, it's just simple linear regression and parameter reduction.
+
+From a finance person's perspective, it's basically gospel. They really use these "factor models" for a lot of the statistical modeling. It's very common to run cross sectional regressions and call them "factor models."
+
+For the financial justification---equilibrium arguments, the market portfolio, and the derivation of the CAPM pricing equation---see Campbell (2018), ch. 3.
+
+
+## CAPM: The Simple Version
+
+The **Capital Asset Pricing Model** says:
+
+$$
+y_{t,i} = \alpha_i + \beta_i \cdot r_{t,\text{SPY}} + \epsilon_{t,i}
+$$
+
+- $r_{t,\text{SPY}}$: the "market return" (e.g. for S&P 500) at time $t$
+- $\beta_i$: asset $i$'s sensitivity to the market ("beta")
+- $\alpha_i$: excess return not explained by the market ("alpha")
+- $\epsilon_{t,i}$: idiosyncratic noise, $\mathbb{E}[\epsilon_{t,i}] = 0$
+- This is not a forecasting model! It's not trying to forecast the future with historical data.
+
+A high-beta fund/stock/investment amplifies market moves. A low-beta stock is more stable.
+
+
+## CAPM: Fitting One Asset
+
+Should you YOLO tech stocks, or stick to more conservative investments?
+
+```{python}
+#| label: module02-2
+#| eval: true
+import pandas as pd, numpy as np
+import statsmodels.api as sm
+
+data = pd.read_csv("../data/prices.csv", index_col=0, parse_dates=True)
+rets = data[["XLK", "SPY"]].pct_change().dropna() * 100
+
+y   = rets["XLK"].values
+x   = sm.add_constant(rets["SPY"].values)
+
+mod = sm.OLS(y, x).fit()
+print(mod.summary())
+```
+
+The estimated $\hat{\beta}$ tells us: for every 1% the market moves, XLK moves roughly $\hat{\beta}$%.
+
+## From One Asset to Many: One Row
+
+For a single time period $t$, the CAPM equation for all $m$ assets at once is just $m$ separate regressions sharing the same $\mathbf{x}_t$:
+
+$$
+\underbrace{\begin{bmatrix} y_{t,1} & y_{t,2} & \cdots & y_{t,m} \end{bmatrix}}_{\text{row } t \text{ of } \mathbf{Y}}
+=
+\underbrace{\begin{bmatrix} 1 & r_{t,\text{SPY}} \end{bmatrix}}_{\text{row } t \text{ of } \mathbf{X}}
+\underbrace{\begin{bmatrix} \alpha_1 & \alpha_2 & \cdots & \alpha_m \\ \beta_1 & \beta_2 & \cdots & \beta_m \end{bmatrix}}_{\mathbf{B}}
++
+\underbrace{\begin{bmatrix} \epsilon_{t,1} & \epsilon_{t,2} & \cdots & \epsilon_{t,m} \end{bmatrix}}_{\text{row } t \text{ of } \mathbf{E}}
+$$
+
+Each column of $\mathbf{B}$ is one asset's $(\alpha_i, \beta_i)^\intercal$. Stack $n$ such rows and you get the full matrix equation.
+
+## From One Asset to a Portfolio: Multivariate Regression
+
+When we have $m$ assets to model simultaneously, we stack them into a matrix:
+
+$$
+\underbrace{\begin{bmatrix}
+y_{1,1} & \cdots & y_{1,m} \\
+y_{2,1} & \cdots & y_{2,m} \\
+\vdots  &        & \vdots  \\
+y_{n,1} & \cdots & y_{n,m}
+\end{bmatrix}}_{\mathbf{Y},\; n \times m}
+=
+\underbrace{\begin{bmatrix}
+1 & r_{1,\text{SPY}} \\
+1 & r_{2,\text{SPY}} \\
+\vdots & \vdots \\
+1 & r_{n,\text{SPY}}
+\end{bmatrix}}_{\mathbf{X},\; n \times (r+1)}
+\underbrace{\begin{bmatrix} \alpha_1 & \cdots & \alpha_m \\ \beta_1 & \cdots & \beta_m \end{bmatrix}}_{\mathbf{B},\; (r+1) \times m}
++
+\underbrace{\begin{bmatrix}
+\epsilon_{1,1} & \cdots & \epsilon_{1,m} \\
+\epsilon_{2,1} & \cdots & \epsilon_{2,m} \\
+\vdots  &        & \vdots  \\
+\epsilon_{n,1} & \cdots & \epsilon_{n,m}
+\end{bmatrix}}_{\mathbf{E},\; n \times m}
+$$
+
+$$
+\underbrace{\mathbf{Y}}_{n \times m}
+=
+\underbrace{\mathbf{X}}_{n \times (r+1)}
+\underbrace{\mathbf{B}}_{(r+1) \times m}
++
+\underbrace{\mathbf{E}}_{n \times m}
+$$
+
+where row $t$ of $\mathbf{Y}$ is $\mathbf{y}_t^\intercal$, row $t$ of $\mathbf{X}$ is $\mathbf{x}_t^\intercal$ (the factor values at time $t$).
+
+Regarding the errors, rows are completely independent from one another, but within a row,  $\text{Cov}(\boldsymbol{\epsilon}_t) = \boldsymbol{\Sigma}_y$.
+
+## Estimating B and $\Sigma_y$
+
+Because the same predictors appear in every column of $\mathbf{Y}$, we can estimate $\mathbf{B}$ column by column using OLS:
+
+$$
+\hat{\mathbf{B}} = (\mathbf{X}^\intercal \mathbf{X})^{-1} \mathbf{X}^\intercal \mathbf{Y}
+$$
+
+The residual covariance is then:
+
+$$
+\hat{\boldsymbol{\Sigma}}_y = \frac{1}{n}(\mathbf{Y} - \mathbf{X}\hat{\mathbf{B}})^\intercal (\mathbf{Y} - \mathbf{X}\hat{\mathbf{B}})
+$$
+
+```python
+# Multivariate OLS: same X for all m dependent variables
+B_hat = np.linalg.lstsq(X, Y, rcond=None)[0]   # (r+1, m)
+resids = Y - X @ B_hat                           # (n, m)
+Sigma_hat = resids.T @ resids / len(resids)      # (m, m)
+```
+
+# Part 2: From Regression Output to Forecast Moments
+
+## From Regression to Forecast Moments
+
+Given estimates $\hat{\mathbf{B}}$ and $\hat{\boldsymbol{\Sigma}}_y$, what are $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$?
+
+The **law of total expectation** says that if our regression model is true, then
+
+$$
+\mathbb{E}[\mathbf{y}_{t+1} \mid \text{past}] = \mathbb{E}\!\left[\mathbb{E}[\mathbf{y}_{t+1} \mid \mathbf{x}_{t+1}]\mid \text{past}\right] = \mathbb{E}[\mathbf{B}^\intercal \mathbf{x}_{t+1}\mid \text{past}] = \mathbf{B}^\intercal \mathbb{E}[\mathbf{x}_{t+1}\mid \text{past}]
+$$
+
+Plug in whatever estimate for $\mathbb{E}[\mathbf{x}_{t+1}\mid \text{past}]$ you want, but the simplest is the historical average:
+
+$$
+\boldsymbol{\mu} \approx \hat{\mathbf{B}}^\intercal \bar{\mathbf{x}}
+$$
+
+Our next unit on time series models will be helpful for this, too!
+
+## From Regression to Forecast Moments
+
+The **law of total (co)variance** says
+
+$$
+\mathbb{V}[\mathbf{y}_{t+1} \mid \text{past}] = \mathbb{V}[\mathbb{E}[\mathbf{y}_{t+1}\mid\mathbf{x}_{t+1}]\mid \text{past}] + \mathbb{E}[\mathbb{V}[\mathbf{y}_{t+1}\mid\mathbf{x}_{t+1}]\mid \text{past}]
+$$,
+
+With our model estimates:
+
+$$
+\mathbb{V}[\mathbf{y}_{t+1} \mid \text{past}] \approx \hat{\mathbf{B}}^\intercal \hat{\boldsymbol{\Sigma}}_X \hat{\mathbf{B}} + \hat{\boldsymbol{\Sigma}}_y
+$$
+
+- $\hat{\boldsymbol{\Sigma}}_X$ is some estimate of **future factor** covariance (e.g. historical covariance matrix)
+- $\hat{\mathbf{B}}^\intercal \hat{\boldsymbol{\Sigma}}_X \hat{\mathbf{B}}$: variance coming from uncertainty in the **factor** (shared across all assets)
+- $\hat{\boldsymbol{\Sigma}}_y$: **idiosyncratic** variance, the part no factor explains
+
+## Full CAPM Example in Python
+
+```{python}
+#| label: module02-3
+#| eval: true
+import pandas as pd, numpy as np
+import statsmodels.api as sm
+
+sectors = ["XLC","XLY","XLP","XLE","XLF","XLV","XLI","XLB","XLRE","XLK","XLU"]
+
+data = pd.read_csv("../data/prices.csv", index_col=0, parse_dates=True)
+rets = data[sectors + ["SPY"]].pct_change().dropna() * 100
+
+Y = rets[sectors].values           # (n, 11)
+X = sm.add_constant(rets["SPY"].values)  # (n, 2)
+
+B_hat   = np.linalg.lstsq(X, Y, rcond=None)[0]   # (2, 11)
+resids  = Y - X @ B_hat
+Sigma_y = resids.T @ resids / len(resids)
+
+x_bar = X.mean(axis=0)            # (2,) — average [1, SPY_return]
+m_vec = B_hat.T @ x_bar           # (11,) forecast mean vector
+
+Sigma_X = np.cov(X.T)             # (2, 2)
+S_mat   = B_hat.T @ Sigma_X @ B_hat + Sigma_y   # (11, 11) forecast cov
+```
+
+## Special Case: Intercept Only
+
+If we use $\mathbf{x}_t^\intercal = \begin{bmatrix} 1 \end{bmatrix}$ (no factors, just an intercept), then:
+
+$$
+\hat{\mathbf{B}} = \bar{\mathbf{Y}}^\intercal \quad \Rightarrow \quad \boldsymbol{\mu} \approx \bar{Y}
+$$
+
+and
+
+$$
+\mathbb{V}[\mathbf{y}_{t+1} \mid \text{past}] \approx \hat{\boldsymbol{\Sigma}}_y = \frac{1}{n}(\mathbf{Y} - \bar{\mathbf{Y}})^\intercal(\mathbf{Y} - \bar{\mathbf{Y}})
+$$
+
+This is exactly the **sample mean** and **sample covariance**. The CAPM regression is a structured way to get better estimates when factor structure is present.
+
+
+---
+
+# Part 3: From Forecast Moments to Portfolio Weights
+
+## The Optimization Problem
+
+We now have estimates of $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$. We also have control over over $\mathbf{w}$. How should we choose it?
+
+We'll we have to balance risk and reward!
+
+- reward: $\mathbf{w}^\intercal \boldsymbol{\mu}$
+- risk: $\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}$
+
+## The Optimization Problem
+
+- reward: $\mathbf{w}^\intercal\boldsymbol{\mu}$
+- risk: $\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}$
+
+We need to "combine" them into one "goodness/satisfaction" number. Twiddle $\mathbf{w}$ to maximize $U(\mathbf{w})$.
+
+Unfortunately, different investors have different risk tolerances, so there is no single "right" answer.
+
+## The Optimization Problem
+
+We parameterize preferences with **risk aversion** $\gamma > 0$ and maximize:
+
+
+$$
+U(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\mu} - \frac{1}{2}\gamma \, \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}
+$$
+
+There's also a **constraint**. 
+
+Maximize this **subject to $\mathbf{1}^\intercal \mathbf{w} = 1$.**
+
+Sometimes the constraint is written $g(\mathbf{w}) = 0$. 
+
+In this case, $g(\mathbf{w}) = \mathbf{1}^\intercal \mathbf{w} - 1$
+
+## The Optimization Problem
+
+
+$$
+U(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\mu} - \frac{1}{2}\gamma \, \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}
+$$
+
+
+
+- Large $\gamma$: investor strongly penalizes variance → conservative portfolio
+- Small $\gamma$: investor chases return → aggressive portfolio
+- Don't memorize rules of thumb. Try a few. Data scale dependent.
+
+This is the **mean-variance utility** from Markowitz (1952). For a broader discussion of utility functions, risk aversion coefficients, and the expected utility framework that motivates this form, see Campbell (2018), ch. 1. For worked examples in small-dimensional settings (one risky + one riskless asset, two risky assets), see Campbell (2018), ch. 2.
+
+## The Risk-Return Tradeoff
+
+Before solving, let's visualize: for random weights, what (risk, return) pairs are achievable?
+
+There is a clear frontier — the **efficient frontier** — that we can trace out analytically.
+
+```{python}
+#| label: module02-4
+#| eval: false
+#| echo: true
+#| fig-width: 10
+#| fig-height: 6
+import matplotlib.pyplot as plt
+
+k    = len(m_vec)
+n_w  = 2000
+W    = np.random.dirichlet(np.ones(k)/k, n_w)  # uniform on the simplex, sum-to-1
+
+all_means = W @ m_vec
+all_sds   = np.sqrt(np.einsum("ij,jk,ik->i", W, S_mat, W))
+
+plt.scatter(all_sds, all_means, alpha=0.3, s=5)
+plt.xlabel("Std. deviation (risk)")
+plt.ylabel("Expected return")
+plt.tight_layout()
+plt.show()
+```
+
+
+## The Risk-Return Tradeoff
+
+```{python}
+#| label: module02-5
+#| eval: true
+#| echo: false
+#| fig-width: 10
+#| fig-height: 6
+import matplotlib.pyplot as plt
+
+k    = len(m_vec)
+n_w  = 2000
+W    = np.random.dirichlet(np.ones(k)/k, n_w)  # uniform on the simplex, sum-to-1
+
+all_means = W @ m_vec
+all_sds   = np.sqrt(np.einsum("ij,jk,ik->i", W, S_mat, W))
+
+plt.scatter(all_sds, all_means, alpha=0.3, s=5)
+plt.xlabel("Std. deviation (risk)")
+plt.ylabel("Expected return")
+plt.tight_layout()
+plt.show()
+```
+
+## Lagrange Multipliers: The Objective
+
+For two assets we can draw $U(w_1, w_2)$ as contours. The unconstrained maximum is the center of the ellipses.
+
+```{python}
+#| label: module02-6
+#| eval: true
+#| echo: false
+# use real annualized AAPL/TSLA moments from the Part 1 setup chunk
+_m2   = _mu_ann
+_S2   = _Sigma_ann
+_g2   = 1.0
+
+_S2inv = np.linalg.inv(_S2)
+_w_unc = _S2inv @ _m2 / _g2
+
+# grid wide enough to show the unconstrained max
+_lo, _hi = -0.5, _w_unc.max() + 0.8
+_w1g, _w2g = np.meshgrid(np.linspace(_lo, _hi, 300), np.linspace(_lo, _hi, 300))
+_U = (_w1g*_m2[0] + _w2g*_m2[1]
+      - 0.5*_g2*(_w1g**2*_S2[0,0] + 2*_w1g*_w2g*_S2[0,1] + _w2g**2*_S2[1,1]))
+
+fig, ax = plt.subplots(figsize=(5, 4))
+ax.contour(_w1g, _w2g, _U, levels=14, cmap="Blues")
+ax.plot(*_w_unc, "b*", markersize=12, label="Unconstrained max")
+ax.set_xlabel("$w_{\\text{AAPL}}$"); ax.set_ylabel("$w_{\\text{TSLA}}$")
+ax.set_title("Contours of $U(\\mathbf{w})$ — annualized AAPL & TSLA")
+ax.legend(); plt.tight_layout(); plt.show()
+```
+
+## Lagrange Multipliers: Adding the Constraint
+
+The constraint $w_1 + w_2 = 1$ is a line. The constrained optimum is where the line is **tangent to a contour** — meaning $\nabla U$ and $\nabla g$ point in the same direction 
+
+```{python}
+#| label: module02-7
+#| eval: true
+#| echo: false
+_ones2 = np.ones(2)
+_lam2  = (_ones2 @ _S2inv @ _m2 - _g2) / (_ones2 @ _S2inv @ _ones2)
+_w_con = _S2inv @ (_m2 - _lam2 * _ones2) / _g2
+
+fig, ax = plt.subplots(figsize=(5, 4))
+ax.contour(_w1g, _w2g, _U, levels=14, cmap="Blues")
+
+_w1l = np.linspace(_lo, _hi, 200)
+ax.plot(_w1l, 1 - _w1l, "r-", lw=2, label="$w_1+w_2=1$")
+ax.plot(*_w_unc, "b*", markersize=11, label="Unconstrained max", zorder=5)
+ax.plot(*_w_con, "r*", markersize=11, label="Constrained optimum", zorder=5)
+
+_gU = _m2 - _g2 * _S2 @ _w_con
+_gg = _ones2.copy()
+_sc = (_hi - _lo) * 0.1
+for _vec, _col, _lbl in [(_gU, "blue", "$\\nabla U$"), (_gg, "red", "$\\nabla g$")]:
+    _v = _vec / np.linalg.norm(_vec) * _sc
+    ax.annotate("", xy=_w_con+_v, xytext=_w_con,
+                arrowprops=dict(arrowstyle="->", color=_col, lw=2))
+    ax.text(*(_w_con + _v*1.3), _lbl, color=_col, fontsize=10)
+
+ax.set_xlabel("$w_{\\text{AAPL}}$"); ax.set_ylabel("$w_{\\text{TSLA}}$")
+ax.set_title("$\\nabla U = \\lambda \\nabla g$ at the constrained optimum")
+ax.legend(loc="upper right"); plt.tight_layout(); plt.show()
+```
+
+## Lagrange Multipliers
+
+At the optimum, $\nabla U = \lambda \nabla g$, i.e.
+
+$$
+\nabla U(\mathbf{w}) - \lambda \, \nabla g(\mathbf{w}) = \mathbf{0}
+$$
+
+But this is exactly the critical condition for the **unconstrained** problem of maximizing
+
+$$
+\mathcal{L}(\mathbf{w}, \lambda) = U(\mathbf{w}) - \lambda \, g(\mathbf{w})
+= \mathbf{w}^\intercal \boldsymbol{\mu} - \frac{1}{2}\gamma \, \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w} - \lambda(\mathbf{1}^\intercal \mathbf{w} - 1)
+$$
+
+since $\frac{\partial \mathcal{L}}{\partial \mathbf{w}} = \nabla U - \lambda \nabla g = \mathbf{0}$ and $\frac{\partial \mathcal{L}}{\partial \lambda} = -(g(\mathbf{w}) - 0) = 0$ enforces the constraint.
+
+
+we call $\mathcal{L}(\mathbf{w}, \lambda)$ **the Lagrangian**
+
+
+## Solving with Lagrange Multipliers
+
+To maximize $U(\mathbf{w})$ subject to $\mathbf{1}^\intercal \mathbf{w} = 1$, form the **Lagrangian**:
+
+$$
+\mathcal{L}(\mathbf{w}, \lambda) = \underbrace{\mathbf{w}^\intercal \boldsymbol{\mu} - \frac{1}{2}\gamma \, \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}_{U(\mathbf{w})} - \lambda \underbrace{(\mathbf{1}^\intercal \mathbf{w} - 1)}_{g(\mathbf{w})}
+$$
+
+Set partial derivatives to zero:
+
+$$
+\frac{\partial \mathcal{L}}{\partial \mathbf{w}} = \boldsymbol{\mu} - \gamma \boldsymbol{\Sigma} \mathbf{w} - \lambda \mathbf{1} = \mathbf{0} \tag{1}
+$$
+
+$$
+\frac{\partial \mathcal{L}}{\partial \lambda} = 1 - \mathbf{1}^\intercal \mathbf{w} = 0 \tag{2}
+$$
+
+## Solving for $\mathbf{w}^*$
+
+From equation (1):
+
+$$
+\mathbf{w}^* = \frac{1}{\gamma} \boldsymbol{\Sigma}^{-1}(\boldsymbol{\mu} - \lambda \mathbf{1}) \tag{3}
+$$
+
+Substitute into equation (2) and solve for $\lambda$:
+
+$$
+\lambda = \frac{\mathbf{1}^\intercal \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu} - \gamma}{\mathbf{1}^\intercal \boldsymbol{\Sigma}^{-1} \mathbf{1}} \tag{4}
+$$
+
+Substitute (4) back into (3):
+
+$$
+\mathbf{w}^* = \frac{1}{\gamma} \boldsymbol{\Sigma}^{-1} \left[ \boldsymbol{\mu} - \frac{\mathbf{1}^\intercal \boldsymbol{\Sigma}^{-1}\boldsymbol{\mu} - \gamma}{\mathbf{1}^\intercal \boldsymbol{\Sigma}^{-1}\mathbf{1}} \mathbf{1} \right]
+$$
+
+## Optimal Weights in Python
+
+```{python}
+#| label: module02-8
+#| eval: true
+def mpt_weights(mu, Sigma, gamma, s=1.0):
+    Sinv  = np.linalg.inv(Sigma)
+    ones  = np.ones(len(mu))
+    q1    = ones @ Sinv @ mu
+    q2    = ones @ Sinv @ ones
+    lam   = (q1 - gamma * s) / q2
+    return Sinv @ (mu - lam * ones) / gamma
+
+
+w_star = mpt_weights(m_vec, S_mat, gamma=1.0)
+print("Optimal weights:", w_star.round(4))
+print("Expected return:", w_star @ m_vec)
+print("Std. deviation :", np.sqrt(w_star @ S_mat @ w_star))
+```
+
+## The Efficient Frontier
+
+As we vary $\gamma$ from $\infty$ (minimum variance) down toward $0$ (maximum return), we trace the **efficient frontier** — the set of portfolios that are optimal for *some* risk aversion.
+
+```{python}
+#| label: module02-9
+#| eval: false
+#| echo: true
+#| fig-width: 10
+#| fig-height: 6
+gammas = np.logspace(-6, 6, 2000)
+
+opt_means = np.array([mpt_weights(m_vec, S_mat, g) @ m_vec for g in gammas])
+opt_sds   = np.array([np.sqrt(mpt_weights(m_vec, S_mat, g) @ S_mat @ mpt_weights(m_vec, S_mat, g)) for g in gammas])
+
+# clip frontier to the scatter's range so neither drowns the other
+sd_max  = np.percentile(all_sds,   99) * 1.2
+mu_max  = np.percentile(all_means, 99) * 1.3
+mu_min  = np.percentile(all_means,  1) - abs(np.percentile(all_means, 1)) * 0.2
+mask    = (opt_sds <= sd_max) & (opt_means <= mu_max) & (opt_means >= mu_min)
+
+plt.scatter(all_sds, all_means, alpha=0.2, s=5, label="Random portfolios")
+plt.plot(opt_sds[mask], opt_means[mask], color="red", linewidth=2, label="Efficient frontier")
+plt.xlim(0, sd_max)
+plt.ylim(mu_min, mu_max)
+plt.xlabel("Std. deviation (risk)")
+plt.ylabel("Expected return")
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+
+## The Efficient Frontier
+
+Ignoring uncertainty of parameter estimates...
+```{python}
+#| label: module02-10
+#| eval: true
+#| echo: false
+#| fig-width: 10
+#| fig-height: 6
+gammas = np.logspace(-6, 6, 2000)
+
+opt_means = np.array([mpt_weights(m_vec, S_mat, g) @ m_vec for g in gammas])
+opt_sds   = np.array([np.sqrt(mpt_weights(m_vec, S_mat, g) @ S_mat @ mpt_weights(m_vec, S_mat, g)) for g in gammas])
+
+# clip frontier to the scatter's range so neither drowns the other
+sd_max  = np.percentile(all_sds,   99) * 1.2
+mu_max  = np.percentile(all_means, 99) * 1.3
+mu_min  = np.percentile(all_means,  1) - abs(np.percentile(all_means, 1)) * 0.2
+mask    = (opt_sds <= sd_max) & (opt_means <= mu_max) & (opt_means >= mu_min)
+
+plt.scatter(all_sds, all_means, alpha=0.2, s=5, label="Random portfolios")
+plt.plot(opt_sds[mask], opt_means[mask], color="red", linewidth=2, label="Efficient frontier")
+plt.xlim(0, sd_max)
+plt.ylim(mu_min, mu_max)
+plt.xlabel("Std. deviation (risk)")
+plt.ylabel("Expected return")
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+## Key Takeaways
+
+1. **A portfolio's return is $\mathbf{w}^\intercal \mathbf{y}_{t+1}$**, a scalar formed by weighting $k$ assets.
+
+2. **The first two moments** of the forecast distribution — $\boldsymbol{\mu}$ (mean vector) and $\boldsymbol{\Sigma}$ (covariance matrix) — are sufficient for mean-variance analysis.
+
+3. **Cross-sectional regression** (CAPM) gives a structured way to estimate $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$ by decomposing returns into a factor component and idiosyncratic noise.
+
+4. **MPT** turns the estimation problem into an optimization: given $\boldsymbol{\mu}$ and $\boldsymbol{\Sigma}$, the closed-form optimal weights $\mathbf{w}^*$ maximize mean-variance utility for a given risk aversion $\gamma$.
+
+5. Sweeping over $\gamma$ traces the **efficient frontier** — the set of portfolios that minimize variance for a given expected return.
+
+## Looking Ahead
+
+
+Now you have all the information you need to finish **Case Study 1**!
+
+## References
+
+- Markowitz, H. (1952). *Portfolio selection*. Journal of Finance.
+- Campbell, J. Y. (2018). *Financial Decisions and Markets*. Princeton University Press.
+- López de Prado, M. (2018). *Advances in Financial Machine Learning*. Wiley.
+- Johnson, R. A. & Wichern, D. W. *Applied Multivariate Statistical Analysis*, ch. 7.7.

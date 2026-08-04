@@ -1,0 +1,308 @@
+---
+title: "Module 11: Black-Scholes Implementation, Greeks, and Hedging"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Taylor R. Brown"
+format:
+  revealjs:
+    theme: [default, ../uva-theme.scss]
+    slide-number: c/t
+    footer: "{{< var course.code >}} – {{< var course.title >}} · Module 11"
+    toc: true
+    toc-depth: 1
+    smaller: true
+    scrollable: true
+    html-math-method: katex
+execute:
+  echo: true
+  eval: false
+---
+
+# Part 1: From a Formula to a Trading Desk
+
+## Recap: What Module 10 Gave Us
+
+- The **Black-Scholes PDE**, from a delta-hedged, no-arbitrage replicating portfolio
+- A **closed-form price** $C(S, K, r, \sigma, \tau)$, solving that PDE
+- The central result: the price depends on $\sigma$, not on the stock's real-world drift $\mu$
+
+Module 10 answered "what should the option cost." Today: two questions it left open.
+
+## Two Practical Questions
+
+1. **Hedging:** the replication argument assumed *continuous* rebalancing of $\Delta = \partial V/\partial S$ shares. Real trading happens in discrete steps. How much does that cost, and how do the other **Greeks** describe the risk in between rebalances?
+2. **Calibration:** $\sigma$ is the one Black-Scholes input that isn't directly observable in the market — unlike $S, K, r, \tau$. Where does it actually come from, and does a single number even fit real option prices?
+
+Both questions matter directly for **CS 4**, due at the end of Module 12.
+
+# Part 2: The Greeks
+
+## Sensitivities of the Option Price
+
+The Greeks are partial derivatives of $V$ with respect to its inputs — each answers "if this one thing moves a little, how much does the option's value move?" For a call, with $\varphi(\cdot)$ the standard Normal PDF and $N(\cdot)$ its CDF:
+
+$$
+\Delta = \frac{\partial V}{\partial S} = N(d_1), \qquad
+\Gamma = \frac{\partial^2 V}{\partial S^2} = \frac{\varphi(d_1)}{S\sigma\sqrt{\tau}}, \qquad
+\text{Vega} = \frac{\partial V}{\partial \sigma} = S\varphi(d_1)\sqrt{\tau}
+$$
+
+$$
+\Theta = \frac{\partial V}{\partial t} = -\frac{S\varphi(d_1)\sigma}{2\sqrt{\tau}} - rKe^{-r\tau}N(d_2)
+$$
+
+$\Gamma$ and Vega are the **same formula for puts and calls** (put-call parity has $\Delta_{\text{put}} = \Delta_{\text{call}} - 1$, but the second derivative in $S$ and the derivative in $\sigma$ are unaffected by the linear $S - Ke^{-r\tau}$ term).
+
+## Reading the Greeks as a Trading Desk Would
+
+- $\Delta$: shares of stock needed to hedge one option — literally the quantity from Module 10's replicating portfolio
+- $\Gamma$: how fast $\Delta$ itself changes as $S$ moves — **the risk left over between hedge rebalances** (Part 3's whole subject)
+- Vega: exposure if $\sigma$ changes — since $\sigma$ isn't observable (Part 4's whole subject), this is real, unhedgeable-by-stock model risk
+- $\Theta$: value lost to the passage of time alone, holding $S$ fixed — why option sellers profit from time decay when nothing else moves
+
+## Implementing the Greeks
+
+```{python}
+#| label: module11-greeks
+#| eval: true
+#| output-location: fragment
+import numpy as np
+from scipy.stats import norm
+
+def bs_d1_d2(S, K, r, sigma, tau):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * tau) / (sigma * np.sqrt(tau))
+    return d1, d1 - sigma * np.sqrt(tau)
+
+def greeks(S, K, r, sigma, tau, option="call"):
+    d1, d2 = bs_d1_d2(S, K, r, sigma, tau)
+    gamma = norm.pdf(d1) / (S * sigma * np.sqrt(tau))
+    vega = S * norm.pdf(d1) * np.sqrt(tau)
+    if option == "call":
+        delta = norm.cdf(d1)
+        theta = -S * norm.pdf(d1) * sigma / (2 * np.sqrt(tau)) - r * K * np.exp(-r * tau) * norm.cdf(d2)
+    else:
+        delta = norm.cdf(d1) - 1
+        theta = -S * norm.pdf(d1) * sigma / (2 * np.sqrt(tau)) + r * K * np.exp(-r * tau) * norm.cdf(-d2)
+    return {"delta": delta, "gamma": gamma, "vega": vega, "theta": theta}
+
+g = greeks(S=100, K=100, r=0.05, sigma=0.25, tau=1.0, option="call")
+for name, value in g.items():
+    print(f"{name:6s} = {value:.4f}")
+```
+
+## Delta and Gamma Across Strikes
+
+```{python}
+#| label: module11-greeks-plot
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+K, r, sigma, tau = 100.0, 0.05, 0.25, 1.0
+S_grid = np.linspace(50, 150, 200)
+deltas = [greeks(S, K, r, sigma, tau, "call")["delta"] for S in S_grid]
+gammas = [greeks(S, K, r, sigma, tau, "call")["gamma"] for S in S_grid]
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+axes[0].plot(S_grid, deltas, color="C0")
+axes[0].axvline(K, color="grey", ls="--", lw=1)
+axes[0].set_title(r"Call $\Delta$ vs. Underlying Price")
+axes[0].set_xlabel("S"); axes[0].set_ylabel(r"$\Delta$")
+
+axes[1].plot(S_grid, gammas, color="C1")
+axes[1].axvline(K, color="grey", ls="--", lw=1)
+axes[1].set_title(r"$\Gamma$ vs. Underlying Price")
+axes[1].set_xlabel("S"); axes[1].set_ylabel(r"$\Gamma$")
+plt.tight_layout()
+plt.show()
+```
+
+$\Delta$ rises smoothly from 0 (deep out-of-the-money) to 1 (deep in-the-money). $\Gamma$ peaks right at the strike — exactly where the hedge needs to change fastest, and exactly where discrete hedging will hurt the most in Part 3.
+
+# Part 3: Discrete Hedging in Practice
+
+## The Gap Between Theory and Practice
+
+Module 10's replication argument assumed the hedge is rebalanced **continuously**. A real hedger rebalances at discrete times $0 = t_0 < t_1 < \cdots < t_n = T$: hold $\Delta(t_i, S(t_i))$ shares from $t_i$ to $t_{i+1}$, then reset.
+
+Between rebalances, the stock can move enough that the *old* $\Delta$ is no longer right — the hedge is imperfect, and how imperfect depends on $\Gamma$ (how fast $\Delta$ should have changed) and how coarse the rebalancing grid is.
+
+## Simulating a Discrete Delta Hedge
+
+Sell one call for the Black-Scholes premium, delta-hedge with the stock at $n$ equally spaced rebalances under real-world GBM, and see what's left over at maturity (it should be close to zero, on average, but not exactly zero on any given path):
+
+```{python}
+#| label: module11-discrete-hedge-sim
+#| eval: true
+#| output-location: fragment
+import numpy as np
+
+def black_scholes(S, K, r, sigma, tau, option="call"):
+    d1, d2 = bs_d1_d2(S, K, r, sigma, tau)
+    if option == "call":
+        return S * norm.cdf(d1) - K * np.exp(-r * tau) * norm.cdf(d2)
+    return K * np.exp(-r * tau) * norm.cdf(-d2) - S * norm.cdf(-d1)
+
+def simulate_hedge_pnl(S0, K, r, sigma, T, n_steps, n_paths, mu, rng):
+    dt = T / n_steps
+    premium = black_scholes(S0, K, r, sigma, T, "call")
+
+    S = np.full(n_paths, S0)
+    cash = np.full(n_paths, premium)
+    shares_held = np.zeros(n_paths)
+
+    for i in range(n_steps):
+        tau = T - i * dt
+        delta = greeks(S, K, r, sigma, tau, "call")["delta"]
+        cash -= (delta - shares_held) * S           # buy/sell stock to adjust hedge
+        cash *= np.exp(r * dt)                       # cash earns the risk-free rate
+        shares_held = delta
+
+        Z = rng.normal(size=n_paths)
+        S = S * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * Z)
+
+    payoff = np.maximum(S - K, 0)
+    return cash + shares_held * S - payoff  # final hedging P&L
+
+rng = np.random.default_rng(5005)
+S0, K, r, sigma, T, mu, n_paths = 100.0, 100.0, 0.05, 0.25, 1.0, 0.08, 20_000
+```
+
+## P&L Distribution: Coarse vs. Fine Rebalancing
+
+```{python}
+#| label: module11-discrete-hedge-hist
+#| eval: true
+#| output-location: slide
+import matplotlib.pyplot as plt
+
+pnl_coarse = simulate_hedge_pnl(S0, K, r, sigma, T, n_steps=4, n_paths=n_paths, mu=mu, rng=np.random.default_rng(5005))
+pnl_fine = simulate_hedge_pnl(S0, K, r, sigma, T, n_steps=250, n_paths=n_paths, mu=mu, rng=np.random.default_rng(5005))
+
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.hist(pnl_coarse, bins=80, density=True, alpha=0.5, label="4 rebalances (weekly-ish)")
+ax.hist(pnl_fine, bins=80, density=True, alpha=0.5, label="250 rebalances (daily)")
+ax.axvline(0, color="black", ls="--", lw=1)
+ax.set_xlabel("hedging P&L at maturity")
+ax.legend()
+plt.tight_layout()
+plt.show()
+
+print(f"4 rebalances:   mean={pnl_coarse.mean():.3f}, std={pnl_coarse.std():.3f}")
+print(f"250 rebalances: mean={pnl_fine.mean():.3f}, std={pnl_fine.std():.3f}")
+```
+
+Both are centered near zero — on average, selling at the Black-Scholes price and delta-hedging breaks even, regardless of $\mu$, exactly as Module 10 predicted. But the **spread** shrinks dramatically with more rebalances: discrete hedging is unbiased but noisy, and $\Gamma$ (largest near the strike) is exactly what drives that noise between rebalances.
+
+# Part 4: Implied Volatility
+
+## Turning the Formula Around
+
+$S, K, r, \tau$ are observable. $\sigma$ is not — it's a model input, not a market quote. **Implied volatility** flips the formula around: given an observed market price $C_{\text{mkt}}$, find the $\sigma_{\text{impl}}$ that makes Black-Scholes match it:
+
+$$
+C_{\text{BS}}(S, K, r, \sigma_{\text{impl}}, \tau) = C_{\text{mkt}}
+$$
+
+There's no closed form (the inverse of the Black-Scholes formula in $\sigma$ isn't expressible algebraically), but $C_{\text{BS}}$ is monotonically increasing in $\sigma$ (Module 10, Part 4), so a simple root-finder works.
+
+```{python}
+#| label: module11-implied-vol
+#| eval: true
+#| output-location: fragment
+from scipy.optimize import brentq
+
+def implied_vol(price, S, K, r, tau, option="call"):
+    objective = lambda sigma: black_scholes(S, K, r, sigma, tau, option) - price
+    return brentq(objective, 1e-4, 5.0)
+
+true_price = black_scholes(S=100, K=110, r=0.05, sigma=0.30, tau=1.0)
+recovered = implied_vol(true_price, S=100, K=110, r=0.05, tau=1.0)
+print(f"true sigma = 0.30, recovered implied vol = {recovered:.4f}")
+```
+
+## If the Market Really Used One Constant $\sigma$...
+
+...every strike's implied volatility would come back identical. Check this against a synthetic "market" built from Black-Scholes itself with a single $\sigma$:
+
+```{python}
+#| label: module11-flat-smile
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+S, r, tau, true_sigma = 100.0, 0.05, 0.5, 0.25
+strikes = np.linspace(70, 130, 25)
+market_prices = [black_scholes(S, K, r, true_sigma, tau) for K in strikes]
+implied = [implied_vol(p, S, K, r, tau) for p, K in zip(market_prices, strikes)]
+
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(strikes, implied, "o-", color="C0")
+ax.axhline(true_sigma, color="black", ls="--", label=r"true, constant $\sigma$")
+ax.set_xlabel("strike K"); ax.set_ylabel("implied volatility")
+ax.set_ylim(0, 0.5)
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+Flat, as it must be — this "market" was generated by Black-Scholes with one $\sigma$, so inverting the formula just returns it. This is the control case; real markets don't look like this.
+
+## Manufacturing a Volatility Smile
+
+Now build a "market" where the *true* volatility actually varies by strike (a simple stand-in for what's observed empirically — deep out-of-the-money puts and calls trade at higher implied vol than at-the-money), and see what happens when we still price it with plain Black-Scholes and invert:
+
+```{python}
+#| label: module11-vol-smile
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+S, r, tau = 100.0, 0.05, 0.5
+strikes = np.linspace(70, 130, 25)
+moneyness = np.log(strikes / S)
+true_sigma_by_strike = 0.20 + 0.5 * moneyness**2          # a simple, symmetric smile
+
+market_prices = [black_scholes(S, K, r, sig, tau) for K, sig in zip(strikes, true_sigma_by_strike)]
+implied = [implied_vol(p, S, K, r, tau) for p, K in zip(market_prices, strikes)]
+
+fig, ax = plt.subplots(figsize=(9, 5))
+ax.plot(strikes, true_sigma_by_strike, color="black", ls="--", label="true (strike-dependent) volatility")
+ax.plot(strikes, implied, "o-", color="C1", label="implied volatility recovered from BS")
+ax.axvline(S, color="grey", ls=":", lw=1)
+ax.set_xlabel("strike K"); ax.set_ylabel("volatility")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+The recovered implied vols trace out the true, strike-dependent curve exactly — because Black-Scholes inversion just reports back whatever single $\sigma$ makes the price match, per strike. **This is the volatility smile**: real option markets show exactly this pattern, which is direct evidence that no single constant $\sigma$ can be right across all strikes simultaneously. Black-Scholes is priced *against*, strike by strike, using implied vol as the market's quoting convention — not treated as a literally true description of the underlying's dynamics.
+
+## Why This Is a Real Limitation, Not a Bug
+
+Black-Scholes assumed $dS = \mu S\,dt + \sigma S\,dW$ with **constant** $\sigma$ — one number, for all strikes and maturities, for all time. The smile shows real markets price in something Black-Scholes structurally cannot: risk that varies with how far a strike is from the money (crash risk, fat tails, skew). Later, more flexible models (local volatility, stochastic volatility, jump-diffusion) exist specifically to address this — outside this course's scope, but worth knowing the gap exists.
+
+# Part 5: Wrapping Up
+
+## What We Learned: Module 11 Summary
+
+| Concept | Role |
+|---|---|
+| $\Delta, \Gamma, \text{Vega}, \Theta$ | Partial derivatives of $V$; each quantifies sensitivity to one input |
+| $\Gamma$ | Governs hedging error between discrete rebalances — largest near the strike |
+| Discrete hedging simulation | Unbiased on average (matches Module 10's price); variance shrinks with rebalancing frequency |
+| Implied volatility | The $\sigma$ that makes Black-Scholes match an observed price; found by root-finding, not a formula |
+| Volatility smile | Strike-varying implied vol — direct evidence against Black-Scholes's constant-$\sigma$ assumption |
+
+## Looking Ahead: Module 12
+
+Final module: **review and synthesis** across all four case studies, plus final presentations. **CS 4 is due**, applying everything from Modules 7–11 — Poisson/Brownian building blocks, market microstructure, martingales and Itô's lemma, the Black-Scholes derivation, and today's Greeks/hedging/calibration tools — to price, hedge, and critically evaluate an options strategy.
+
+## References
+
+- Black, F. & Scholes, M. (1973). *The Pricing of Options and Corporate Liabilities*. Journal of Political Economy, 81(3), 637–654.
+- Hull, J. C. *Options, Futures, and Other Derivatives*.
+- Gatheral, J. (2006). *The Volatility Surface: A Practitioner's Guide*. Wiley.
+- Derman, E. & Kani, I. (1994). *Riding on a Smile*. Risk, 7(2), 32–39.

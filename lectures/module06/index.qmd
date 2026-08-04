@@ -1,0 +1,610 @@
+---
+title: "Module 6: GARCH Models"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Taylor R. Brown"
+format:
+  revealjs:
+    theme: [default, ../uva-theme.scss]
+    slide-number: c/t
+    footer: "{{< var course.code >}} – {{< var course.title >}} · Module 6"
+    toc: true
+    toc-depth: 1
+    smaller: true
+    scrollable: true
+    html-math-method: katex
+execute:
+  echo: true
+  eval: false
+---
+
+# Part 1: Motivation — Volatility Clustering
+
+## The Limitation of ARMA
+
+ARMA models assume the noise variance $\sigma^2$ is **constant** regardless of time.
+
+This is clearly violated in financial returns. Consider daily S&P 500 returns:
+
+- **2006:** annual volatility $\approx 10\%$
+- **2008:** annual volatility $\approx 40\%$
+- **2020 (March):** daily moves of 5–10%
+
+No ARMA model captures this. We need a model where the conditional variance evolves over time.
+
+## Volatility Clustering in FX Returns
+
+Our running example — the AUD/JPY carry trade — shows the same pattern. Large moves cluster in time:
+
+```{python}
+#| label: module06-0
+#| eval: true
+#| output-location: slide
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+fig, ax = plt.subplots(figsize=(10, 4))
+carry.plot(ax=ax, lw=0.6, color="steelblue")
+ax.set_title("AUD/JPY Carry P&L (%)")
+ax.set_xlabel("Date")
+ax.set_ylabel("Carry P&L (%)")
+plt.tight_layout()
+plt.show()
+```
+
+Notice the calm stretches punctuated by bursts of large moves — the visual signature of volatility clustering, and exactly what GARCH is built to model.
+
+## Stylized Facts of Financial Returns
+
+| Stylized Fact | Description |
+|---|---|
+| **Volatility clustering** | Large moves tend to follow large moves; calm periods follow calm periods |
+| **Heavy tails** | More extreme observations than Normal predicts |
+| **Asymmetry** | Negative returns often trigger larger volatility increases than positive returns of the same magnitude |
+| **Uncorrelated but dependent** | Returns $Z_t$ are uncorrelated, but $Z_t^2$ is autocorrelated |
+
+ARMA handles correlation in $Z_t$. GARCH handles dependence in $Z_t^2$.
+
+## Heavy Tails: A QQ-Plot
+
+If AUD/JPY returns were Normal, the points below would fall on the red line. They don't — the tails are fatter than Normal predicts:
+
+```{python}
+#| label: module06-0a
+#| eval: true
+#| output-location: slide
+import numpy as np
+import pandas as pd
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+fig, ax = plt.subplots(figsize=(6, 6))
+stats.probplot(carry, dist="norm", plot=ax)
+ax.set_title("QQ-Plot: AUD/JPY Carry P&L vs. Normal")
+plt.tight_layout()
+plt.show()
+```
+
+The S-shaped departure from the line at both ends is the signature of heavy tails: extreme moves happen far more often than a Normal distribution would suggest.
+
+## Asymmetry: The Leverage Effect
+
+Does a large *negative* return today predict more volatility tomorrow than a large *positive* return of the same size? Plot today's return against tomorrow's squared return:
+
+```{python}
+#| label: module06-0b
+#| eval: true
+#| output-location: slide
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+today = carry.iloc[:-1].to_numpy()
+tomorrow_sq = (carry.iloc[1:] ** 2).to_numpy()
+corr = np.corrcoef(today, tomorrow_sq)[0, 1]
+
+fig, ax = plt.subplots(figsize=(7, 5))
+ax.scatter(today, tomorrow_sq, s=8, alpha=0.4, color="steelblue")
+ax.axvline(0, color="black", lw=0.8)
+ax.text(0.03, 0.95, f"corr = {corr:.3f}", transform=ax.transAxes,
+        va="top", fontsize=12,
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+ax.set_yscale("log")
+ax.set_xlabel(r"Return today, $Z_t$ (%)")
+ax.set_ylabel(r"Squared return tomorrow, $Z_{t+1}^2$ (log scale)")
+ax.set_title("Leverage Effect: AUD/JPY Carry P&L")
+plt.tight_layout()
+plt.show()
+```
+
+In equities this scatter is usually lopsided — the left half (negative returns) sits higher than the right half. Check whether the same asymmetry shows up here for an FX carry pair, where the effect is typically weaker or absent.
+
+## Asymmetry in Equities: XLF
+
+Compare to a sector SPDR ETF — Financials (XLF). The same lopsidedness is often more pronounced in equities, where a drop in price directly raises leverage (hence "leverage effect"):
+
+```{python}
+#| label: module06-0c
+#| eval: true
+#| output-location: slide
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+prices = pd.read_csv("../data/prices.csv", index_col=0, parse_dates=True)
+xlf_ret = np.log(prices["XLF"]).diff().dropna() * 100
+
+today = xlf_ret.iloc[:-1].to_numpy()
+tomorrow_sq = (xlf_ret.iloc[1:] ** 2).to_numpy()
+corr = np.corrcoef(today, tomorrow_sq)[0, 1]
+
+fig, ax = plt.subplots(figsize=(7, 5))
+ax.scatter(today, tomorrow_sq, s=8, alpha=0.4, color="darkorange")
+ax.axvline(0, color="black", lw=0.8)
+ax.text(0.03, 0.95, f"corr = {corr:.3f}", transform=ax.transAxes,
+        va="top", fontsize=12,
+        bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
+ax.set_yscale("log")
+ax.set_xlabel(r"Return today, $Z_t$ (%)")
+ax.set_ylabel(r"Squared return tomorrow, $Z_{t+1}^2$ (log scale)")
+ax.set_title("Leverage Effect: XLF (Financials Sector SPDR)")
+plt.tight_layout()
+plt.show()
+```
+
+Negative returns (left side) tend to be followed by larger squared returns than positive returns of the same magnitude — the asymmetry GARCH extensions like GJR-GARCH and EGARCH are designed to capture.
+
+## Conditional vs. Unconditional Variance
+
+**Unconditional variance:** $\text{Var}(Z_t) = E[Z_t^2]$ — the long-run average level of volatility.
+
+**Conditional variance:**
+$$
+h_t = \text{Var}(Z_t \mid Z_{1:t-1}) = E[Z_t^2 \mid Z_{1:t-1}]
+$$
+
+$h_t$ varies day by day. After a volatile Friday, Monday's $h_t$ should be elevated.
+
+GARCH models $h_t$ as a function of past data. A fitted model can provide a **one-step-ahead volatility forecast** $\hat{h}_{t+1|t}$.
+
+# Part 2: ARCH and GARCH Models
+
+## ARCH(p): Definition
+
+**AutoRegressive Conditional Heteroscedasticity** (Engle, 1982):
+
+$$
+Z_t = \sqrt{h_t}\, e_t, \quad \{e_t\} \sim \text{IID}(0, 1)
+$$
+$$
+h_t = \alpha_0 + \alpha_1 Z_{t-1}^2 + \cdots + \alpha_p Z_{t-p}^2
+$$
+
+**Constraints:** $\alpha_0 > 0$, $\alpha_i \geq 0$ for $i=1,\ldots,p$.
+
+**Interpretation:**
+
+- Large past squared returns $\Rightarrow$ large $h_t$ $\Rightarrow$ large expected absolute future moves.
+- Setting all $\alpha_i = 0$ gives constant variance = white noise.
+
+## GARCH(p, q): Definition
+
+**Generalized ARCH** (Bollerslev, 1986):
+
+$$
+Z_t = \sqrt{h_t}\, e_t, \quad \{e_t\} \sim \text{IID}(0, 1)
+$$
+$$
+h_t = \alpha_0 + \sum_{i=1}^p \alpha_i Z_{t-i}^2 + \sum_{j=1}^q \beta_j h_{t-j}
+$$
+
+**Constraints:** $\alpha_0 > 0$, $\alpha_i \geq 0$, $\beta_j \geq 0$.
+
+Adding lagged $h_{t-j}$ terms is like giving the variance an AR structure. GARCH(1,1) is far more parsimonious than ARCH(10) but fits almost as well in practice.
+
+## GARCH(1,1): The Workhorse
+
+Maybe the most widely used specification in practice:
+
+$$
+h_t = \alpha_0 + \alpha_1 Z_{t-1}^2 + \beta_1 h_{t-1}
+$$
+
+**Stationarity condition:** $\alpha_1 + \beta_1 < 1$.
+
+**Unconditional variance:**
+$$
+E[Z_t^2] = \frac{\alpha_0}{1 - \alpha_1 - \beta_1}
+$$
+
+**Typical values for equity returns:** $\alpha_1 \approx 0.05$–$0.15$, $\beta_1 \approx 0.80$–$0.90$.
+
+The **persistence** $\alpha_1 + \beta_1$ near 1 means volatility shocks die out slowly.
+
+## GARCH Is White Noise, Not IID
+
+The $\{Z_t\}$ process in GARCH is **white noise**: $\text{Cov}(Z_{t+h}, Z_t) = 0$ for $h \neq 0$.
+
+Proof sketch:
+
+\begin{align*}
+E[Z_{t+h} Z_t] &= E\!\left[E(Z_{t+h} Z_t \mid Z_{1:t+h-1})\right] \\
+&= E\!\left[Z_t \cdot E(Z_{t+h} \mid Z_{1:t+h-1})\right] \\
+&= E[Z_t \cdot 0] = 0
+\end{align*}
+
+But the squared process $\{Z_t^2\}$ **is** autocorrelated:
+
+$$
+\text{Cov}(Z_t^2, Z_{t-1}^2) = \alpha_1 \cdot \text{Var}(Z_t^2) > 0
+$$
+
+This is why we look at the ACF of squared returns to detect GARCH effects.
+
+## ACF of Squared Returns: AUD/JPY
+
+The raw returns show little autocorrelation, but their squares do — evidence of GARCH-type dependence:
+
+```{python}
+#| label: module06-0d
+#| eval: true
+#| output-location: slide
+import numpy as np
+import pandas as pd
+from statsmodels.graphics.tsaplots import plot_acf
+import matplotlib.pyplot as plt
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+plot_acf(carry, lags=20, ax=axes[0], title="ACF: AUD/JPY Carry P&L")
+plot_acf(carry**2, lags=20, ax=axes[1], title="ACF: AUD/JPY Squared Carry P&L")
+plt.tight_layout()
+plt.show()
+```
+
+Returns themselves are close to white noise, but the squared returns show clear, slowly decaying autocorrelation — the hallmark of volatility clustering that GARCH is built to capture.
+
+## ARCH(1): Stationarity
+
+For ARCH(1), repeated substitution shows (when $\alpha_1 < 1$):
+
+$$
+Z_t^2 = \alpha_0 \sum_{j=0}^\infty \alpha_1^j \, e_t^2 e_{t-1}^2 \cdots e_{t-j}^2
+$$
+
+From this representation:
+
+$$
+E[Z_t] = 0, \quad \text{Var}(Z_t) = \frac{\alpha_0}{1 - \alpha_1}, \quad \text{Cov}(Z_{t+h}, Z_t) = 0
+$$
+
+So ARCH(1) is **weakly stationary** (white noise) when $\alpha_1 < 1$, but not IID.
+
+## ARCH(1) Doesn't Capture Long-Range Dependence
+
+The ARCH(1) formula above shows $\text{Cov}(Z_t^2, Z_{t-h}^2) \propto \alpha_1^h$ — a **geometric** decay that dies out fast. Adding a GARCH term lets that decay persist much longer:
+
+```{python}
+#| label: module06-0e
+#| eval: true
+#| output-location: slide
+import numpy as np
+import pandas as pd
+from statsmodels.graphics.tsaplots import plot_acf
+import matplotlib.pyplot as plt
+
+rng = np.random.default_rng(0)
+n = 5000
+
+# Simulated ARCH(1)
+alpha0, alpha1 = 0.1, 0.3
+e = rng.standard_normal(n)
+z = np.zeros(n)
+h = np.zeros(n)
+h[0] = alpha0 / (1 - alpha1)
+z[0] = np.sqrt(h[0]) * e[0]
+for t in range(1, n):
+    h[t] = alpha0 + alpha1 * z[t - 1] ** 2
+    z[t] = np.sqrt(h[t]) * e[t]
+sim_arch = pd.Series(z)
+
+# Simulated GARCH(1,1) — same unconditional variance, high persistence
+g_alpha0, g_alpha1, g_beta1 = 0.00714, 0.1, 0.85
+e2 = rng.standard_normal(n)
+z2 = np.zeros(n)
+h2 = np.zeros(n)
+h2[0] = g_alpha0 / (1 - g_alpha1 - g_beta1)
+z2[0] = np.sqrt(h2[0]) * e2[0]
+for t in range(1, n):
+    h2[t] = g_alpha0 + g_alpha1 * z2[t - 1] ** 2 + g_beta1 * h2[t - 1]
+    z2[t] = np.sqrt(h2[t]) * e2[t]
+sim_garch = pd.Series(z2)
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+plot_acf(sim_arch**2, lags=20, ax=axes[0], title="Simulated ARCH(1): Squared Returns")
+plot_acf(sim_garch**2, lags=20, ax=axes[1], title="Simulated GARCH(1,1): Squared Returns")
+plot_acf(carry**2, lags=20, ax=axes[2], title="AUD/JPY: Squared Carry P&L")
+plt.tight_layout()
+plt.show()
+```
+
+The ARCH(1) and GARCH(1,1) series have the same unconditional variance, but the ARCH(1) autocorrelations vanish after a few lags while the GARCH(1,1) autocorrelations — driven by persistence $\alpha_1 + \beta_1 = 0.95$ — decay much more slowly. The real AUD/JPY squared returns show the same slowly-decaying pattern as the simulated GARCH(1,1), not the fast-decaying ARCH(1) — evidence that GARCH is the better-fitting model.
+
+## Stochastic Volatility (for context)
+
+An alternative that separates the latent volatility from the observations:
+
+$$
+Z_t = \sqrt{h_t}\, e_t, \quad \{e_t\} \sim \text{IID}(0, 1)
+$$
+$$
+\log h_t = \gamma_0 + \gamma_1 \log h_{t-1} + \eta_t, \quad \{\eta_t\} \sim \text{IID}(0, \tau^2)
+$$
+
+Log-volatility follows an AR(1) driven by independent noise $\eta_t$.
+
+**Pros:** More flexible, natural latent-variable interpretation.
+
+**Cons:** The likelihood is intractable — requires particle filters or MCMC.
+
+We focus on GARCH because it has a closed-form likelihood. The straightforward MLE explains why these are way more popular in practice.
+
+# Part 3: Fitting GARCH in Python
+
+## The `arch` Package
+
+```{python}
+#| label: module06-1
+#| eval: true
+#| output-location: slide
+from arch import arch_model
+import numpy as np
+import pandas as pd
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+am = arch_model(carry, vol="Garch", p=1, q=1, dist="Normal")
+res = am.fit(disp="off")
+print(res.summary())
+```
+
+## Interpreting the Output
+
+Key parameters from the GARCH(1,1) fit:
+
+| Parameter | Symbol | Meaning |
+|---|---|---|
+| `omega` | $\alpha_0$ | Recall long-run var is $\alpha_0 (1 - \alpha_1 - \beta_1)$) |
+| `alpha[1]` | $\alpha_1$ | Response to last squared return (ARCH term) |
+| `beta[1]` | $\beta_1$ | Persistence of past variance (GARCH term) |
+
+A significant `alpha[1]` confirms volatility clustering. Persistence $\alpha_1 + \beta_1$ close to 1 means shocks die out slowly.
+
+## Plotting Conditional Volatility
+
+```{python}
+#| label: module06-2
+#| eval: true
+#| output-location: slide
+from arch import arch_model
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+am = arch_model(carry, vol="Garch", p=1, q=1, dist="Normal")
+res = am.fit(disp="off")
+
+fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+carry.plot(ax=axes[0], title="AUD/JPY Carry P&L (%)", alpha=0.7)
+np.sqrt(res.conditional_volatility).plot(
+    ax=axes[1], title="Conditional Volatility (%)", color="red"
+)
+plt.tight_layout()
+plt.show()
+```
+
+## Residual Diagnostics
+
+After fitting GARCH, examine the **standardized residuals**:
+
+$$
+\hat{e}_t = \frac{Z_t}{\sqrt{\hat{h}_t}}
+$$
+
+These should behave like IID noise if the model is correctly specified.
+
+```{python}
+#| label: module06-3
+#| eval: true
+from statsmodels.stats.diagnostic import acorr_ljungbox
+
+std_resid = res.std_resid
+lb = acorr_ljungbox(std_resid**2, lags=[5, 10, 20], return_df=True)
+print(lb)
+```
+
+If squared standardized residuals still show autocorrelation, try a higher-order GARCH or a different error distribution.
+
+## Student-$t$ Innovations
+
+Financial returns have heavier tails than Normal. Fit GARCH with Student-$t$ innovations:
+
+```{python}
+#| label: module06-4
+#| eval: true
+#| output-location: slide
+from arch import arch_model
+import numpy as np
+import pandas as pd
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+am_t = arch_model(carry, vol="Garch", p=1, q=1, dist="t") # boop!
+res_t = am_t.fit(disp="off")
+print(res_t.summary())
+```
+
+Compare AIC/BIC between the Normal and $t$ specifications. The $t$ typically wins for financial returns.
+
+# Part 4: CS 2 — Strategy Evaluation
+
+## Volatility-Scaled Positions
+
+The GARCH(1,1) one-step-ahead volatility forecast:
+
+$$
+\hat{h}_{t+1|t} = \hat{\alpha}_0 + \hat{\alpha}_1 Z_t^2 + \hat{\beta}_1 \hat{h}_t
+$$
+
+**Volatility targeting:** scale position size inversely with forecast volatility to maintain constant risk:
+
+$$
+w_t = \frac{\sigma^*}{\hat{\sigma}_{t+1|t}}, \quad \hat{\sigma}_{t+1|t} = \sqrt{\hat{h}_{t+1|t}}
+$$
+
+where $\sigma^*$ is the desired (target) daily volatility. The scaled return is $w_t \cdot Z_{t+1}$.
+
+## Implementing Volatility Targeting
+
+Beware the leakage...
+```{python}
+#| label: module06-5
+#| eval: true
+#| output-location: slide
+from arch import arch_model
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+carry = pd.read_csv("../data/carry_pnl.csv", index_col=0, parse_dates=True)["carry_pnl"]
+
+am = arch_model(carry, vol="Garch", p=1, q=1, dist="t")
+res = am.fit(disp="off")
+
+target_vol = carry.std()
+weights = target_vol / res.conditional_volatility
+scaled = (weights.shift(1) * carry).dropna()
+
+fig, axes = plt.subplots(2, 1, figsize=(10, 6))
+carry.cumsum().plot(ax=axes[0], label="Unscaled")
+scaled.cumsum().plot(ax=axes[0], label="Vol-Scaled")
+axes[0].set_title("Cumulative Return (%)")
+axes[0].legend()
+weights.plot(ax=axes[1], title="Position Multiplier")
+plt.tight_layout()
+plt.show()
+```
+
+## Performance Metrics
+
+```{python}
+#| label: module06-6
+#| eval: true
+#| output-location: slide
+
+import numpy as np
+import pandas as pd
+
+def annualized_sharpe(rets, freq=252):
+    return rets.mean() / rets.std() * np.sqrt(freq)
+
+def max_drawdown(rets):
+    cum = rets.cumsum()
+    return (cum - cum.cummax()).min()
+
+raw = carry.dropna()
+vol_scaled = scaled.dropna()
+
+stats = pd.DataFrame({
+    "Unscaled": {
+        "Ann. Return (%)": raw.mean() * 252,
+        "Ann. Vol (%)": raw.std() * 252**0.5,
+        "Sharpe": annualized_sharpe(raw),
+        "Max Drawdown (%)": max_drawdown(raw),
+    },
+    "Vol-Scaled": {
+        "Ann. Return (%)": vol_scaled.mean() * 252,
+        "Ann. Vol (%)": vol_scaled.std() * 252**0.5,
+        "Sharpe": annualized_sharpe(vol_scaled),
+        "Max Drawdown (%)": max_drawdown(vol_scaled),
+    },
+}).round(2)
+
+print(stats)
+```
+
+## Value at Risk from GARCH
+
+GARCH also gives us a better VaR estimate than using the unconditional distribution.
+
+**Conditional VaR** at confidence level $\alpha$:
+
+$$
+\text{VaR}_\alpha^{(t+1)} = -\hat{\sigma}_{t+1|t} \cdot q_\alpha
+$$
+
+where $q_\alpha$ is the $\alpha$-quantile of the fitted innovation distribution (e.g., $t_\nu$).
+
+```{python}
+#| label: module06-7
+#| eval: true
+#| output-location: slide
+from scipy.stats import t as student_t
+import numpy as np
+import pandas as pd
+
+# extract GARCH params (from t-innovation fit)
+nu = res_t.params["nu"]  # degrees of freedom
+sigma_forecast = np.sqrt(res_t.conditional_volatility.iloc[-1])  # last fitted vol
+
+alpha = 0.05
+q_alpha = student_t.ppf(alpha, df=nu)
+VaR_pct = -sigma_forecast * q_alpha
+P = 1_000_000  # $1M position
+
+print(f"1-day conditional vol:  {sigma_forecast:.4f}%")
+print(f"5% conditional VaR:     {VaR_pct:.4f}%  (${P * VaR_pct / 100:,.0f})")
+```
+
+## What We Learned: Part 2 Summary
+
+Over Modules 3–6, we built a complete univariate pipeline for the FX carry trade:
+
+| Module | Tool | Key Finding |
+|---|---|---|
+| 3 | Stationarity, ACVF | FX log returns are approximately stationary; FX levels are not |
+| 4 | IID noise, random walks, sample ACF | Log prices behave like random walks; returns look like white noise in the mean |
+| 5 | AR/MA/ARMA | Returns have minimal mean predictability (near-efficient market) |
+| 6 | GARCH | Volatility clustering; probably refitting this model less frequently and trusting it more than ARMA |
+
+## Limitations of This Strategy/Code
+
+- **One pair only:** using AUD/JPY ignores the broader G10 carry basket.
+- **Simple interest accrual:** we approximate the daily carry as the annualized rate differential divided by 252, ignoring compounding and day-count conventions a live desk would use.
+- **Regime changes:** carry can be stable for years and then crash suddenly (e.g., 2008 "carry unwind").
+- **Transaction costs:** bid-ask spreads in FX are small but nonzero, especially during stress.
+- **Look-ahead bias:** in-sample GARCH fit uses future information in conditional volatility calculation.
+
+A production carry strategy would address all of these — but the analytical tools are exactly what we built here.
+
+## Looking Ahead: Part 3
+
+The next section moves from **discrete time** to **continuous time**:
+
+- Brownian motion as the continuous-time limit of a random walk (Module 7)
+- Martingale theory (Module 8)
+- Itô's lemma (Module 9)
+- Black-Scholes option pricing (Modules 10–11)
+
+The carry trade and portfolio construction used return series at daily (or lower) frequency. Options pricing requires modeling prices continuously — a fundamentally different framework.

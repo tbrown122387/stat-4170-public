@@ -1,0 +1,518 @@
+---
+title: "Week 1: Portfolio Moments and Optimal Weights"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Taylor R. Brown"
+format:
+  revealjs:
+    theme: [default, ../uva-theme.scss]
+    slide-number: c/t
+    footer: "{{< var course.code >}} – {{< var course.title >}} · Module 1"
+    smaller: true
+    scrollable: true
+    html-math-method: katex
+execute:
+  echo: true
+  eval: false
+---
+
+# Part 1: Mean Vectors and Covariance Matrices
+
+## Portfolios are Multivariate Problems
+
+Example: tomorrow's returns for AAPl and TSLA.
+
+
+Denote the random vector
+$$
+\mathbf{y}_{t+1} = \begin{bmatrix} y_{t+1,\text{AAPL}} \\  y_{t+1,\text{TSLA}} \end{bmatrix}
+$$
+
+Just two random numbers, around 0, stacked on top of each other.
+
+
+## Portfolios are Multivariate Problems
+
+
+More generally, any **return vector** at time $t+1$ is
+
+$$
+\mathbf{y}_{t+1} = \begin{bmatrix} y_{t+1,1} \\ \vdots \\ y_{t+1,k} \end{bmatrix}
+$$
+
+where $y_{t+1,i}$ is the **arithmetic (simple) percent return** of security $i$ (could be scaled by $100$).
+
+
+## Portfolios are Multivariate Problems
+
+Machine learning models give us a **forecast distribution**:
+$$
+p(\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t})
+$$
+
+but what do we do with this? We need to make a **decision.**
+
+
+## Portfolio Weights
+
+The **weight vector** $\mathbf{w}_t \in \mathbb{R}^k$ controls how much wealth is allocated to each security:
+
+Say we're 50/50 AAPL and TSLA today. Then
+
+$$
+\mathbf{w}_t = 
+\begin{bmatrix} .5 \\  .5
+\end{bmatrix}
+$$
+
+NB: some resources will talk about dollar value instead. 
+
+## Portfolio Weights
+
+In general, with $\mathbf{w}_t = \begin{bmatrix} w_{t,1}, \cdots, w_{t,k} \end{bmatrix}^\intercal$,
+
+- $w_{t,i} > 0$ means you are "long" security $i$
+- $w_{t,i} < 0$ means you are "short" security $i$
+- $w_{t,i} > 0$ for **all** $i$ is a long only portfolio
+
+These are examples of "budget constraints"
+
+- $\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 1$: fully invested, no leverage, potentially short stuff
+- $\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 2$: levered 2-to-1
+- $\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 0$: "dollar-neutral"
+
+## Portfolio Weights
+
+**Common weight schemes:**
+
+| Scheme | $\mathbf{w}_t$ |
+|---|---|
+| Equal-weight | $\mathbf{1} / \text{num securities}$ |
+| Market cap-weight | proportional to cap (e.g., SPY) |
+| **Optimal for your preferences** (today's goal) | chosen to maximize some objective |
+
+
+
+## Portfolio Return
+
+
+The **portfolio return** at $t+1$ is then the scalar:
+$$
+r_{t+1} = \mathbf{w}_t^\intercal \mathbf{y}_{t+1} = \sum_{i=1}^k w_i \, y_{t+1,i}
+$$
+
+It combines your decisions with the random future to give you one random percent.
+
+## Pitfall: Use Arithmetic Returns Here, Not Log Returns
+
+The identity $r_{t+1} = \mathbf{w}_t^\intercal \mathbf{y}_{t+1}$ **only holds for arithmetic (simple) returns.**
+
+Log returns do not aggregate across assets this way. If $y_{t+1,i} = \ln(P_{t+1,i}/P_{t,i})$, then in general
+
+$$
+\mathbf{w}_t^\intercal \mathbf{y}_{t+1} \;\neq\; \ln\!\left(\frac{\sum_i w_i P_{t+1,i}}{\sum_i w_i P_{t,i}}\right) = \text{true log portfolio return}
+$$
+
+because $\ln$ of a sum isn't the sum of $\ln$'s.
+
+- **Cross-sectionally** (combining several assets into one portfolio, today and Module 2): use **arithmetic returns** — that's why the code uses `.pct_change()`, not `np.log().diff()`.
+- **Over time** (a single asset's history, starting Module 3): log returns are convenient because they *are* additive across time and tend to be more stationary.
+
+Mixing these up is a common and easy-to-make mistake — keep the two use cases straight.
+
+## Weights Must Be Set Before the Return Is Known
+
+Bad news: we can't time travel. 
+
+$\mathbf{w}_t$ can only use information available at time $t$. 
+
+More bad news: maintaining desired weights is expensive.
+
+If you want to hold fixed weights over time, you must **rebalance** --- sell winners and buy laggards --- each period. 
+
+## The Mean-Variance Framework
+
+First, we boil this down into means, variances and correlations:
+
+$$
+p(\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t})
+$$
+
+It's much more feasible to base our decisions (the portfolio weights) on the boiled down version.
+
+
+
+## The Mean Vector
+
+We work primarily with the first two moments of the forecast distribution. The **forecast mean vector** is:
+
+$$
+\boldsymbol{\mu} := \mathbb{E}[\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t}] =
+\begin{bmatrix}
+\mathbb{E}[y_{t+1,1} \mid \mathbf{y}_{1:t}] \\
+\vdots \\
+\mathbb{E}[y_{t+1,k} \mid \mathbf{y}_{1:t}]
+\end{bmatrix}
+\in \mathbb{R}^k
+$$
+
+We will often drop the conditioning from the notation.
+
+The portfolio's **expected return** follows by linearity of expectation:
+
+$$
+\mathbb{E}[\mathbf{w}^\intercal \mathbf{y}_{t+1}] = \mathbf{w}^\intercal \boldsymbol{\mu}
+$$
+
+```{python}
+#| label: module01-1
+#| echo: false
+#| eval: true
+#| output: false
+import subprocess, sys, numpy as np, pandas as pd
+from pathlib import Path
+from IPython.display import display, Markdown
+
+_data_path = Path("../data/prices.csv")
+if not _data_path.exists():
+    subprocess.run([sys.executable, "../fetch_data.py"], check=True)
+
+_prices = pd.read_csv(_data_path, index_col=0, parse_dates=True)
+_rets   = _prices[["AAPL", "TSLA"]].pct_change().dropna()
+
+_mu_daily    = _rets.mean().values
+_Sigma_daily = _rets.cov().values
+_mu_ann      = _mu_daily * 252
+_Sigma_ann   = _Sigma_daily * 252
+```
+
+## The Mean Vector
+
+Example: AAPL and TSLA.
+
+Strictly speaking the true mean is unknowable.
+
+If you're looking at the time horizon of 1 day, you might get something like
+
+```{python}
+#| label: module01-2
+#| echo: false
+#| eval: true
+display(Markdown(
+    r"$$\begin{bmatrix}" +
+    f"{_mu_daily[0]:.5f} \\\\ {_mu_daily[1]:.5f}" +
+    r"\end{bmatrix}$$"
+))
+```
+
+Annualized returns might be around
+
+```{python}
+#| label: module01-3
+#| echo: false
+#| eval: true
+display(Markdown(
+    r"$$\begin{bmatrix}" +
+    f"{_mu_ann[0]:.3f} \\\\ {_mu_ann[1]:.3f}" +
+    r"\end{bmatrix}$$"
+))
+```
+
+## The Covariance Matrix
+
+The **forecast covariance matrix** is an arrangement of variances and covariances. We'll have to build it up
+
+First, the variance of a random variable $X$ is
+
+$$
+\mathbb{V}(X) = \mathbb{E}\!\left[(X - \mathbb{E}[X])^2\right]
+$$
+
+**It is a measure of risk.** So is its square root (std. dev. or *volatility*).
+
+The **covariance** between two random variables $X$ and $Y$ is
+
+$$
+\text{Cov}(X, Y) = \mathbb{E}\!\left[(X - \mathbb{E}[X])(Y - \mathbb{E}[Y])\right]
+$$
+
+It measures whether $X$ and $Y$ tend to move together. Positive means they co-move; negative means they offset each other. Note that $\text{Cov}(X, X) = \mathbb{V}(X)$.
+
+
+## The Covariance Matrix
+
+The **forecast covariance matrix** is an arrangement of every pairwise covariance:
+
+$$
+\boldsymbol{\Sigma} := 
+\mathbb{V}[\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t}] =
+\begin{bmatrix}
+\mathbb{V}[y_{t+1,1}] & \text{Cov}(y_{t+1,1}, y_{t+1,2}) & \cdots & \text{Cov}(y_{t+1,1}, y_{t+1,k}) \\
+\text{Cov}(y_{t+1,2}, y_{t+1,1}) & \mathbb{V}[y_{t+1,2}] & \cdots & \vdots \\
+\vdots & \vdots & \ddots & \vdots \\
+\text{Cov}(y_{t+1,k}, y_{t+1,1}) & \cdots & \cdots & \mathbb{V}[y_{t+1,k}]
+\end{bmatrix}
+$$
+
+
+## The Covariance Matrix
+
+Example: AAPL and TSLA.
+
+Again (population, not sample) covariance matrices are not knowable, but can easily be estimated.
+
+For daily returns
+```{python}
+#| label: module01-4
+#| echo: false
+#| eval: true
+display(Markdown(
+    r"$$\begin{bmatrix}" +
+    f"{_Sigma_daily[0,0]:.10f} & {_Sigma_daily[0,1]:.10f} \\\\" +
+    f"{_Sigma_daily[1,0]:.10f} & {_Sigma_daily[1,1]:.10f}" +
+    r"\end{bmatrix}$$"
+))
+```
+
+For annualized returns
+```{python}
+#| label: module01-5
+#| echo: false
+#| eval: true
+display(Markdown(
+    r"$$\begin{bmatrix}" +
+    f"{_Sigma_ann[0,0]:.5f} & {_Sigma_ann[0,1]:.5f} \\\\" +
+    f"{_Sigma_ann[1,0]:.5f} & {_Sigma_ann[1,1]:.5f}" +
+    r"\end{bmatrix}$$"
+))
+```
+
+## The Covariance Matrix
+
+
+Every $\boldsymbol{\Sigma}$ is always **symmetric** because $\text{Cov}(X,Y) = \text{Cov}(Y,X)$.
+
+Example:
+
+```{python}
+#| label: module01-6
+#| echo: false
+#| eval: true
+display(Markdown(
+    r"$$\begin{bmatrix}" +
+    f"{_Sigma_daily[0,0]:.10f} & {_Sigma_daily[0,1]:.10f} \\\\" +
+    f"{_Sigma_daily[1,0]:.10f} & {_Sigma_daily[1,1]:.10f}" +
+    r"\end{bmatrix}$$"
+))
+```
+
+## Portfolio Variance via Bilinearity
+
+The portfolio variance is $\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}$. This follows from the bilinearity of covariance:
+
+$$
+\mathbb{V}[\mathbf{w}^\intercal \mathbf{y}] = \text{Cov}\!\left[\sum_i w_i y_i,\, \sum_j w_j y_j\right]
+= \sum_i \sum_j w_i w_j \,\text{Cov}(y_i, y_j)
+= \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}
+$$
+
+
+## The Covariance Matrix
+
+Every covariance matrix is **positive semi-definite** (PSD): $\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w} \geq 0$ for all $\mathbf{w}$. 
+
+Finance folks understand this well. It just means **no portfolio makes risk negative.**
+
+You can get riskless (variance $0$) portfolios if you exclusively invest in riskless assets (holding bonds to maturity), take opposite positions in perfectly correlated assets, or you you hold cash.
+
+
+
+## Portfolio Risk and Reward
+
+Twiddle $\mathbf{w}$ to tune the quantities below
+
+| Quantity | Formula |
+|---|---|
+| Expected return | $\mathbf{w}^\intercal \boldsymbol{\mu}$ |
+| Variance | $\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}$ |
+| Std. deviation ("risk") | $\sqrt{\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}$ |
+
+## Computing Risk and Reward in Python
+
+```{python}
+#| label: module01-7
+#| eval: true
+import numpy as np
+
+# CHOSEN: which securities to include
+tickers = ["AAPL", "AMZN"]
+k = len(tickers)
+
+# CHOSEN: how much wealth to allocate to each security
+w = np.ones(k) / k           # equal-weight portfolio
+
+# UNKNOWN — must be estimated more carefully than this
+m = np.array([0.05, 0.04])   # placeholder expected daily returns (%)
+
+# UNKNOWN — must be estimated more carefully than this
+S = np.eye(k) + np.ones((k, k))  # placeholder covariance (identity + common factor)
+
+reward   = w @ m
+risk_sq  = w @ S @ w
+risk     = np.sqrt(risk_sq)
+
+print(f"Expected return : {reward:.4f}%")
+print(f"Std deviation   : {risk:.4f}%")
+```
+
+# Part 2: Quantities from $\boldsymbol{\mu}, \boldsymbol{\Sigma}$ and $\mathbf{w}$
+
+
+## Value at Risk
+
+Quantifying risk is important. 
+
+Standard deviation has the units of percent, not dollars.
+
+Additionally, it's not a "worst case scenario."
+
+Some folks prefer to talk about alternative risk metrics such as *Value at Risk*.
+
+### Example:
+
+Q: "What's the most amount of money the fund could lose tomorrow?"
+
+A: Assuming normality and perfect parameter estimates, there is only a 5\% chance we lose more than \$350,000, 
+
+Q: So $350k?
+
+A: Sure.
+
+## Value at Risk
+
+
+Assuming portfolio returns are approximately normal, the $\alpha$-**Value at Risk** (VaR) at dollar amount $P$ is:
+
+$$
+\text{VaR}_\alpha = -P \cdot z_\alpha \cdot \sqrt{\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}
+$$
+
+where $z_\alpha$ is the $\alpha$-quantile of the standard normal (e.g., $z_{0.05} \approx -1.645$).
+
+```{python}
+#| label: module01-8
+#| eval: true
+from scipy.stats import norm
+
+P     = 1_000_000  # $1M portfolio
+alpha = 0.05
+VaR   = -P * norm.ppf(alpha) * risk / 100  # returns are in % units
+print(f"5% one-day VaR: ${VaR:,.0f}")
+```
+
+The VaR answers: *"With 95% probability, we will not lose more than $X in one day."*
+
+
+NB: the acronmym can be confused with variance.
+
+## Value at Risk
+
+Where's this formula come from?
+
+Here's the idea:
+
+\begin{align*}
+\mathbb{P}(\text{loss} \ge \text{VaR}_\alpha)
+&= \mathbb{P}(P - P_{new} \ge -P \cdot z_\alpha \cdot \sqrt{\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}) \\
+&= \mathbb{P}\left( \frac{P_{new}-P}{P} \le  z_\alpha \cdot \sqrt{\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}\right) \\
+&= \mathbb{P}\left( \text{return} \le z_\alpha \cdot \sqrt{\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}\right) \\
+&= \mathbb{P}\left( \frac{\text{return} - 0}{\sqrt{\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}} \le z_\alpha  \right) 
+\end{align*}
+
+The last probability expression is $\alpha$ if tomorrow's return is normally distributed with mean $0$ and std. dev. $\sqrt{\mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}}$
+
+
+## Vector and Matrix Calculus
+
+We'll also need some calculus. This will help us find optima of scalar functions such as
+
+$$
+f(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\mu}
+$$
+
+and 
+
+$$
+f(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}
+$$
+
+We write a lot of things as vectors. It takes some getting used to.
+
+## Two Matrix Derivatives We Will Need
+
+**Result 1.** String out the dot product:
+$$
+f(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\mu} = w_1 m_1 + w_2 m_2 + \cdots + w_k m_k
+$$
+Each $w_i$ appears exactly once, so $\frac{\partial f}{\partial w_i} = m_i$ for all $i$:
+
+$$
+\frac{\partial f}{\partial \mathbf{w}} = \boldsymbol{\mu}
+$$
+
+*(Analogous to $\frac{d}{dx} cx = c$.)*
+
+
+## Two Matrix Derivatives We Will Need
+
+**Result 1.** String out the dot product:
+$$
+f(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\mu} = w_1 m_1 + w_2 m_2 + \cdots + w_k m_k
+$$
+Each $w_i$ appears exactly once, so $\frac{\partial f}{\partial w_i} = m_i$ for all $i$:
+
+$$
+\frac{\partial f}{\partial \mathbf{w}} = \boldsymbol{\mu}
+$$
+
+Proof:
+
+$$
+\frac{\partial f}{\partial \mathbf{w}}
+= \begin{bmatrix} \frac{\partial f}{\partial w_1} \\ \vdots \\ \frac{\partial f}{\partial w_k} \end{bmatrix}
+= \begin{bmatrix} \frac{\partial \mathbf{w}^\intercal \boldsymbol{\mu}}{\partial w_1} \\ \vdots \\ \frac{\partial \mathbf{w}^\intercal \boldsymbol{\mu}}{\partial w_k} \end{bmatrix}
+= \begin{bmatrix} m_1 \\ \vdots \\ m_k \end{bmatrix}
+= \boldsymbol{\mu}
+$$
+*(Analogous to $\frac{d}{dx} cx = c$.)*
+
+## Two Matrix Derivatives We Will Need
+
+
+**Result 2.** For $f(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}$ with $\boldsymbol{\Sigma}$ symmetric:
+
+$$
+\frac{\partial f}{\partial \mathbf{w}} = 2 \boldsymbol{\Sigma} \mathbf{w}
+$$
+
+*(Analogous to $\frac{d}{dx} cx^2 = 2cx$.)*
+
+
+
+
+## Two Matrix Derivatives We Will Need
+
+
+Proof: expand the quadratic form by writing out row $i$ of $\boldsymbol{\Sigma}\mathbf{w}$:
+$$
+f(\mathbf{w}) = \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w} = \sum_i \sum_j \Sigma_{ij} w_i w_j
+$$
+Differentiating with respect to $w_i$ picks out every term containing $w_i$:
+$$
+\frac{\partial f}{\partial w_i}
+= \sum_j \Sigma_{ij} w_j + \sum_j \Sigma_{ji} w_j
+= 2\sum_j \Sigma_{ij} w_j
+= 2(\boldsymbol{\Sigma}\mathbf{w})_i
+$$
+where the two sums collapse because $\boldsymbol{\Sigma}$ is symmetric ($\Sigma_{ij} = \Sigma_{ji}$). Stacking over all $i$ gives $\frac{\partial f}{\partial \mathbf{w}} = 2\boldsymbol{\Sigma}\mathbf{w}$.
+
+We will use both of these when deriving the optimal portfolio weights.

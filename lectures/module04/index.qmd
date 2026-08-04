@@ -1,0 +1,470 @@
+---
+title: "Module 4: Estimating the ACVF and ACF"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Taylor R. Brown"
+format:
+  revealjs:
+    theme: [default, ../uva-theme.scss]
+    slide-number: c/t
+    footer: "{{< var course.code >}} – {{< var course.title >}} · Module 4"
+    toc: true
+    toc-depth: 1
+    smaller: true
+    scrollable: true
+    html-math-method: katex
+execute:
+  echo: true
+  eval: false
+---
+
+# Part 0: The General Setting
+
+## Two Kinds of Processes
+
+Everything in this module — and most of the course — lives in one of two worlds.
+
+**Stationary process:** $\{X_t\}$ is (weakly) stationary if
+
+- $E[X_t] = \mu$ is constant (does not depend on $t$)
+- $\text{Cov}(X_{t+h}, X_t) = \gamma_X(h)$ depends only on the lag $h$, not on $t$
+
+The process "looks the same" wherever you look at it. Its mean and covariance structure are stable over time.
+
+**Non-stationary process:** at least one of those conditions fails — the mean drifts, the variance grows, or correlations depend on when in time you are.
+
+## Why the Distinction Matters for Estimation
+
+When a process is stationary, a single long realization gives us information about the whole process — different time points are all draws from the same distributional structure, just shifted in time. **Time averaging substitutes for ensemble averaging.**
+
+When a process is non-stationary, the structure at time $t=100$ may have nothing to do with the structure at $t=1$. A sample mean or sample correlation computed from such a path can be misleading or meaningless.
+
+The two canonical examples we will use throughout this module:
+
+| Process | Stationary? | ACVF |
+|---|---|---|
+| IID noise $X_t \overset{\text{iid}}{\sim} (0, \sigma^2)$ | Yes | $\gamma(0) = \sigma^2$, $\gamma(h) = 0$ for $h \neq 0$ |
+| Random walk $S_t = \sum_{i=1}^t Z_i$ | No | $\gamma(t+h, t) = t\sigma^2$ — depends on $t$ |
+
+# Part 1: Distribution of the Sample Mean
+
+## The IID Setting
+
+Let $X_1, \ldots, X_n \overset{\text{iid}}{\sim} (\mu, \sigma^2)$. The sample mean is
+
+$$
+\bar{X} = \frac{1}{n} \sum_{t=1}^n X_t
+$$
+
+By linearity of expectation: $E[\bar{X}] = \mu$.
+
+By independence, the cross-covariances vanish:
+
+$$
+\text{Var}(\bar{X}) = \frac{1}{n^2} \sum_{t=1}^n \text{Var}(X_t) = \frac{n \sigma^2}{n^2} = \frac{\sigma^2}{n}
+$$
+
+The IID structure means off-diagonal terms $\text{Cov}(X_i, X_j) = 0$ — each observation is new information. **More data always helps.**
+
+## Why $\sigma^2/n$ Requires IID
+
+The general expression for any zero-mean stationary process is
+
+$$
+\text{Var}(\bar{X}) = \frac{1}{n^2} \sum_i \sum_j \text{Cov}(X_i, X_j) = \frac{1}{n} \sum_{h=-(n-1)}^{n-1} \left(1 - \frac{|h|}{n}\right) \gamma_X(h)
+$$
+
+For IID noise, $\gamma_X(h) = 0$ for all $h \neq 0$, so only the $h=0$ term survives:
+
+$$
+\text{Var}(\bar{X}) = \frac{1}{n} \cdot \gamma_X(0) = \frac{\sigma^2}{n}
+$$
+
+When observations are **positively correlated**, each new observation is partly redundant — the effective sample size is smaller than $n$. The simple $\sigma^2/n$ formula under-estimates the true variance.
+
+## By CLT, the Sample Mean is Asymptotically Normal
+
+For IID noise with finite variance, the CLT gives:
+
+$$
+\sqrt{n}\,\bar{X} \xrightarrow{d} N(0, \sigma^2) \quad \Longleftrightarrow \quad \bar{X} \overset{\text{approx}}{\sim} N\!\left(0, \frac{\sigma^2}{n}\right)
+$$
+
+**Key property:** the standard deviation of $\bar{X}$ shrinks at rate $1/\sqrt{n}$.
+
+Double the sample size → $\bar{X}$ is $\sqrt{2}$ times more precise.
+
+## Don't Take the Time Average of a Random Walk
+
+Let $S_t = Z_1 + \cdots + Z_t$ with $\{Z_t\} \overset{\text{iid}}{\sim} (0, \sigma^2)$. The sample mean of a length-$n$ random walk path is:
+
+$$
+\bar{S} = \frac{1}{n} \sum_{t=1}^n S_t = \frac{1}{n} \sum_{t=1}^n \sum_{i=1}^t Z_i = \frac{1}{n} \sum_{i=1}^n (n - i + 1) Z_i
+$$
+
+The good news is it's unbiased:
+
+$$
+E[\bar{S}] = 0
+$$
+
+but...
+
+
+## Don't Take the Time Average of a Random Walk
+
+$$
+\bar{S} = \frac{1}{n} \sum_{t=1}^n S_t = \frac{1}{n} \sum_{t=1}^n \sum_{i=1}^t Z_i = \frac{1}{n} \sum_{i=1}^n (n - i + 1) Z_i
+$$
+
+The accuracy of this estimator gets **worse with more data!**
+
+$$
+\text{Var}(\bar{S}) = \frac{\sigma^2}{n^2} \sum_{i=1}^n (n - i + 1)^2 = \frac{\sigma^2}{n^2} \cdot \frac{n(n+1)(2n+1)}{6} \approx \frac{\sigma^2 n}{3}
+$$
+
+Calculate the time average $\bar{S}$ to estimate a population mean is essentially meaningless for a random walk, and yet people do it all the time.
+
+## Empirical: Distribution of $\bar{X}$ vs $\bar{S}$
+
+Simulate $B = 3000$ independent paths of length $n = 300$. For each path, record the sample mean.
+
+- **IID noise:** does $\bar{X}$ concentrate around zero?
+- **Random walk:** does $\bar{S}$ converge to anything?
+
+## {data-menu-title="Histogram: sample mean distribution (code)"}
+
+```{python}
+#| label: module04-1
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+rng = np.random.default_rng(42)
+B = 3000
+ns = [50, 150, 500, 2000]
+colors = ["#a8d8ea", "#4a90d9", "#1a4f8a", "#0a1f3a"]
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+
+for n, color in zip(ns, colors):
+    iid_means = np.array([rng.normal(0, 1.0, n).mean() for _ in range(B)])
+    rw_means  = np.array([rng.normal(0, 1.0, n).cumsum().mean() for _ in range(B)])
+    label = f"n = {n}"
+    axes[0].hist(iid_means, bins=60, color=color, alpha=0.5, label=label, density=True)
+    axes[1].hist(rw_means,  bins=60, color=color, alpha=0.5, label=label, density=True)
+
+for ax, title in zip(axes, [r"$\bar{X}$ — IID Noise", r"$\bar{S}$ — Random Walk"]):
+    ax.axvline(0, color="black", lw=1, ls="--")
+    ax.set_title(title, fontsize=13)
+    ax.set_xlabel("sample mean", fontsize=11)
+    ax.set_ylabel("density", fontsize=11)
+    ax.legend(fontsize=9)
+
+plt.suptitle(f"Distribution of sample mean for increasing n  (B = {B} paths each)")
+plt.tight_layout()
+plt.show()
+```
+
+# Part 2: The Sample ACVF and ACF
+
+## From Theory to Estimation
+
+We never observe the population ACVF $\gamma_X(h)$ or ACF $\rho_X(h)$ — those belong to the model.
+
+Given one observed path $x_1, \ldots, x_n$ of a stationary model, we estimate them.
+
+**Sample autocovariance function (SACVF):**
+$$
+\hat{\gamma}(h) = \frac{1}{n} \sum_{t=1}^{n-|h|} (x_{t+|h|} - \bar{x})(x_t - \bar{x}), \quad -n < h < n
+$$
+
+**Sample autocorrelation function (SACF):**
+$$
+\hat{\rho}(h) = \frac{\hat{\gamma}(h)}{\hat{\gamma}(0)}
+$$
+
+## How Many Pairs Go Into $\hat{\gamma}(h)$?
+
+```{python}
+#| label: module04-pairs
+#| eval: true
+#| echo: false
+import numpy as np
+import matplotlib.pyplot as plt
+
+n = 20
+lags = [0, 1, 3, 7, 14]
+
+fig, axes = plt.subplots(len(lags), 1, figsize=(11, 5), sharex=True)
+
+for ax, h in zip(axes, lags):
+    n_pairs = n - h
+    # inactive dots
+    ax.scatter(range(n), [1]*n, color="lightgray", s=35, zorder=3)
+    ax.scatter(range(n), [0]*n, color="lightgray", s=35, zorder=3)
+    # active dots: x_t on top row (indices 0..n-h-1), x_{t+h} on bottom (indices h..n-1)
+    ax.scatter(range(n - h),    [1]*(n - h), color="steelblue", s=35, zorder=4)
+    ax.scatter(range(h, n),     [0]*(n - h), color="steelblue", s=35, zorder=4)
+    # connecting lines between matched pairs
+    for t in range(n - h):
+        ax.plot([t, t + h], [1, 0], color="steelblue", alpha=0.25, lw=1)
+    ax.set_ylabel(f"$h={h}$\n({n_pairs} pairs)", fontsize=9,
+                  rotation=0, labelpad=55, va="center")
+    ax.set_yticks([])
+    for spine in ["left", "right", "top", "bottom"]:
+        ax.spines[spine].set_visible(False)
+
+axes[0].set_title(f"Pairs $(x_t,\\, x_{{t+h}})$ contributing to $\\hat{{\\gamma}}(h)$"
+                  f"   —   $n = {n}$", fontsize=12)
+axes[-1].set_xlabel("time index", fontsize=11)
+plt.tight_layout()
+plt.show()
+```
+
+## Why Divide by $n$, Not $n - |h|$?
+
+Dividing by $n$ (rather than the number of available pairs $n - |h|$) guarantees that the matrix $[\hat{\gamma}(i-j)]_{i,j=1}^m$ is **positive semi-definite** for any $m$.
+
+Positive semi-definiteness is a necessary property of any valid covariance matrix. Without it, we could derive nonsensical model fits.
+
+The cost: a small downward bias for large $|h|$. 
+
+## Confidence Bands Under IID
+
+If $\{X_t\}$ is truly IID, for $h \geq 1$:
+
+$$
+\hat{\rho}(h) \overset{\text{approx}}{\sim} N\!\left(0, \frac{1}{n}\right)
+$$
+
+A 95% band is $\pm 1.96/\sqrt{n}$.
+
+**Interpretation:** about 5% of lags will exceed the band by chance even for true IID noise. One or two exceedances in a 20-lag ACF plot are not alarming.
+
+`statsmodels.graphics.tsaplots.plot_acf` draws these bands automatically.
+
+# Part 3: SACF for IID Noise
+
+## Theoretical ACF of IID Noise
+
+Recall: for $\{X_t\} \overset{\text{iid}}{\sim} (0, \sigma^2)$,
+
+$$
+\rho_X(h) = \begin{cases} 1 & h = 0 \\ 0 & h \neq 0 \end{cases}
+$$
+
+The **population** ACF is a spike at zero and nothing elsewhere.
+
+What does a **single realization's** SACF look like? And if we had many independent realizations, how close does the average SACF come to the population?
+
+## Single Realization: IID Noise
+
+```{python}
+#| label: module04-2
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+rng = np.random.default_rng(42)
+n = 300
+
+X = rng.normal(0, 1.0, n)
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+axes[0].plot(X, lw=0.7)
+axes[0].set_title("One realization — IID Noise")
+axes[0].set_xlabel("time")
+axes[0].set_ylabel("$X_t$")
+plot_acf(X, lags=20, ax=axes[1], title="SACF of that one realization")
+axes[1].set_xlabel("lag $h$")
+axes[1].set_ylabel(r"$\hat{\rho}_X(h)$")
+plt.tight_layout()
+plt.show()
+```
+
+The SACF values for $h \geq 1$ scatter around zero within the $\pm 1.96/\sqrt{300} \approx \pm 0.113$ bands.
+
+## Sample ACF vs. Population: Many Realizations
+
+```{python}
+#| label: module04-3
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import acf
+
+rng = np.random.default_rng(0)
+n, B, max_lag = 300, 200, 20
+
+sacf_matrix = np.array([
+    acf(rng.normal(0, 1.0, n), nlags=max_lag, fft=True)
+    for _ in range(B)
+])
+
+lags = np.arange(max_lag + 1)
+fig, ax = plt.subplots(figsize=(10, 4))
+for row in sacf_matrix:
+    ax.plot(lags[1:], row[1:], color="steelblue", alpha=0.07, lw=0.8)
+ax.plot(lags[1:], sacf_matrix[:, 1:].mean(axis=0), color="black",
+        lw=1.5, label="average SACF across realizations")
+ax.axhline(0, color="black", lw=0.8, ls="--")
+ax.axhline(1.96 / np.sqrt(n), color="firebrick", ls=":", lw=1)
+ax.axhline(-1.96 / np.sqrt(n), color="firebrick", ls=":", lw=1, label="±1.96/√n")
+ax.set_xlabel("lag")
+ax.set_title(f"SACF across {B} IID realizations (n={n})")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+## What We See
+
+Each translucent line is the SACF from one length-300 IID path.
+
+The **average SACF** (black) converges to the population value of 0 at all lags $h \geq 1$ — confirming the estimator is approximately unbiased.
+
+The **spread** of individual SACFs around zero is $\approx 1/\sqrt{n}$, matching the asymptotic distribution $\hat{\rho}(h) \sim N(0, 1/n)$.
+
+**Key lesson:** any single realization will show spurious spikes by chance. Seeing two or three lags exceed the bands in a 20-lag plot is expected, not evidence of structure.
+
+# Part 4: SACF for the Random Walk
+
+## Theoretical (Auto?) Correlations of the Random Walk
+
+The random walk is **not stationary**, so there is no single population ACF that doesn't depend on $t$. There is no **auto**correlation function.
+
+The correlation between $S_{t+h}$ and $S_t$ (for $h \geq 0$) is:
+
+$$
+\text{Cor}(S_{t+h}, S_t) = \frac{t\sigma^2}{\sqrt{t\sigma^2 \cdot (t+h)\sigma^2}} = \sqrt{\frac{t}{t+h}}
+$$
+
+This depends on both $t$ and $h$ — there is no single $\rho(h)$.
+
+When $h \ll t$ (looking back a short lag relative to the series length), $\text{Cor}(S_{t+h}, S_t) \approx 1$.
+
+## Slow Decay?
+
+**It is a huge mistake to calculate autocorrelation on a nonstationary process like a random walk.**
+
+The following calculations are meaningless because we're estimating something that doesn't exist. 
+
+However, these calculations are mistakenly done all the time. Python (or the naive data scientist) doesn't know that. What they see is the (meaningless) SACF decaying extremely slowly. 
+
+They would probably mistakenly think there is a lot of predictability in the series. **Bad!**
+
+
+## Slow Decay?
+
+```{python}
+#| label: module04-4
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+rng = np.random.default_rng(42)
+n = 300
+
+Z = rng.normal(0, 1.0, n)
+S = np.cumsum(Z)
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+axes[0].plot(S, lw=0.8)
+axes[0].set_title("One realization — Random Walk")
+plot_acf(S, lags=20, ax=axes[1], title="SACF of that one realization")
+plt.tight_layout()
+plt.show()
+```
+
+
+
+
+# Part 5: CS 2 — FX Data Exploration
+
+## Is AUD/JPY a Random Walk?
+
+```{python}
+#| label: module04-7
+#| eval: true
+#| output-location: slide
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+fx = pd.read_csv("../data/fx_rates.csv", index_col=0, parse_dates=True)
+audjpy = fx["AUDJPY"].dropna()
+log_price = np.log(audjpy)
+log_ret = log_price.diff().dropna() * 100
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 6))
+audjpy.plot(ax=axes[0, 0], title="AUD/JPY Spot Rate")
+log_ret.plot(ax=axes[0, 1], title="AUD/JPY Log Returns (%)")
+plot_acf(log_price.dropna(), lags=30, ax=axes[1, 0], title="SACF: Log Price")
+plot_acf(log_ret, lags=30, ax=axes[1, 1], title="SACF: Log Returns")
+plt.tight_layout()
+plt.show()
+```
+
+## Interpreting the Output
+
+**Log price** of AUD/JPY:
+
+- SACF decays very slowly — matches the random walk pattern from the simulations above
+- Clearly non-stationary; $\bar{S}$ would be meaningless as an estimator. Not going to estimate a "long run exchange rate."
+
+**Log returns** (first differences):
+
+- SACF values mostly within confidence bands
+- Consistent with white noise — consistent with the Efficient Market Hypothesis
+- $\bar{X}$ now has a well-defined target: the average daily carry return
+
+However...
+
+
+## Interpreting the Output
+
+
+Theory versus practice: might be foolish to assume the true model doesn't change over time.
+
+It would be prudent to see how estimates change on a rolling window.
+
+Second: the width of the returns seems to be varying. This is called **volatility clustering.** We'll talk more about this in module 6!
+
+
+## The Carry Trade Mean Return
+
+Assuming the iid model, are either the mean spot return or the mean carry P&L **significantly** different from zero?
+
+```{python}
+#| label: module04-9
+#| eval: true
+
+import numpy as np
+import pandas as pd
+
+fx    = pd.read_csv("../data/fx_rates.csv", index_col=0, parse_dates=True)
+rates = pd.read_csv("../data/rates.csv",    index_col=0, parse_dates=True)
+
+spot_ret    = np.log(fx["AUDJPY"]).diff().dropna() * 100
+aud_rate    = rates["AUD_rate"].reindex(spot_ret.index, method="ffill")
+jpy_rate    = rates["JPY_rate"].reindex(spot_ret.index, method="ffill")
+daily_carry = (aud_rate - jpy_rate) / 252
+carry_pnl   = (spot_ret + daily_carry).dropna()
+spot_ret    = spot_ret.reindex(carry_pnl.index)
+
+for label, series in [("Spot log return", spot_ret), ("Carry P&L", carry_pnl)]:
+    n    = len(series)
+    xbar = series.mean()
+    se   = series.std() / np.sqrt(n)
+    print(f"{label}")
+    print(f"  mean: {xbar:.4f}%   se: {se:.4f}%   "
+          f"95% CI: ({xbar - 1.96*se:.4f}%, {xbar + 1.96*se:.4f}%)")
+    print()
+```

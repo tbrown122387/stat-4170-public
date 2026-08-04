@@ -1,0 +1,118 @@
+/*-- scss:defaults --*/
+
+// UVA brand colors (https://brand.virginia.edu/design-assets/colors)
+$uva-blue:        #232D4B;
+$uva-blue-tint:   #C8CBD2;
+$uva-orange:      #E57200;
+$uva-orange-tint: #F9DCBF;
+$uva-cyan:        #009FDF;
+$uva-teal:        #25CAD3;
+$uva-green:       #62BB46;
+$uva-magenta:     #EF3F6B;
+$uva-yellow:      #FDDA24;
+$uva-gray-light:  #F1F1EF;
+$uva-gray-medium: #DADADA;
+$uva-gray-text:   #666666;
+
+$body-bg: $uva-blue;
+$body-color: white;
+$link-color: $uva-cyan;
+$link-color-hover: lighten($uva-cyan, 15%);
+$selection-bg: rgba($uva-orange, 0.45);
+
+$presentation-heading-color: $uva-orange;
+$presentation-heading-font-weight: 700;
+$presentation-heading-text-shadow: none;
+
+$code-block-bg: rgba(0, 0, 0, 0.35);
+$code-block-border-color: $uva-orange;
+
+/*-- scss:rules --*/
+
+.reveal .slide-background {
+  background: linear-gradient(160deg, $uva-blue 0%, darken($uva-blue, 8%) 100%);
+}
+
+.reveal h1,
+.reveal h2 {
+  color: $uva-orange;
+}
+
+.reveal h3 {
+  color: $uva-teal;
+}
+
+.reveal .title-slide {
+  text-align: left;
+
+  h1 {
+    font-size: 1.7em;
+    border-bottom: 4px solid $uva-orange;
+    padding-bottom: 0.3em;
+  }
+
+  .subtitle {
+    color: $uva-blue-tint;
+  }
+
+  .author,
+  .date {
+    color: $uva-gray-medium;
+  }
+}
+
+.reveal .slide-number {
+  background-color: $uva-orange;
+  color: $uva-blue;
+  font-weight: 700;
+}
+
+.reveal .footer {
+  color: $uva-blue-tint;
+  font-size: 0.45em;
+  letter-spacing: 0.02em;
+}
+
+.reveal .progress {
+  color: $uva-orange;
+}
+
+.reveal .toc-list a {
+  color: white;
+}
+
+.reveal .toc-list a:hover {
+  color: $uva-orange;
+}
+
+.reveal pre code {
+  border-left: 4px solid $uva-orange;
+  padding-left: 0.6em;
+}
+
+.reveal blockquote {
+  border-left: 4px solid $uva-teal;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.reveal table {
+  border-collapse: collapse;
+}
+
+.reveal table th {
+  background-color: $uva-orange;
+  color: $uva-blue;
+}
+
+.reveal table tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.reveal table td,
+.reveal table th {
+  border: 1px solid $uva-blue-tint;
+}
+
+.reveal strong {
+  color: $uva-orange-tint;
+}

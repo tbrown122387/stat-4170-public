@@ -1,0 +1,19 @@
+name: quant-ts
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.13
+  - numpy
+  - pandas
+  - matplotlib
+  - scipy
+  - statsmodels
+  - ipykernel
+  - jupyter
+  - jupyterlab
+  - notebook
+  - pip
+  - pip:
+    - yfinance
+    - arch
