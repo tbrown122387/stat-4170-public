@@ -1,0 +1,253 @@
+---
+title: "Case Study 4: Pricing, Hedging, and Calibrating a Real Option"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Due: see Gradescope"
+format:
+  html:
+    theme: default
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    math: mathjax
+    self-contained: true
+execute:
+  echo: true
+  eval: false
+---
+
+## Overview
+
+**The scenario:** You've just rotated onto the options desk. Modules 9–11 gave you the full theoretical machinery — martingales and Itô's lemma to make "no arbitrage" precise, the Black-Scholes PDE and its closed-form solution, the Greeks, and implied volatility — all built and checked against synthetic, idealized data. Your desk head has one question that idealized data can never answer: **does any of this survive contact with a real option chain?** Real quotes have a bid-ask spread instead of one "true" price. Real implied volatility varies by strike — the smile Module 11 manufactured synthetically is a fact of life, not a demo. Real hedging costs money to execute, not just to compute. And real hedging P&L depends on a volatility you have to estimate, not one you get to assume.
+
+This case study asks you to take a real, historical panel of SPX (S&P 500 index) option quotes, price them, extract the volatility smile, delta-hedge under realistic frictions — checked against both a simulated distribution of outcomes *and* what actually happened on one real, fully-observed contract — and write the kind of memo a trading desk actually reads before deciding whether a model-based hedge is trustworthy.
+
+**Why SPX and not SPY:** everything in Modules 9–11 derives the price of a **European** option — one that can only be exercised at expiration. SPX index options are cash-settled and European-style, so they're the fair, apples-to-apples test of the model. SPY (and single-name equity) options are **American-style**: they can be exercised early, which means their market price includes an early-exercise premium that plain Black-Scholes does not, and cannot, account for. Comparing a European closed-form price to an American-style market quote would blame the model for a gap that's actually a mismatch in contract terms, not a modeling error — exactly the kind of confound this case study is designed to avoid.
+
+**A note on the data:** unlike CS 1–3, your options data for this case study is **not** something you pull yourself from a free API. The instructor will provide you with a real historical panel of consolidated SPX option quotes (details in Section 1) — a genuine, multi-week *time series* of a full option chain, not a single live snapshot. This is licensed vendor data: **do not redistribute it, do not commit it to any public repository (including a public fork of this course's materials), and do not share it outside this course.** You will still use `yfinance` for the underlying's own price history and for a risk-free rate, exactly as in earlier case studies.
+
+Submit your work as a single, self-contained **Jupyter notebook** (`.ipynb`). Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error against the provided dataset, read from wherever your instructor tells you to place it locally (see Section 1). Figures must render inline. Show all intermediate outputs that support your written interpretation.
+
+### Some Rookie Mistakes That Will Sink a Real Options Book {.unnumbered}
+
+Every one of these has cost a junior derivatives trader real money or a real embarrassment in front of a desk head. Watch for them:
+
+- **Confusing $\mu$ and $r$.** Module 10's entire point was that the option price and the Greeks depend on the risk-free rate $r$ under the risk-neutral measure, *not* the stock's real-world expected return $\mu$. If you price or hedge using $\mu$ where $r$ belongs (or vice versa), you have silently broken the no-arbitrage argument the whole model rests on.
+- **Treating implied volatility as "the" volatility.** A single Black-Scholes $\sigma$ cannot simultaneously match every strike's market price (that's what the smile in Module 11 and Section 3 below demonstrates) — using one strike's implied vol to price or hedge a different strike is a real, quantifiable source of error, not a rounding issue.
+- **Quoting "the market price" as the last trade instead of the bid-ask midpoint (or being sloppy about which).** Illiquid strikes can go hours or days between trades; the last trade may be stale relative to where the market actually is right now. Be explicit about whether you're using mid, bid, or ask, and why, in every comparison.
+- **Getting $\tau$ (time to maturity) wrong.** Calendar days vs. trading days, and whether "today" counts, changes $\sigma\sqrt{\tau}$ meaningfully for short-dated options — be explicit and consistent about your day-count convention.
+- **Declaring an arbitrage that's just the bid-ask spread.** Put-call parity ($C - P = S - Ke^{-r\tau}$) is a model-free identity, but real quotes aren't a single number — a "violation" smaller than the sum of the relevant bid-ask spreads is transaction-cost noise, not a free lunch. Section 2 asks you to check this properly.
+- **Hedging with Delta alone and ignoring Vega.** A delta-hedged position is *not* riskless if implied volatility itself moves — Module 11's Vega is exactly the exposure a delta-only hedge leaves on the table, and Section 4/5 ask you to quantify it, not just define it.
+- **Look-ahead bias in a hedging backtest.** If you calibrate $\sigma$ using data that includes the period you're simulating the hedge over, you've let the hedger "know" volatility it couldn't have known in real time — the same family of bug as CS 1's trading loop and CS 3's quoting loop, relocated again.
+- **Ignoring transaction costs on the hedge.** The replication argument in Module 10 assumed free, continuous rebalancing. Every real rebalance costs something to execute — a hedging P&L analysis that doesn't deduct it is fiction, exactly as in CS 1 Section 4 and CS 3 Section 2.
+
+---
+
+## Section 0 — Before You Start: What's Already Built
+
+The Module 10 and Module 11 slides gave you working code for `black_scholes(...)`, `greeks(...)` (Delta, Gamma, Vega, Theta), `implied_vol(...)` (a `scipy.optimize.brentq` root-find), and a discrete delta-hedging simulator, `simulate_hedge_pnl(...)`, that sells one option at the Black-Scholes premium, delta-hedges under simulated GBM at a chosen rebalancing frequency, and returns the terminal hedging P&L. You are extending these — adding real data, transaction costs, and a volatility-estimation step — not rewriting Black-Scholes from scratch. Re-read both modules' code before starting.
+
+---
+
+## Section 1 — Data Pipeline: A Real, Historical SPX Option Panel
+
+*In practice: this is the unglamorous, at-scale data-engineering step every real derivatives desk depends on — consolidated options data arrives as enormous per-day files covering an entire chain, and getting from "a folder of multi-hundred-megabyte files" down to "a clean, analyzable panel for the handful of contracts you actually care about" is most of the real work.*
+
+### 1.1 — What You're Given
+
+Your instructor will provide a folder of real market data: **Databento OPRA.PILLAR, `cbbo-1m` schema, for `SPX.OPT`** (the full SPX option chain), covering a run of consecutive trading days. One file per day, named `opra-pillar-YYYYMMDD.cbbo-1m.csv.zst` (zstd-compressed CSV — `pandas.read_csv(..., compression="zstd")` reads these directly, or decompress on the fly with the `zstd`/`unzstd` command-line tool). Each file has one row per SPX contract per minute: a **consolidated best-bid/offer (NBBO) snapshot**, sampled once per minute, for every listed SPX option. Columns:
+
+| Column | Meaning |
+|---|---|
+| `ts_recv` | Timestamp (UTC) this 1-minute snapshot was captured. |
+| `ts_event` | Timestamp of the **last trade** in that minute, if any occurred — **blank otherwise**. Most rows are quote-only; only a minority of (contract, minute) rows have an actual trade. |
+| `instrument_id` | Numeric contract ID (paired with `symbol` below). |
+| `price`, `size` | Last trade price/size in that minute — blank / 0 when no trade occurred. Don't treat these as a complete price series; use them as an occasional cross-check against bid/ask, not your primary quote source. |
+| `bid_px_00`, `ask_px_00` | Best consolidated bid/ask price at that minute — **this is your primary quote source**. |
+| `bid_sz_00`, `ask_sz_00` | Size resting at the best bid/ask. |
+| `symbol` | OCC-style option symbol, e.g. `SPX   270219P03200000` = root `SPX` (padded), expiration `2027-02-19`, **P**ut, strike `$3200.000` (last 8 digits, ×1000). Parse this into (root, expiration date, call/put, strike) — you'll need all four. |
+
+A handful of other columns (`rtype`, `publisher_id`, `side`, `flags`, `bid_pb_00`, `ask_pb_00`) are Databento bookkeeping fields you can ignore for this case study.
+
+**This is licensed data provided for coursework only.** Do not commit it, or any file derived from it, to a public repository — keep it entirely local, and keep any derived cache files out of your submitted notebook's tracked outputs (a `.gitignore` entry, if you're using git at all for this, is a good habit).
+
+### 1.2 — Choosing a Working Universe
+
+Each day's file covers roughly 10,000 contracts across ~20 expirations — far more than you need, and too large to load in full without a plan. Before touching the bulk of the data:
+
+- Inspect the `symbol` column of your **first** day's file to see which expirations are available, and check whether any of them **stop appearing in the data before your last day's file** — i.e., a contract whose full lifecycle is entirely contained in your data window. If one exists, that's your **near-dated contract** for Section 4 — it lets you observe a real option all the way to a real, known terminal payoff, not just a partial slice. If none of the available expirations happens to fall inside your window, pick the nearest-dated expiration still available on your *last* day instead, and plan to mark it to market rather than to a terminal payoff (Section 4 covers both cases). **One real wrinkle to expect:** SPX's standard monthly options are AM-settled — they stop trading (and stop appearing in the data) on the trading day *before* their nominal expiration date, since they're already settled by the time that expiration day's session starts. So a contract listed as expiring, say, `2026-07-17` will typically show its **last live quotes on 2026-07-16**, with zero rows for it on the 17th itself. Confirm this in your own data (check the day-by-day row count for your chosen contract) rather than assuming it — this is exactly the kind of "the data just stops" surprise a real desk has to know to expect rather than debug as a bug.
+- Pick a second, **further-dated** expiration (several months to roughly a year out) that's present across your *entire* window, for the smile/model-limitations work in Sections 3 and 6.
+- Restrict strikes to a reasonable band around the money (e.g., within about ±15%) for both expirations — you need real spot levels to define "the money" (next bullet), not a strike count guess.
+
+### 1.3 — The Underlying and the Risk-Free Rate
+
+The OPRA data is options-only — there's no index spot level in it. Using `yfinance`, pull the underlying's own daily price history: `^SPX` if your installed `yfinance` version supports it, otherwise `^GSPC` is a close, standard proxy for the S&P 500 index level (state which one you used, and note in one sentence what, if anything, could differ between the two). Pull enough history to (a) cover your full OPRA data window and (b) give you a trailing window *before* it for a realized-volatility estimate (at least 60–90 additional trading days). Also pull a short-term risk-free rate as in earlier case studies (`^IRX`, or a FRED short-rate series), covering the same span.
+
+### 1.4 — Building the Panel
+
+Your Section 4.2 real-path hedging analysis rebalances **once per trading day**, not intraday — so you don't need every one of a day's ~390 one-minute snapshots per contract, just one clean, consistent quote per contract per day. Write a pipeline that, for each day's file:
+
+1. Reads the compressed CSV (don't decompress every day to disk up front — that's several extra gigabytes you don't need sitting around).
+2. Immediately filters to your Section 1.2 working universe (two expirations, moneyness band) — do this filtering **before** any expensive processing, since the unfiltered file is 4–5 million rows.
+3. Within that filtered set, keeps **one snapshot per contract per day**: the row closest to a fixed time you choose (e.g., 15:59 ET, just before the close) — a consistent daily "closing quote," analogous to how you'd use a daily closing price for the underlying. State your chosen time and why.
+4. Parses the `symbol` column into expiration date, type, and strike; computes bid/ask mid and $\tau$ (time to that day's expiration, in years, with your day-count convention stated explicitly); and keeps a clean set of columns (date, symbol, expiration, type, strike, $\tau$, bid, ask, mid, bid size, ask size).
+5. Caches the filtered, one-snapshot-per-day result (Parquet is a good choice) so that re-running your notebook doesn't require re-reading the raw multi-hundred-megabyte files every time. Include a prose cell explaining your caching design and why it matters at this data size — this is the same caching lesson as CS 1–3, but now the cost of *not* caching is measured in real minutes of runtime, not just good practice.
+
+Concatenate the per-day results into one tidy panel `DataFrame` spanning your whole data window — one row per (contract, day). **Define "today" as the last date in your data window** — Sections 2, 3, 6, and 7 below refer to "your chain" or "today's chain," and that phrase means the cross-section of this panel on your last available day. Section 4 is the one section that uses the full multi-day panel, not just the "today" slice.
+
+---
+
+## Section 2 — From Model to Market: Pricing and No-Arbitrage Checks
+
+*In practice: before trusting a model's Greeks for hedging, a desk first checks whether the model's price is even in the right neighborhood of where the market actually trades — and whether the market itself is internally consistent.*
+
+### 2.1 — Black-Scholes Price vs. Market Quote
+
+For a handful of strikes spanning in-the-money, near-the-money, and out-of-the-money on your nearer expiration, compute the Black-Scholes price using **a single, reasonable $\sigma$** (e.g., the realized volatility of the underlying over your recent history — Section 3 will complicate this). Compare your model price to the market bid, ask, and mid. Report the results in a table. Where (if anywhere) does the model price fall outside the bid-ask spread entirely, and where does it land comfortably inside it?
+
+You'll likely find your model price, built from *historical* volatility, doesn't match the market — often by more than the bid-ask spread alone can explain. Before Section 3 gives you the formal tool (implied volatility) to characterize this gap precisely, write a short prose answer: **why might the market be pricing in a different volatility than what the underlying has recently realized?** Think about what the market is actually doing when it sets an option's price — is it describing the past, or pricing in something about the future that trailing historical data can't see?
+
+### 2.2 — Put-Call Parity, Properly Bounded
+
+For at-the-money-ish strikes where you have both a call and a put quote at the same strike and expiration, check put-call parity, $C - P = S - Ke^{-r\tau}$, using **bid-ask bounds** rather than a single midpoint number: is there a portfolio (buy the cheap side at its ask, sell the expensive side at its bid) that would actually lock in a profit net of both spreads, or does every apparent "violation" disappear once you account for the spread you'd have to cross to trade it? Connect this explicitly back to Module 9: parity is a restatement of the no-arbitrage/martingale argument, and real markets should — and, once frictions are accounted for, generally do — respect it.
+
+---
+
+## Section 3 — Implied Volatility and the Smile
+
+*In practice: this is the volatility smile from Module 11, Part 4 — except now it's not a synthetic demonstration, it's the actual shape the market is quoting today, and reading it correctly is a core skill on any options desk.*
+
+- For every strike on your two expirations, back out the Black-Scholes implied volatility from the market **mid** price using your `implied_vol` root-finder. Some very illiquid, deep out-of-the-money strikes may fail to solve cleanly (wide or crossed spreads, near-zero prices) — handle these explicitly (drop with a stated reason, or flag and discuss) rather than letting the notebook silently error or plot nonsense.
+- Plot implied volatility against strike (or moneyness) for each expiration separately. Does it look flat (as Module 11's control case predicted a truly-constant-$\sigma$ market would), or does it show the smile/skew shape? Compare the shape across your two expirations — does the smile flatten out at longer maturities, as is typically observed in real index and equity options?
+- Compute the **realized volatility** of the underlying over a trailing window (e.g., the last 21 or 63 trading days) from your Section 1 price history, annualized consistently with your $\tau$ convention. Compare it to the at-the-money implied volatility from your smile. Which is higher? This gap is known as the **variance risk premium** — briefly research and state in a sentence or two why it tends to run one direction rather than the other, and whether your data is consistent with that.
+
+---
+
+## Section 4 — Delta Hedging: A Simulated Distribution, and One Real Path
+
+*In practice: this is Module 11 Part 3's discrete-hedging simulation, except now you get to check it against something a simulation alone never gives you — what actually happened, once, for real.*
+
+**First, an important clarification, because it's easy to get turned around here:** in 4.1 below, you are never simulating the *option's* price. The option's price at $t=0$ is a real number you already have — a market mid price from your Section 1 panel, the actual premium you'd collect for selling it. The only thing that ever gets simulated is the **underlying's** spot path, $S(t)$. At each rebalance, $\Delta$ is just a formula (Module 10/11's $\Delta = N(d_1)$) evaluated at the current spot — it takes a $\sigma$ as an input, but that $\sigma$ is a modeling *choice* about how to hedge, not something you need to know the option's future price to compute.
+
+So there are two, separate volatility roles here, and it's the whole point of the exercise to keep them distinct:
+
+1. **The "true-world" $\sigma$** — the volatility used to describe how the underlying actually moves. In 4.1 this drives a *simulation*; in 4.2 the underlying's real moves play this role directly, no simulation needed.
+2. **The "hedging" $\sigma$** — the volatility plugged into the $\Delta$ formula at each rebalance to decide how many shares to hold. This is a policy choice a real hedger has to make, and it need not match #1.
+
+### 4.1 — A Simulated P&L Distribution
+
+A single real historical path (4.2) can only ever show you *one* outcome — it can't tell you whether that outcome was typical or a fluke, and it can't give you a distribution across many rebalancing frequencies the way Module 11's simulator can. That's what this part is still for.
+
+Pick your **further-dated** contract from Section 1.2 (state strike, expiration, type, and today's mid price). Using Module 11's `simulate_hedge_pnl` as a starting point: collect the real market mid price as your starting premium (not a model price), simulate $S(t)$ under GBM out to this contract's expiration using your Section 3 realized-vol estimate as the true-world $\sigma$, and run the hedge twice, varying only the hedging $\sigma$:
+
+- **Hedging $\sigma$ = your realized-vol estimate** (matches the true-world $\sigma$ — a hedger who happens to have exactly the right volatility).
+- **Hedging $\sigma$ = the contract's market-implied volatility from Section 3** (a hedger who computes $\Delta$ the way the market's own quote implies — what a real desk typically does, since implied vol is often treated as the market's best forward-looking estimate, even though converting it into a hedge ratio still requires a model).
+
+Sweep rebalancing frequency (e.g., daily, weekly, biweekly, monthly, adapted to this contract's $\tau$) and report the mean and standard deviation of terminal hedging P&L for each frequency, for both hedging-$\sigma$ choices.
+
+### 4.2 — What Actually Happened: One Real Lifecycle
+
+Now use your **near-dated** contract from Section 1.2 — the one whose real lifecycle is (fully or partly) inside your data window. Using your Section 1.4 daily panel, walk forward one real trading day at a time from your first available day to your last available day for this contract:
+
+- Each day, recompute $\Delta$ using the Black-Scholes formula at that day's real $\tau$ and the underlying's real closing level (from your Section 1.3 `yfinance` pull), for a chosen hedging $\sigma$, and adjust your share holdings accordingly — exactly the daily-rebalance version of 4.1's loop, except every input is now a real, observed number instead of a simulated one.
+- Track cash and shares day by day the same way `simulate_hedge_pnl` does internally.
+- **If your contract's full lifecycle is inside your window** (Section 1.2's AM-settlement note applies: its last live quote day is the day *before* its nominal expiration date), close out the position using the real terminal payoff, $\max(S_T - K, 0)$ or $\max(K - S_T, 0)$, computed from the underlying's real closing level on that last day. **If it isn't** (your data window ends before this contract expires), mark the position to market instead, using this contract's real quoted mid price on your last available day — and say so explicitly. Not having a terminal payoff for every contract is an honest data limitation, not a mistake to paper over.
+- Run this real walk-forward hedge **twice**, exactly as in 4.1: once hedging with your realized-vol $\sigma$, once with this contract's own market-implied $\sigma$ (use its implied vol on your *first* available day for this contract — using a later day's implied vol would be look-ahead, per this case study's rookie-mistakes list).
+
+Report the realized hedging P&L for both hedging-$\sigma$ choices on this one real path. Then locate both real outcomes within your **4.1 simulated P&L distribution** at the matching (or closest) rebalancing frequency — e.g., what percentile of the simulated distribution did the real outcome fall at? A single real path can't prove which hedging $\sigma$ is "better" (that's exactly what a distribution is for, and $n=1$ is not a distribution) — but it's a concrete, non-hypothetical check on whether your simulation's spread of outcomes was in the right ballpark.
+
+Write a paragraph: does hedging with the market-implied $\sigma$ instead of your realized-vol estimate produce a meaningfully different result, in 4.1's distribution and in 4.2's real path? Connect your answer to Vega from Module 11 — a mismatch between the $\sigma$ you hedge with and the $\sigma$ that actually governs the underlying's moves is exactly the kind of exposure Vega is meant to describe.
+
+---
+
+## Section 5 — Transaction Costs: Hedging Isn't Free
+
+*In practice: this is CS 1 Section 4 and CS 3 Section 2's lesson, applied to the hedge leg of an options position instead of a portfolio or a market-making quote — frequent rebalancing reduces hedging error but costs money to execute, and somewhere in between is the frequency a real desk would actually choose.*
+
+Extend your **Section 4.1** simulator so that every hedge rebalance (buying or selling shares of the underlying to adjust $\Delta$) incurs a transaction cost proportional to the number of shares traded, in basis points of the trade's dollar value (try a few values in the 1–20 bps range, as in earlier case studies). If you have time, apply the same cost to your **Section 4.2** real walk-forward hedge too — it's a small extension and gives you a real-dollar cost figure to put next to the simulated one, but it's not required.
+
+- For your chosen rebalancing-frequency grid from Section 4.1, report **net-of-cost** hedging P&L (mean and standard deviation) at each frequency and cost level.
+- Produce a plot that makes the tradeoff visible: too-infrequent rebalancing leaves large hedging-error variance (Section 4.1); too-frequent rebalancing bleeds P&L to transaction costs. Is there a rebalancing frequency that looks like a reasonable sweet spot for your chosen cost level? Does the answer change at a higher cost level?
+
+---
+
+## Section 6 — Model Limitations: What a Single $\sigma$ Misses
+
+*In practice: this is the gap between "the model is useful" and "the model is true" — every desk that uses Black-Scholes knows it's the second one that's false, and knowing exactly how it's false is what keeps a book from blowing up.*
+
+Using your real smile from Section 3:
+
+- Pick one strike away from at-the-money on your nearer expiration. Price it two ways: (a) using the at-the-money implied volatility from the same expiration, and (b) using that strike's own implied volatility from the smile. How large is the resulting price difference, in dollars and as a percentage? If a trader mistakenly used a single "the" implied vol for the whole expiration (a genuinely common shortcut under time pressure), how costly would that mistake have been on this specific strike?
+- In a prose cell, connect this back to Module 11 Part 4's explanation for *why* the smile exists (constant-$\sigma$ GBM structurally cannot represent strike-dependent risk like crash risk or skew) and briefly describe, at a conceptual level only (no implementation required), one class of model real desks use instead to address it (e.g., local volatility, stochastic volatility, or jump-diffusion — pick one and describe in 2-3 sentences what it changes relative to Black-Scholes).
+
+---
+
+## Section 7 — Full Report: Pricing, Hedging, and a Trade Recommendation
+
+*In practice: this is what would actually get shown to a desk head deciding whether to trade and hedge this specific option using this model.*
+
+Produce a one-page report (a markdown cell plus compact figures) on your **Section 4.1 further-dated contract**, combining the results of Sections 2, 3, 4, 5, and 6:
+
+| Item | Value |
+|---|---|
+| Contract (underlying, strike, expiration, type) | |
+| Market mid price | |
+| Black-Scholes price (realized-vol $\sigma$) | |
+| Black-Scholes price (implied $\sigma$, by construction ≈ market mid) | |
+| At-the-money implied vol vs. trailing realized vol | |
+| Chosen rebalancing frequency and transaction cost level | |
+| Net-of-cost hedging P&L (Section 4.1 simulation): mean, std | |
+| Section 4.2 real-path hedging P&L, and its percentile in the Section 4.1 distribution | |
+| Mispricing from using ATM vol instead of this strike's own smile vol (Section 6) | |
+
+Include: the volatility smile plot from Section 3 (with this strike marked), and the net-of-cost hedging P&L distribution from Section 5 at your chosen frequency/cost level, with your Section 4.2 real-path outcome marked on it. Close with a **desk-facing recommendation paragraph** (3–5 sentences): is a Black-Scholes-based delta hedge, at your chosen rebalancing frequency and realistic costs, a reasonable way to manage this specific position? What's the single biggest risk left unmanaged by a delta-only hedge, and what would you want in place before trading this at real size?
+
+### Interpretation
+
+Address each of the following in prose:
+
+- Did put-call parity (Section 2) hold up once you accounted for the bid-ask spread, or did you find a genuine, spread-adjusted violation? If genuine, how would you explain it (liquidity, stale quotes, dividend/borrow effects you didn't model)?
+- Which mattered more to your final hedging P&L: the choice of hedging volatility (Section 4) or the transaction costs (Section 5)? Did that ranking surprise you?
+- If you were actually responsible for this position, what would you change first — hedging frequency, adding a Vega hedge with a second option, using a strike-specific rather than ATM volatility, or something else? Justify with numbers from your own Section 7 table.
+
+---
+
+## Section 8 — Bonus: Push the Analysis Further (Optional, up to 5 extra points)
+
+Pick **one** of the following and add it to your analysis:
+
+- **Vega-hedge, not just delta-hedge**: the underlying itself has zero Vega (its price doesn't depend on anyone's volatility assumption), so a stock-only delta hedge can never offset the Vega mismatch you quantified in Section 4 — only another option carries Vega. Add a second option to your hedge portfolio so the combined position is both Delta- and Vega-neutral at each rebalance, and compare hedging P&L to the delta-only result from Section 4/5. (This is a different fix from a *Gamma* hedge, which addresses the discrete-rebalancing error from Section 4/5's frequency sweep instead of the volatility-mismatch risk from Section 4's two-$\sigma$ comparison — both are real, standard hedges on a real desk, just aimed at different residual risks.) Does neutralizing Vega meaningfully reduce P&L variance, especially under a shifting implied volatility?
+- **Term structure**: using three or more expirations, plot at-the-money implied volatility against time to maturity (the volatility **term structure**, distinct from the strike smile) and discuss its shape.
+- **Dividends or borrow cost**: if your underlying pays a dividend before your chosen expiration, extend the Black-Scholes formula and your hedging simulation to account for it (a continuous dividend yield adjustment is sufficient), and quantify how much ignoring it would have mispriced your Section 7 contract.
+
+Briefly explain your choice and what it revealed relative to your Section 7 analysis. This section is not required for full credit — it's here for students who want to keep exploring.
+
+---
+
+## Deliverables and Grading
+
+Submit a single `.ipynb` that runs top-to-bottom without error against the instructor-provided OPRA dataset (read from a local path — do not hardcode a path that only exists on your own machine; use a variable set near the top of the notebook). Where sections ask for "good visualizations," axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.
+
+| Section | Points |
+|---|---|
+| 1 — Data pipeline (OPRA panel, universe selection, caching) | 15 |
+| 2 — Pricing vs. market and put-call parity | 15 |
+| 3 — Implied volatility and the smile | 15 |
+| 4 — Delta hedging (4.1 simulated distribution + 4.2 real lifecycle) | 25 |
+| 5 — Transaction costs | 10 |
+| 6 — Model limitations (smile mispricing) | 10 |
+| 7 — Full report and interpretation | 10 |
+| 8 — Bonus | up to +5 |
+| **Total** | **100 (+5 bonus)** |
+
+Partial credit is given for each section independently. A section that is attempted but incomplete receives more credit than a section that is skipped.
+
+**A note on why this matters beyond the grade:** the gap between "I can derive Black-Scholes" and "I can trade an option using it responsibly" is exactly what Sections 2–7 are built to close — checking a model against real, imperfect market data, and being honest about where and how much it's wrong, is what separates a classroom formula from something a desk will actually let you hedge with. A cleaned-up version of this notebook is a legitimate work sample for exactly that reason. Consider putting a polished version on GitHub.
+
+## References
+
+- Black, F. & Scholes, M. (1973). *The Pricing of Options and Corporate Liabilities*. Journal of Political Economy, 81(3), 637–654.
+- Derman, E. & Kani, I. (1994). *Riding on a Smile*. Risk, 7(2), 32–39.
+- Gatheral, J. (2006). *The Volatility Surface: A Practitioner's Guide*. Wiley.
+- Hull, J. C. *Options, Futures, and Other Derivatives*.
+- Merton, R. C. (1973). *Theory of Rational Option Pricing*. The Bell Journal of Economics and Management Science, 4(1), 141–183.
+- Shreve, S. (2004). *Stochastic Calculus for Finance II: Continuous-Time Models*. Springer.

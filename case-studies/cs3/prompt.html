@@ -8,7 +8,7 @@
 
 <meta name="author" content="Due: see Gradescope">
 
-<title>Case Study 1: Building a Mean-Variance Portfolio Pipeline</title>
+<title>Case Study 3: Market Making the SPY Limit Order Book</title>
 <style>
 
 span.smallcaps{font-variant: small-caps;}
@@ -2317,37 +2317,22 @@ window.Quarto = {
   <ul>
   <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview"><span class="header-section-number">1</span> Overview</a>
   <ul class="collapse">
-  <li><a href="#some-rookie-mistakes-that-will-sink-a-real-portfolio" id="toc-some-rookie-mistakes-that-will-sink-a-real-portfolio" class="nav-link" data-scroll-target="#some-rookie-mistakes-that-will-sink-a-real-portfolio">Some Rookie Mistakes That Will Sink a Real Portfolio</a></li>
+  <li><a href="#some-rookie-mistakes-that-will-sink-a-real-market-making-book" id="toc-some-rookie-mistakes-that-will-sink-a-real-market-making-book" class="nav-link" data-scroll-target="#some-rookie-mistakes-that-will-sink-a-real-market-making-book">Some Rookie Mistakes That Will Sink a Real Market-Making Book</a></li>
   </ul></li>
-  <li><a href="#section-1-data-pipeline" id="toc-section-1-data-pipeline" class="nav-link" data-scroll-target="#section-1-data-pipeline"><span class="header-section-number">2</span> Section 1 — Data Pipeline</a></li>
-  <li><a href="#section-2-parameter-and-model-uncertainty" id="toc-section-2-parameter-and-model-uncertainty" class="nav-link" data-scroll-target="#section-2-parameter-and-model-uncertainty"><span class="header-section-number">3</span> Section 2 — Parameter and Model Uncertainty</a>
+  <li><a href="#section-0-before-you-start-whats-already-built" id="toc-section-0-before-you-start-whats-already-built" class="nav-link" data-scroll-target="#section-0-before-you-start-whats-already-built"><span class="header-section-number">2</span> Section 0 — Before You Start: What’s Already Built</a></li>
+  <li><a href="#section-1-calibrating-the-model-to-real-data" id="toc-section-1-calibrating-the-model-to-real-data" class="nav-link" data-scroll-target="#section-1-calibrating-the-model-to-real-data"><span class="header-section-number">3</span> Section 1 — Calibrating the Model to Real Data</a></li>
+  <li><a href="#section-2-trading-fees-and-rebates-how-much-do-they-matter" id="toc-section-2-trading-fees-and-rebates-how-much-do-they-matter" class="nav-link" data-scroll-target="#section-2-trading-fees-and-rebates-how-much-do-they-matter"><span class="header-section-number">4</span> Section 2 — Trading Fees and Rebates: How Much Do They Matter?</a></li>
+  <li><a href="#section-3-latency-how-much-does-speed-cost-you" id="toc-section-3-latency-how-much-does-speed-cost-you" class="nav-link" data-scroll-target="#section-3-latency-how-much-does-speed-cost-you"><span class="header-section-number">5</span> Section 3 — Latency: How Much Does Speed Cost You?</a></li>
+  <li><a href="#section-4-queue-priority-how-important-is-it-really" id="toc-section-4-queue-priority-how-important-is-it-really" class="nav-link" data-scroll-target="#section-4-queue-priority-how-important-is-it-really"><span class="header-section-number">6</span> Section 4 — Queue Priority: How Important Is It Really?</a></li>
+  <li><a href="#section-5-alternative-quoting-strategies-tilting-away-from-the-midpoint" id="toc-section-5-alternative-quoting-strategies-tilting-away-from-the-midpoint" class="nav-link" data-scroll-target="#section-5-alternative-quoting-strategies-tilting-away-from-the-midpoint"><span class="header-section-number">7</span> Section 5 — Alternative Quoting Strategies: Tilting Away from the Midpoint</a></li>
+  <li><a href="#section-6-markout-are-you-getting-picked-off" id="toc-section-6-markout-are-you-getting-picked-off" class="nav-link" data-scroll-target="#section-6-markout-are-you-getting-picked-off"><span class="header-section-number">8</span> Section 6 — Markout: Are You Getting Picked Off?</a></li>
+  <li><a href="#section-7-full-backtest-and-performance-tearsheet" id="toc-section-7-full-backtest-and-performance-tearsheet" class="nav-link" data-scroll-target="#section-7-full-backtest-and-performance-tearsheet"><span class="header-section-number">9</span> Section 7 — Full Backtest and Performance Tearsheet</a>
   <ul class="collapse">
-  <li><a href="#simulation-study-no-model-risk" id="toc-simulation-study-no-model-risk" class="nav-link" data-scroll-target="#simulation-study-no-model-risk"><span class="header-section-number">3.1</span> 2.1 — Simulation Study (No Model Risk)</a></li>
-  <li><a href="#model-uncertainty-on-real-data" id="toc-model-uncertainty-on-real-data" class="nav-link" data-scroll-target="#model-uncertainty-on-real-data"><span class="header-section-number">3.2</span> 2.2 — Model Uncertainty on Real Data</a></li>
-  <li><a href="#bootstrap-and-rolling-window" id="toc-bootstrap-and-rolling-window" class="nav-link" data-scroll-target="#bootstrap-and-rolling-window"><span class="header-section-number">3.3</span> 2.3 — Bootstrap and Rolling Window</a></li>
-  <li><a href="#dimension-vs.-sample-size-when-the-universe-outgrows-the-data" id="toc-dimension-vs.-sample-size-when-the-universe-outgrows-the-data" class="nav-link" data-scroll-target="#dimension-vs.-sample-size-when-the-universe-outgrows-the-data"><span class="header-section-number">3.4</span> 2.4 — Dimension vs. Sample Size: When the Universe Outgrows the Data</a></li>
+  <li><a href="#interpretation" id="toc-interpretation" class="nav-link" data-scroll-target="#interpretation"><span class="header-section-number">9.1</span> Interpretation</a></li>
   </ul></li>
-  <li><a href="#section-3-how-uncertainty-in-parameters-propagates-to-weights" id="toc-section-3-how-uncertainty-in-parameters-propagates-to-weights" class="nav-link" data-scroll-target="#section-3-how-uncertainty-in-parameters-propagates-to-weights"><span class="header-section-number">4</span> Section 3 — How Uncertainty in Parameters Propagates to Weights</a>
-  <ul class="collapse">
-  <li><a href="#sensitivity-to-gamma" id="toc-sensitivity-to-gamma" class="nav-link" data-scroll-target="#sensitivity-to-gamma"><span class="header-section-number">4.1</span> 3.1 — Sensitivity to <span class="math inline">\(\gamma\)</span></a></li>
-  <li><a href="#sensitivity-to-boldsymbolmu" id="toc-sensitivity-to-boldsymbolmu" class="nav-link" data-scroll-target="#sensitivity-to-boldsymbolmu"><span class="header-section-number">4.2</span> 3.2 — Sensitivity to <span class="math inline">\(\boldsymbol{\mu}\)</span></a></li>
-  <li><a href="#sensitivity-to-correlations" id="toc-sensitivity-to-correlations" class="nav-link" data-scroll-target="#sensitivity-to-correlations"><span class="header-section-number">4.3</span> 3.3 — Sensitivity to Correlations</a></li>
-  <li><a href="#sensitivity-to-volatility" id="toc-sensitivity-to-volatility" class="nav-link" data-scroll-target="#sensitivity-to-volatility"><span class="header-section-number">4.4</span> 3.4 — Sensitivity to Volatility</a></li>
-  <li><a href="#a-dose-of-realism-constrained-weights" id="toc-a-dose-of-realism-constrained-weights" class="nav-link" data-scroll-target="#a-dose-of-realism-constrained-weights"><span class="header-section-number">4.5</span> 3.5 — A Dose of Realism: Constrained Weights</a></li>
-  </ul></li>
-  <li><a href="#section-4-the-effect-of-rebalancing-and-trading-costs" id="toc-section-4-the-effect-of-rebalancing-and-trading-costs" class="nav-link" data-scroll-target="#section-4-the-effect-of-rebalancing-and-trading-costs"><span class="header-section-number">5</span> Section 4 — The Effect of Rebalancing and Trading Costs</a>
-  <ul class="collapse">
-  <li><a href="#frictionless-rebalancing" id="toc-frictionless-rebalancing" class="nav-link" data-scroll-target="#frictionless-rebalancing"><span class="header-section-number">5.1</span> 4.1 — Frictionless Rebalancing</a></li>
-  <li><a href="#introducing-transaction-costs" id="toc-introducing-transaction-costs" class="nav-link" data-scroll-target="#introducing-transaction-costs"><span class="header-section-number">5.2</span> 4.2 — Introducing Transaction Costs</a></li>
-  </ul></li>
-  <li><a href="#section-5-full-backtester" id="toc-section-5-full-backtester" class="nav-link" data-scroll-target="#section-5-full-backtester"><span class="header-section-number">6</span> Section 5 — Full Backtester</a>
-  <ul class="collapse">
-  <li><a href="#the-loop" id="toc-the-loop" class="nav-link" data-scroll-target="#the-loop"><span class="header-section-number">6.1</span> 5.1 — The Loop</a></li>
-  <li><a href="#performance-report-the-tearsheet" id="toc-performance-report-the-tearsheet" class="nav-link" data-scroll-target="#performance-report-the-tearsheet"><span class="header-section-number">6.2</span> 5.2 — Performance Report: The Tearsheet</a></li>
-  <li><a href="#interpretation" id="toc-interpretation" class="nav-link" data-scroll-target="#interpretation"><span class="header-section-number">6.3</span> 5.3 — Interpretation</a></li>
-  </ul></li>
-  <li><a href="#section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points" id="toc-section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points" class="nav-link" data-scroll-target="#section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points"><span class="header-section-number">7</span> Section 6 — Bonus: Push the Strategy Further (Optional, up to 5 extra points)</a></li>
-  <li><a href="#deliverables-and-grading" id="toc-deliverables-and-grading" class="nav-link" data-scroll-target="#deliverables-and-grading"><span class="header-section-number">8</span> Deliverables and Grading</a></li>
+  <li><a href="#section-8-bonus-push-the-strategy-further-optional-up-to-5-extra-points" id="toc-section-8-bonus-push-the-strategy-further-optional-up-to-5-extra-points" class="nav-link" data-scroll-target="#section-8-bonus-push-the-strategy-further-optional-up-to-5-extra-points"><span class="header-section-number">10</span> Section 8 — Bonus: Push the Strategy Further (Optional, up to 5 extra points)</a></li>
+  <li><a href="#deliverables-and-grading" id="toc-deliverables-and-grading" class="nav-link" data-scroll-target="#deliverables-and-grading"><span class="header-section-number">11</span> Deliverables and Grading</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">12</span> References</a></li>
   </ul>
 </nav>
 </div>
@@ -2355,7 +2340,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Case Study 1: Building a Mean-Variance Portfolio Pipeline</h1>
+<h1 class="title">Case Study 3: Market Making the SPY Limit Order Book</h1>
 <p class="subtitle lead">STAT 4170 – Financial Time Series and Forecasting</p>
 </div>
 
@@ -2381,179 +2366,113 @@ window.Quarto = {
 
 <section id="overview" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="overview"><span class="header-section-number">1</span> Overview</h2>
-<p><strong>The scenario:</strong> You’ve just joined the quantitative strategies group at a mid-size asset manager. Your portfolio manager wants a sector-rotation pipeline built on mean-variance theory — but before any capital gets allocated, she wants proof that you understand <em>how much to trust your own numbers</em>. That means a reproducible data pipeline, an honest accounting of estimation and model uncertainty, a sensitivity analysis of the optimizer’s outputs, and a backtest that reflects real trading frictions rather than a frictionless fantasy. This is, in miniature, the actual workflow of a junior quant researcher — and the structure of this case study (build → interrogate the inputs → stress-test the outputs → backtest honestly) mirrors take-home exercises used in real quant research interviews.</p>
-<p>In modules 1 and 2 you learned the building blocks of mean-variance portfolio theory: how to compute estimates of forecast moments <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>, how the optimal weight vector <span class="math inline">\(\mathbf{w}^*\)</span> follows from those moments and a risk-aversion parameter <span class="math inline">\(\gamma\)</span>, and how cross-sectional regression (CAPM) provides a structured way to estimate those moments. This case study asks you to turn those ideas into a working pipeline applied to a real universe of assets.</p>
-<p>The universe is the eleven SPDR sector ETFs — <strong>XLC, XLY, XLP, XLE, XLF, XLV, XLI, XLB, XLRE, XLK, XLU</strong> — plus the S&amp;P 500 index ETF <strong>SPY</strong> as the market factor.</p>
-<p>Submit your work as a single, self-contained <strong>Jupyter notebook</strong> (<code>.ipynb</code>). Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error. Figures must render inline. Show all intermediate outputs that support your written interpretation.</p>
-<section id="some-rookie-mistakes-that-will-sink-a-real-portfolio" class="level3 unnumbered">
-<h3 class="unnumbered anchored" data-anchor-id="some-rookie-mistakes-that-will-sink-a-real-portfolio">Some Rookie Mistakes That Will Sink a Real Portfolio</h3>
-<p>Every one of these has ended a junior quant’s strategy before it ever got funded. Watch for them:</p>
+<p><strong>The scenario:</strong> You’ve just joined the market-making desk at a small electronic trading firm. The pedagogical Avellaneda-Stoikov strategy from Module 8 — rest a little behind the touch, skew by inventory, run it against a real SPY tape — makes money in the demo. Your head trader has seen this movie before: a backtest that fills instantly at zero cost, with no fee schedule, no latency, and no accounting for who’s actually first in line at a price level, always looks better than the real thing. Before any of this gets a risk allocation, she wants five specific questions answered: how much do exchange fees and rebates actually matter, how much does latency cost you, how important is queue priority, is inventory skew the best way to tilt a quote, and — the question that decides whether the strategy is “collecting the spread” or “getting picked off” — what does the P&amp;L look like <em>after</em> you account for what the price does in the seconds following your fills.</p>
+<p>Modules 7 and 8 gave you the building blocks: Poisson arrivals and Brownian motion as the two random ingredients, the Avellaneda-Stoikov reservation price and half-spread as a first policy, and a real, event-by-event backtest (<code>fake_broker.py</code> / <code>main.py</code> in <code>lectures/module08/backtest/</code>) that plays back one real trading day of SPY quotes and trades (<code>scripts/20260401.txt</code>) and matches your resting limit orders against it. This case study asks you to take that infrastructure — not rebuild it from scratch — and use it to answer the head trader’s five questions with real numbers, not intuition.</p>
+<p>Submit your work as a single, self-contained <strong>Jupyter notebook</strong> (<code>.ipynb</code>). You are extending <code>fake_broker.py</code> and <code>main.py</code>, not starting over — read both files closely before writing any code. Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error. Figures must render inline. Show all intermediate outputs that support your written interpretation.</p>
+<section id="some-rookie-mistakes-that-will-sink-a-real-market-making-book" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="some-rookie-mistakes-that-will-sink-a-real-market-making-book">Some Rookie Mistakes That Will Sink a Real Market-Making Book</h3>
+<p>Every one of these has turned a promising backtest into a strategy that loses money live. Watch for them:</p>
 <ul>
-<li><strong>Lookahead bias / data leakage.</strong> Using anything from the test period — even implicitly, like fitting a scaler or picking a hyperparameter — to make decisions in the training period. If you ever “know” something in Section 5’s loop that you couldn’t have known on that actual trading day, you have leakage.</li>
-<li><strong>Off-by-one errors in the trading loop.</strong> Estimating <span class="math inline">\(\hat{\boldsymbol{\mu}}_t\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}_t\)</span> using data <em>through</em> day <span class="math inline">\(t\)</span> and then trading on day <span class="math inline">\(t\)</span>’s close (rather than day <span class="math inline">\(t+1\)</span>) silently injects lookahead bias into a walk-forward backtest — this is the single most common bug in Section 5.</li>
-<li><strong>Mixing return conventions.</strong> Switching between log returns and simple (percent) returns partway through a notebook, or forgetting that log returns don’t sum across assets the way simple returns do when computing portfolio returns.</li>
-<li><strong>Annualization errors.</strong> Multiplying mean daily return by 252 but volatility by <span class="math inline">\(252\)</span> instead of <span class="math inline">\(\sqrt{252}\)</span> (or vice versa), or comparing a Sharpe ratio computed on daily data to one computed on monthly data without adjusting.</li>
-<li><strong>Treating unconstrained weights as “the answer.”</strong> If <span class="math inline">\(\mathbf{w}^*\)</span> wants to short one sector 300% and lever another 400%, that’s a signal your inputs are noisy or your <span class="math inline">\(\gamma\)</span> is too low — not a strategy to trade as-is (see Sections 3 and 3.5).</li>
-<li><strong>Reporting gross returns dressed up as net returns</strong>, or applying transaction costs at the wrong point in the loop (e.g., after applying the return instead of before, which under- or overstates P&amp;L).</li>
-<li><strong>Silent stale-cache bugs.</strong> A cache that never re-validates against the latest available trading day will quietly grade you on old data — and a grader re-running your notebook weeks later may get different results than you did.</li>
-<li><strong>Cherry-picking the flattering metric.</strong> Reporting Sharpe ratio and cumulative return but conveniently leaving out max drawdown or a bad three-month stretch. A real PM will ask about the drawdown before anything else.</li>
+<li><strong>Zero-latency backtests that stay zero-latency.</strong> <code>fake_broker.py</code> fills your orders and processes your cancels instantly by design — that’s the right <em>starting point</em>, but reporting its P&amp;L as-is and calling it a day ignores exactly the question this case study asks you to answer in Section 3.</li>
+<li><strong>Treating Level 1 data as if it tells you your queue position.</strong> <code>scripts/20260401.txt</code> is top-of-book only (<code>bid_size</code>, <code>ask_size</code>, no order-level detail) — as Module 8 explained, only Level 3/MBO data actually shows who’s first in line. The baseline fill model in <code>fake_broker.py</code> implicitly assumes you’re always at the front of the queue the instant you rest an order. That’s an optimistic best case, not a neutral assumption — Section 4 asks you to confront this directly.</li>
+<li><strong>Peeking ahead.</strong> Your quoting logic at tick <span class="math inline">\(t\)</span> may only use information from ticks already read by the broker. This is the same off-by-one/lookahead family of bugs as CS 1 and CS 2, just relocated to an event loop instead of a daily bar.</li>
+<li><strong>Counting the spread but not the fees.</strong> As Module 8’s edge equation makes explicit, <span class="math inline">\(\text{edge} = \text{captured spread} + \text{rebates} - \text{fees} - \text{adverse selection cost}\)</span> — a tearsheet that reports only gross spread capture is missing three of four terms.</li>
+<li><strong>Unmanaged inventory.</strong> A strategy that quotes symmetrically without any skew lets inventory drift like a random walk toward whatever hard position limit you’ve set — and then you’re carrying directional risk, not making markets.</li>
+<li><strong>Confusing “profitable at the moment of the fill” with “profitable.”</strong> A fill that looks good when it happens can still be adverse selection if the price keeps moving against you afterward — that’s exactly what markout (Section 6) is built to catch, and it’s the single most common way a market-making backtest lies to you.</li>
+<li><strong>Ignoring trading-hours boundaries.</strong> <code>main.py</code> already cancels resting orders outside 9:30–4:00 — if you rebuild any part of the loop, don’t accidentally quote (or leave stale quotes resting) outside regular hours.</li>
+<li><strong>Comparing strategy variants on different slices of the tape.</strong> If one variant runs on the first 300k messages and another on a different subset, differences in P&amp;L may just be differences in market conditions, not strategy quality. Hold the evaluation window fixed across every comparison in this notebook.</li>
 </ul>
 <hr>
 </section>
 </section>
-<section id="section-1-data-pipeline" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="section-1-data-pipeline"><span class="header-section-number">2</span> Section 1 — Data Pipeline</h2>
-<p><em>In practice: this is the unglamorous infrastructure work every quant desk depends on — nobody trusts a signal built on data nobody can reproduce.</em></p>
-<p>Write a function (or small collection of functions) that fetches daily adjusted closing prices for the twelve tickers above using <code>yfinance</code>. The function must implement a <strong>disk cache</strong>: on the first call it downloads the data and saves it to a local file (e.g., a CSV or Parquet); on subsequent calls it reads from disk and only queries the internet if the locally stored data does not cover the most recent available trading day.</p>
-<p>The pipeline should return a clean <code>DataFrame</code> of <strong>daily log returns</strong> (or percent returns — be explicit about which you choose and be consistent throughout the notebook), with dates as the index and tickers as columns, with <code>NaN</code> rows dropped.</p>
-<p>Your cache should behave correctly across different machines and be easy for a grader to reproduce. Include a brief prose cell explaining your cache invalidation logic.</p>
+<section id="section-0-before-you-start-whats-already-built" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="section-0-before-you-start-whats-already-built"><span class="header-section-number">2</span> Section 0 — Before You Start: What’s Already Built</h2>
+<p>Read <code>lectures/module08/backtest/fake_broker.py</code> and <code>lectures/module08/backtest/main.py</code> in full before starting. <code>FakeBroker</code> parses <code>scripts/20260401.txt</code> into <code>QuoteUpdate</code> and <code>TradePrint</code> messages, holds your resting limit orders, and manufactures an <code>OrderFilled</code> message the instant a trade print crosses one of your orders. <code>main.py</code>’s <code>handle_next_tick</code> is the strategy loop: read messages, update the book, cancel and re-quote behind the touch with a fixed per-share inventory skew.</p>
+<p>You are extending this infrastructure — subclassing or modifying <code>FakeBroker</code>, adding new fields to <code>book</code>, adding new command-line-free helper functions — not writing a new event-driven backtester from zero. Confirm you can run the baseline as-is before changing anything:</p>
+<pre><code>cd lectures/module08/backtest
+python main.py ../../../scripts/20260401.txt --plot</code></pre>
 <hr>
 </section>
-<section id="section-2-parameter-and-model-uncertainty" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="section-2-parameter-and-model-uncertainty"><span class="header-section-number">3</span> Section 2 — Parameter and Model Uncertainty</h2>
-<p><em>In practice: this is what risk and model-validation teams call “parameter risk” or “model risk” — before a strategy ever touches real capital, someone has to answer “how much do we actually trust these inputs?”</em></p>
-<p>The central inputs to portfolio optimization are (estimates of) <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>. Before we ever optimize, we should ask: <strong>how well can we actually estimate these?</strong></p>
-<section id="simulation-study-no-model-risk" class="level3" data-number="3.1">
-<h3 data-number="3.1" class="anchored" data-anchor-id="simulation-study-no-model-risk"><span class="header-section-number">3.1</span> 2.1 — Simulation Study (No Model Risk)</h3>
-<p>Suppose the <em>true</em> return distribution is multivariate normal with some known <span class="math inline">\(\boldsymbol{\mu}^*\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}^*\)</span> (use your full-sample estimates from the sector ETF data as the “ground truth”). For sample sizes <span class="math inline">\(n \in \{63, 126, 252, 504, 1008, 2520\}\)</span> (roughly one quarter, one half year, one year, two years, four years, and ten years of trading days):</p>
+<section id="section-1-calibrating-the-model-to-real-data" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="section-1-calibrating-the-model-to-real-data"><span class="header-section-number">3</span> Section 1 — Calibrating the Model to Real Data</h2>
+<p><em>In practice: nobody trades a model whose parameters were never checked against the market it’s meant to describe.</em></p>
+<p>The Avellaneda-Stoikov simulation in the Module 8 slides (<code>simulate_as</code>) uses assumed values for <span class="math inline">\(\sigma\)</span> (midprice volatility), and <span class="math inline">\(k\)</span>, <span class="math inline">\(A\)</span> (the fill-intensity parameters governing <span class="math inline">\(\lambda(\delta) = A e^{-k\delta}\)</span>). Before extending the strategy, calibrate these to the real tape:</p>
 <ul>
-<li>Simulate many independent samples of size <span class="math inline">\(n\)</span> from <span class="math inline">\(\mathcal{N}(\boldsymbol{\mu}^*, \boldsymbol{\Sigma}^*)\)</span>.</li>
-<li>For each sample, compute the sample mean <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and sample covariance <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>.</li>
-<li>Summarize, across simulations, the estimation error for both <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>.</li>
+<li>Estimate <span class="math inline">\(\sigma\)</span> from the realized volatility of the SPY midprice over the trading day (annualize or leave in the tape’s native units — be explicit and consistent for the rest of the notebook).</li>
+<li>Estimate <span class="math inline">\(k\)</span> and <span class="math inline">\(A\)</span> by relating quoted distance from the touch to observed fill/trade intensity in the tape (e.g., bucket trades by how far the trade price sat from the prevailing midpoint at the time, and fit the exponential intensity form to the resulting counts — describe and justify your estimation approach in a prose cell).</li>
+<li>Compare a <code>simulate_as</code> run using your calibrated parameters to a run of the real <code>main.py</code> backtest over the same session. Do the two roughly agree on the <em>shape</em> of PnL, inventory, and drawdown behavior, even though one is simulated and one replays real ticks? Write a short paragraph on where they diverge and why.</li>
 </ul>
-<p>Produce visualizations that make a clear and honest case for how reliable the estimates are at each <span class="math inline">\(n\)</span>. Some quantities you might consider: element-wise RMSE, the Frobenius norm of <span class="math inline">\(\hat{\boldsymbol{\Sigma}} - \boldsymbol{\Sigma}^*\)</span>, the distribution of <span class="math inline">\(\hat{\mu}_i - \mu_i^*\)</span> for a few assets, or the distribution of estimated Sharpe ratios for a fixed <span class="math inline">\(\mathbf{w}\)</span>. You are encouraged to go beyond these suggestions. Write a brief interpretation: at what sample sizes are the estimates “good enough” for practical use, and are <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span> equally reliable?</p>
-</section>
-<section id="model-uncertainty-on-real-data" class="level3" data-number="3.2">
-<h3 data-number="3.2" class="anchored" data-anchor-id="model-uncertainty-on-real-data"><span class="header-section-number">3.2</span> 2.2 — Model Uncertainty on Real Data</h3>
-<p>Now use the actual sector ETF returns. Estimate <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span> under at least two different approaches:</p>
-<ul>
-<li><strong>Sample moments</strong>: sample mean vector and sample covariance matrix.</li>
-<li><strong>CAPM</strong>: multivariate OLS with SPY as the single factor (as derived in module 2), then use the law of total expectation and law of total covariance to obtain <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>.</li>
-</ul>
-<p>For each pair of estimates, report the full mean vector and covariance matrix (or correlation matrix — your choice). How different are the estimates across methods? Which elements differ the most? What does that tell you about model sensitivity?</p>
-</section>
-<section id="bootstrap-and-rolling-window" class="level3" data-number="3.3">
-<h3 data-number="3.3" class="anchored" data-anchor-id="bootstrap-and-rolling-window"><span class="header-section-number">3.3</span> 2.3 — Bootstrap and Rolling Window</h3>
-<p>Choose one estimation method from 2.2. Using the same data:</p>
-<ul>
-<li><p><strong>Bootstrap</strong>: resample the daily return rows with replacement 500–1000 times. For each resample, compute <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>. Visualize the resulting distributions. For instance: plot the bootstrap distribution of <span class="math inline">\(\hat{\mu}_i\)</span> for each sector with a confidence band; plot the distribution of <span class="math inline">\(\hat{\Sigma}_{ij}\)</span> for a selection of covariance pairs.</p></li>
-<li><p><strong>Rolling window</strong>: compute <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> using a rolling 252-day window. Plot how these estimates evolve over time. Are there identifiable regimes? Do any estimates look stable, or are they volatile?</p></li>
-</ul>
-<p>Write at least one paragraph interpreting what you observe, with specific reference to your figures.</p>
-</section>
-<section id="dimension-vs.-sample-size-when-the-universe-outgrows-the-data" class="level3" data-number="3.4">
-<h3 data-number="3.4" class="anchored" data-anchor-id="dimension-vs.-sample-size-when-the-universe-outgrows-the-data"><span class="header-section-number">3.4</span> 2.4 — Dimension vs. Sample Size: When the Universe Outgrows the Data</h3>
-<p>Sections 2.1–2.3 held the universe fixed at 12 assets and varied how much <em>history</em> you had. But a PM can just as easily expand the <em>universe</em> — trading 50 or 200 individual names instead of 12 sector ETFs — without getting any more years of data to estimate with. This subsection asks the same question as 2.1 (how good is <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>?), but sweeps dimension <span class="math inline">\(k\)</span> instead of sample size <span class="math inline">\(n\)</span>.</p>
-<p>Fix the sample size at <span class="math inline">\(n = 252\)</span> (one trading year — a realistic amount of history for a newer strategy or a recently-listed set of names) for the entire subsection. You’ll need a “ground truth” <span class="math inline">\(\boldsymbol{\Sigma}^*(k)\)</span> that scales to arbitrary <span class="math inline">\(k\)</span>, since you only have 12 real assets to work with:</p>
-<ul>
-<li>For <span class="math inline">\(k \leq 12\)</span>, you can use your real full-sample sector-ETF estimates (as in 2.1), subset to the first <span class="math inline">\(k\)</span> assets.</li>
-<li>For <span class="math inline">\(k &gt; 12\)</span>, construct a synthetic ground truth with the same one-factor structure as your CAPM estimates in 2.2: <span class="math inline">\(\boldsymbol{\Sigma}^*(k) = \mathbf{D} + \boldsymbol{\beta}\boldsymbol{\beta}^\intercal \sigma_m^2\)</span>, where <span class="math inline">\(\sigma_m^2\)</span> is your estimated market (SPY) variance, and the <span class="math inline">\(k\)</span>-vector <span class="math inline">\(\boldsymbol{\beta}\)</span> and diagonal idiosyncratic variances <span class="math inline">\(\mathbf{D}\)</span> are drawn to match the <em>empirical spread</em> of the betas and idiosyncratic variances you actually estimated for the 12 sector ETFs in 2.2 (e.g., sample from a distribution fit to those 12 real values, rather than inventing arbitrary numbers). Document this construction in a prose cell — the point isn’t that this is a realistic 200-asset universe, it’s that it’s a <span class="math inline">\(k\)</span>-asset ground truth grounded in real, estimated parameters.</li>
-</ul>
-<p>For a grid of <span class="math inline">\(k\)</span> that spans well below, near, and <strong>above</strong> <span class="math inline">\(n = 252\)</span> (e.g., <span class="math inline">\(k \in \{5, 12, 50, 150, 252, 400\}\)</span>), simulate many samples of size <span class="math inline">\(n\)</span> from <span class="math inline">\(\mathcal{N}(\boldsymbol{\mu}^*(k), \boldsymbol{\Sigma}^*(k))\)</span> and compute <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> for each. Track, across simulations and as a function of <span class="math inline">\(k\)</span>:</p>
-<ul>
-<li>The <strong>condition number</strong> of <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> (ratio of largest to smallest eigenvalue) — a numerically well-behaved matrix has a modest condition number; a nearly-singular one has a huge one.</li>
-<li>The <strong>smallest eigenvalue</strong> of <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> directly. What happens to it as <span class="math inline">\(k\)</span> approaches, and then exceeds, <span class="math inline">\(n\)</span>? (Recall that a sample covariance matrix estimated from <span class="math inline">\(n\)</span> observations of <span class="math inline">\(k\)</span> variables is mathematically guaranteed to be singular once <span class="math inline">\(k &gt; n\)</span> — this isn’t a modeling failure, it’s a hard fact about how many independent directions of variation <span class="math inline">\(n\)</span> data points can possibly pin down.)</li>
-<li>The magnitude of the resulting <strong>unconstrained</strong> <span class="math inline">\(\mathbf{w}^*\)</span> (e.g., its <span class="math inline">\(L_2\)</span> norm, or gross leverage <span class="math inline">\(\sum_i|w_i|\)</span>) computed from each simulated <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>, at a fixed <span class="math inline">\(\gamma\)</span>.</li>
-</ul>
-<p>Produce a plot (or small panel of plots) showing all three quantities against <span class="math inline">\(k\)</span>, on a log scale for <span class="math inline">\(k\)</span> if that helps readability. Write a paragraph connecting what you see to the closed-form <span class="math inline">\(\mathbf{w}^* \propto \hat{\boldsymbol{\Sigma}}^{-1}\hat{\boldsymbol{\mu}}\)</span>: why does a near-singular (or literally singular) <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> make the <em>inverse</em> — and therefore the weights — blow up numerically, even when the <em>true</em> <span class="math inline">\(\boldsymbol{\Sigma}^*(k)\)</span> is perfectly well-behaved at every <span class="math inline">\(k\)</span>? This is the dimension-side counterpart to 2.1’s sample-size finding, and it’s the reason Section 3.5’s constrained weights and (in industry) shrinkage estimators like Ledoit-Wolf exist — not required here, but worth knowing that “regularize <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> before inverting it” is a standard professional response to exactly the failure mode you just produced.</p>
 <hr>
 </section>
-</section>
-<section id="section-3-how-uncertainty-in-parameters-propagates-to-weights" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="section-3-how-uncertainty-in-parameters-propagates-to-weights"><span class="header-section-number">4</span> Section 3 — How Uncertainty in Parameters Propagates to Weights</h2>
-<p><em>In practice: this is a sensitivity / stress-testing exercise — the kind of analysis a risk team runs on any model before it’s approved, and the kind of question a PM will ask you the moment you present a portfolio: “how fragile is this?”</em></p>
-<p>The quantities <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span> are not directly observable in a portfolio — the observable outcome is the weight vector <span class="math inline">\(\mathbf{w}^*\)</span>. This section asks you to understand <em>how sensitive</em> <span class="math inline">\(\mathbf{w}^*\)</span> is to its inputs.</p>
-<p>Use a fixed base estimate (e.g., your CAPM or sample-moment estimates from Section 2 on the full training window) as the reference <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>.</p>
-<section id="sensitivity-to-gamma" class="level3" data-number="4.1">
-<h3 data-number="4.1" class="anchored" data-anchor-id="sensitivity-to-gamma"><span class="header-section-number">4.1</span> 3.1 — Sensitivity to <span class="math inline">\(\gamma\)</span></h3>
-<p>Compute <span class="math inline">\(\mathbf{w}^*(\gamma)\)</span> for a grid of risk-aversion values, say <span class="math inline">\(\gamma \in [0.1,\, 20]\)</span> on a log scale. For each <span class="math inline">\(\gamma\)</span>, record the full weight vector. Produce a plot that shows how each sector’s weight evolves across this range. What are the extreme cases? At what <span class="math inline">\(\gamma\)</span> does the portfolio become “reasonable” (no extreme allocations)?</p>
-</section>
-<section id="sensitivity-to-boldsymbolmu" class="level3" data-number="4.2">
-<h3 data-number="4.2" class="anchored" data-anchor-id="sensitivity-to-boldsymbolmu"><span class="header-section-number">4.2</span> 3.2 — Sensitivity to <span class="math inline">\(\boldsymbol{\mu}\)</span></h3>
-<p>Starting from the base <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span>, explore what happens as you move it toward zero. Specifically, define the family <span class="math display">\[
-\boldsymbol{\mu}(\alpha) = (1 - \alpha)\,\hat{\boldsymbol{\mu}}, \qquad \alpha \in [0, 1].
-\]</span> At <span class="math inline">\(\alpha = 0\)</span> you have the estimated means; at <span class="math inline">\(\alpha = 1\)</span> all means are zero. Compute <span class="math inline">\(\mathbf{w}^*\)</span> along this path (fixing <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> and a chosen <span class="math inline">\(\gamma\)</span>) and visualize how the weights evolve. At what value of <span class="math inline">\(\alpha\)</span> do the weights become “well-behaved”?</p>
-</section>
-<section id="sensitivity-to-correlations" class="level3" data-number="4.3">
-<h3 data-number="4.3" class="anchored" data-anchor-id="sensitivity-to-correlations"><span class="header-section-number">4.3</span> 3.3 — Sensitivity to Correlations</h3>
-<p>To inflate or deflate correlations while keeping the matrix positive definite and the variances unchanged, you need to work with the <strong>correlation matrix</strong>. Decompose: <span class="math display">\[
-\boldsymbol{\Sigma} = \mathbf{D}\,\mathbf{C}\,\mathbf{D},
-\]</span> where <span class="math inline">\(\mathbf{D} = \text{diag}(\sigma_1, \ldots, \sigma_k)\)</span> is the diagonal matrix of standard deviations and <span class="math inline">\(\mathbf{C}\)</span> is the correlation matrix. Define the perturbed correlation matrix <span class="math display">\[
-\mathbf{C}(\rho) = (1 - \rho)\,\mathbf{C} + \rho\,\mathbf{1}\mathbf{1}^\intercal / k, \qquad \rho \in [0, 1),
-\]</span> (or another reasonable perturbation of your choice) and reconstruct <span class="math inline">\(\boldsymbol{\Sigma}(\rho) = \mathbf{D}\,\mathbf{C}(\rho)\,\mathbf{D}\)</span>. Compute <span class="math inline">\(\mathbf{w}^*\)</span> across values of <span class="math inline">\(\rho\)</span> and visualize. What is the intuition for what happens as all assets become more correlated?</p>
-</section>
-<section id="sensitivity-to-volatility" class="level3" data-number="4.4">
-<h3 data-number="4.4" class="anchored" data-anchor-id="sensitivity-to-volatility"><span class="header-section-number">4.4</span> 3.4 — Sensitivity to Volatility</h3>
-<p>Using the same decomposition <span class="math inline">\(\boldsymbol{\Sigma} = \mathbf{D}\,\mathbf{C}\,\mathbf{D}\)</span>, define the scaled covariance matrix <span class="math display">\[
-\boldsymbol{\Sigma}(s) = (s\,\mathbf{D})\,\mathbf{C}\,(s\,\mathbf{D}), \qquad s &gt; 0,
-\]</span> which scales all standard deviations by <span class="math inline">\(s\)</span> while preserving all pairwise correlations. Compute <span class="math inline">\(\mathbf{w}^*\)</span> across values of <span class="math inline">\(s \in [0.5, 3]\)</span> and visualize. Does scaling volatility up or down change the <em>composition</em> of the portfolio or just the implied risk?</p>
-</section>
-<section id="a-dose-of-realism-constrained-weights" class="level3" data-number="4.5">
-<h3 data-number="4.5" class="anchored" data-anchor-id="a-dose-of-realism-constrained-weights"><span class="header-section-number">4.5</span> 3.5 — A Dose of Realism: Constrained Weights</h3>
-<p>The closed-form <span class="math inline">\(\mathbf{w}^*\)</span> you’ve been computing is unconstrained — it is free to short assets and to take arbitrarily large positions. Real mandates almost always impose some constraint on top of the mean-variance objective, though which constraint depends a lot on the fund. A few common ones:</p>
+<section id="section-2-trading-fees-and-rebates-how-much-do-they-matter" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="section-2-trading-fees-and-rebates-how-much-do-they-matter"><span class="header-section-number">4</span> Section 2 — Trading Fees and Rebates: How Much Do They Matter?</h2>
+<p><em>In practice: this is the first line item on the head trader’s list — a strategy that “wins on the tape” but loses to its own fee schedule doesn’t get funded.</em></p>
+<p>Every fill in <code>fake_broker.py</code> is currently free. Extend the broker (or the P&amp;L accounting in <code>main.py</code>) so that every <code>OrderFilled</code> also books a <strong>maker rebate</strong> of <span class="math inline">\(\rho\)</span> dollars per share (since your resting limit order is, by construction, always the passive side of the trade — you’re never crossing the spread yourself in the baseline strategy).</p>
 <ul>
-<li><strong>Long-only</strong> (<span class="math inline">\(w_i \geq 0\)</span>): common for retail-facing funds and many institutional mandates, but plenty of funds (long/short equity, market-neutral, macro) short freely — this is a mandate choice, not a law of nature.</li>
-<li><strong>Position cap</strong> (e.g., <span class="math inline">\(w_i \leq 0.25\)</span>): limits concentration in any single name or sector.</li>
-<li><strong>Leverage constraint</strong> (<span class="math inline">\(\sum_i |w_i| \leq L\)</span> for some <span class="math inline">\(L\)</span>, e.g. <span class="math inline">\(L=1\)</span> for no leverage or <span class="math inline">\(L=2\)</span> for 2-to-1 gross leverage): caps total gross exposure regardless of the long/short split — this is how many hedge funds actually bound risk instead of (or in addition to) going long-only.</li>
+<li>Using the real maker-taker figures from Module 8 (roughly $0.0020–0.0028/share rebate) as a starting point, report total rebate revenue over the session and what fraction of gross P&amp;L it represents.</li>
+<li>Sweep <span class="math inline">\(\rho\)</span> across a grid that includes zero, the realistic range above, and a negative value (representing an <strong>inverted</strong> venue, where the maker pays and the taker earns — Module 8 mentions these exist). At what rebate level does the strategy’s net P&amp;L cross zero, holding everything else fixed?</li>
+<li>Now consider the other side of the ledger: suppose at the end of the trading day you must flatten any remaining inventory by <strong>crossing the spread</strong> (an aggressive, taker order) rather than waiting for a passive fill. Add a taker fee (roughly $0.0030/share) applied only to this end-of-day flattening trade. How much does this single, unavoidable taker trade eat into the day’s rebate revenue?</li>
 </ul>
-<p>Pick <strong>one or two constraints from this list (or a reasonable variant of your own)</strong> that you find most interesting, and re-solve for <span class="math inline">\(\mathbf{w}^*\)</span> under them using your base <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> from Section 2. You will need a numerical solver rather than the closed-form formula — <code>scipy.optimize.minimize</code> (SLSQP) or <code>cvxpy</code> both work well for this (note the leverage constraint is not smooth as written; either reformulate it for your solver or pick a smooth relaxation). Compare the constrained weights to the unconstrained weights from earlier in Section 3: what changed, and how much expected utility (in the mean-variance objective) is “given up” by imposing the constraint(s) you chose?</p>
+<p>Produce at least one plot showing net P&amp;L as a function of <span class="math inline">\(\rho\)</span>, and write a paragraph answering the head trader’s question directly: how much do fees and rebates actually matter to this strategy’s economics?</p>
 <hr>
 </section>
-</section>
-<section id="section-4-the-effect-of-rebalancing-and-trading-costs" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="section-4-the-effect-of-rebalancing-and-trading-costs"><span class="header-section-number">5</span> Section 4 — The Effect of Rebalancing and Trading Costs</h2>
-<p><em>In practice: this is implementation shortfall — the gap between a paper strategy and a tradeable one. It’s often the difference between a strategy that gets funded and one that doesn’t.</em></p>
-<p>Sections 2 and 3 were about the inputs. This section is about what happens when we actually use <span class="math inline">\(\mathbf{w}^*\)</span> in practice.</p>
-<p><strong>Train/test split</strong>: use the first 60% of your data as the training period (estimate parameters here) and the remaining 40% as the test period (evaluate performance here). Never use test data to make portfolio decisions.</p>
-<p><strong>Benchmarks</strong>: in every comparison below, include two passive benchmarks: - <strong>Equal-weight (EW)</strong>: <span class="math inline">\(\mathbf{w} = \mathbf{1}/k\)</span> held fixed and rebalanced each period. - <strong>SPY</strong>: the market ETF return series.</p>
-<section id="frictionless-rebalancing" class="level3" data-number="5.1">
-<h3 data-number="5.1" class="anchored" data-anchor-id="frictionless-rebalancing"><span class="header-section-number">5.1</span> 4.1 — Frictionless Rebalancing</h3>
-<p>Assume you can trade at zero cost. At the start of the test period, invest according to <span class="math inline">\(\mathbf{w}^*\)</span> computed on the training data. Rebalance back to <span class="math inline">\(\mathbf{w}^*\)</span> every trading day (i.e., <span class="math inline">\(\mathbf{w}\)</span> is held constant throughout the test period).</p>
-<p>Report and plot:</p>
+<section id="section-3-latency-how-much-does-speed-cost-you" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="section-3-latency-how-much-does-speed-cost-you"><span class="header-section-number">5</span> Section 3 — Latency: How Much Does Speed Cost You?</h2>
+<p><em>In practice: this is Module 8’s SIP-vs-direct-feed and colocation discussion, made concrete — the zero-latency backtest is the SIP-latency-arbitrage victim’s mirror image, and now you get to measure the cost of being that victim.</em></p>
+<p><code>FakeBroker</code> currently applies your <code>send_limit_order</code> and <code>cancel_order</code> calls the instant you call them, and lets you react to a <code>QuoteUpdate</code> the instant it’s read. Real market makers face two distinct latencies:</p>
 <ul>
-<li>Cumulative return over the test period (log scale optional)</li>
-<li>Annualized Sharpe ratio (use the risk-free rate from one of your data sources, or set it to zero and note that)</li>
-<li>Maximum drawdown</li>
-<li>Annualized volatility</li>
+<li><strong>Outbound latency</strong>: the time between your strategy deciding to send an order or cancel and the exchange actually processing it.</li>
+<li><strong>Market-data latency</strong>: the time between an event happening at the exchange and your strategy observing it.</li>
 </ul>
-<p>How do your model-based portfolios compare to the benchmarks?</p>
-</section>
-<section id="introducing-transaction-costs" class="level3" data-number="5.2">
-<h3 data-number="5.2" class="anchored" data-anchor-id="introducing-transaction-costs"><span class="header-section-number">5.2</span> 4.2 — Introducing Transaction Costs</h3>
-<p>Now make the simulation more realistic. At each rebalancing event, you must buy and sell assets to restore the target weights. Each dollar of turnover incurs a cost of <span class="math inline">\(c\)</span> (expressed in basis points, where <span class="math inline">\(1\,\text{bp} = 0.0001\)</span>). The turnover at time <span class="math inline">\(t\)</span> is: <span class="math display">\[
-\text{turnover}_t = \sum_{i=1}^k \lvert w_{t,i}^{\text{target}} - w_{t,i}^{\text{drifted}} \rvert
-\]</span> where <span class="math inline">\(w_{t,i}^{\text{drifted}}\)</span> is the weight in asset <span class="math inline">\(i\)</span> just <em>before</em> rebalancing, after price changes have moved the portfolio away from the target. The cost is deducted from the portfolio value before applying the next period’s returns.</p>
-<p>Additionally, model a fixed <strong>management fee</strong> of <span class="math inline">\(f\)</span> basis points per year, deducted as a daily haircut: <span class="math inline">\(r_{\text{net},t} = r_t - f/252\)</span>.</p>
-<p>Investigate performance as a function of:</p>
-<ul>
-<li>Rebalancing frequency (daily, weekly, monthly, quarterly)</li>
-<li>Cost level <span class="math inline">\(c\)</span> (try a few values in the range 1–20 bps)</li>
-</ul>
-<p>Produce at least one plot of net-of-cost annualized Sharpe ratio as a function of rebalancing frequency and cost level. What rebalancing frequency is approximately optimal? Does the answer depend on <span class="math inline">\(c\)</span>?</p>
+<p>Extend the broker to simulate a fixed latency <span class="math inline">\(L\)</span> (in milliseconds) on both legs — for example, by buffering your outgoing <code>send_limit_order</code>/<code>cancel_order</code> calls and only applying them to the resting-order book <span class="math inline">\(L\)</span> ms of tape-time later, and/or by delaying which messages <code>poll()</code> reveals to your strategy by <span class="math inline">\(L\)</span> ms. Be careful: this changes what “cancel old quote, send new quote” means when a <code>QuoteUpdate</code> arrives faster than your cancel can land — model (and describe in prose) what happens to a stale resting order that the market has moved past before your cancel takes effect.</p>
+<p>Run the backtest at <span class="math inline">\(L \in \{0, 1, 5, 20, 100, 500\}\)</span> milliseconds (or a similar grid spanning “colocated” to “meaningfully slow”). Plot net P&amp;L, fill count, and average markout-free realized spread capture as a function of <span class="math inline">\(L\)</span>. At what latency does the strategy stop being profitable? Connect your answer back to Module 8’s latency table — is the latency level where the strategy breaks down closer to “colocated direct feed” or closer to “a human noticing a quote change”?</p>
 <hr>
 </section>
+<section id="section-4-queue-priority-how-important-is-it-really" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="section-4-queue-priority-how-important-is-it-really"><span class="header-section-number">6</span> Section 4 — Queue Priority: How Important Is It Really?</h2>
+<p><em>In practice: this is the Level 1 vs. Level 3 gap from Module 8, made unavoidable — you cannot observe your true queue position with this data, so you have to model it, and the choice of model changes the answer.</em></p>
+<p>The baseline <code>fake_broker.py</code> fill model is <strong>optimistic</strong>: any trade print that crosses your resting price fills you immediately and in full, which implicitly assumes you are at the front of the queue the instant you post. Build a second, <strong>pessimistic</strong> fill model that respects price-time priority more realistically:</p>
+<ul>
+<li>When you post a resting order at a price level, assume you join the <em>back</em> of the queue, behind the currently displayed <code>bid_size</code>/<code>ask_size</code> at that price (from the most recent <code>QuoteUpdate</code>).</li>
+<li>Before your order can fill, the size ahead of you in the queue must be depleted — approximate this using the sequence of trade prints and quote-size changes at that price level (you’ll need to make and clearly document simplifying assumptions here; there is no fully correct way to reconstruct queue position from Level 1 data, and saying so explicitly is part of the exercise).</li>
+<li>Only once the queue ahead of you is (approximately) exhausted does a subsequent trade print at your price fill you.</li>
+</ul>
+<p>Run the same strategy configuration under both the optimistic (baseline) and pessimistic (queue-aware) fill models, holding fees, latency, and quoting logic fixed. Report and plot, for both: fill count, fill rate as a function of quoted distance from the touch, and net P&amp;L. How much of the baseline strategy’s apparent profitability was an artifact of assuming perfect queue priority? Write a paragraph giving your best estimate of where the truth likely sits between these two bounds, and why.</p>
+<hr>
 </section>
-<section id="section-5-full-backtester" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="section-5-full-backtester"><span class="header-section-number">6</span> Section 5 — Full Backtester</h2>
-<p><em>In practice: a walk-forward backtest is the minimum bar for a strategy to be taken seriously by any PM or allocator — and this is close to verbatim what many quant research take-home interviews ask you to build. Do this section well and you’ll have a legitimate work sample.</em></p>
-<p>Sections 1–4 used a single fixed train/test split. This section asks you to build a proper <strong>walk-forward backtester</strong> that simulates how a real portfolio manager would operate: at each point in time, use only the history available up to that point to estimate parameters and set weights.</p>
-<section id="the-loop" class="level3" data-number="6.1">
-<h3 data-number="6.1" class="anchored" data-anchor-id="the-loop"><span class="header-section-number">6.1</span> 5.1 — The Loop</h3>
-<p>Implement the following loop. Let <span class="math inline">\(T\)</span> be the full length of your return series and <span class="math inline">\(T_0\)</span> be a minimum burn-in period (e.g., 252 trading days — one year of history).</p>
-<p>For <span class="math inline">\(t = T_0, T_0+1, \ldots, T-1\)</span>:</p>
-<ol type="1">
-<li><strong>Fit</strong>: using only returns from day <span class="math inline">\(1\)</span> through day <span class="math inline">\(t\)</span> (expanding window) or a rolling window of fixed length <span class="math inline">\(W\)</span>, estimate <span class="math inline">\(\hat{\boldsymbol{\mu}}_t\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}_t\)</span>.</li>
-<li><strong>Optimize</strong>: compute <span class="math inline">\(\mathbf{w}_t^* = \mathbf{w}^*(\hat{\boldsymbol{\mu}}_t, \hat{\boldsymbol{\Sigma}}_t, \gamma)\)</span> using the MPT formula.</li>
-<li><strong>Trade</strong>: if <span class="math inline">\(t\)</span> is a rebalancing day (e.g., the first trading day of each month), execute trades to move from the current drifted weights to <span class="math inline">\(\mathbf{w}_t^*\)</span>. Apply transaction costs as in Section 4.2.</li>
-<li><strong>Evolve</strong>: apply day <span class="math inline">\(t+1\)</span> returns to the portfolio to get the new dollar value and drifted weights.</li>
-<li><strong>Record</strong>: store <span class="math inline">\(r_{t+1}^{\text{net}}\)</span>, <span class="math inline">\(\mathbf{w}_t^*\)</span>, turnover<span class="math inline">\(_t\)</span>, and costs<span class="math inline">\(_t\)</span>.</li>
-</ol>
-<p>You must use either an expanding window or a rolling window — justify your choice in a prose cell.</p>
+<section id="section-5-alternative-quoting-strategies-tilting-away-from-the-midpoint" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="section-5-alternative-quoting-strategies-tilting-away-from-the-midpoint"><span class="header-section-number">7</span> Section 5 — Alternative Quoting Strategies: Tilting Away from the Midpoint</h2>
+<p><em>In practice: inventory skew is the textbook answer, but it’s not the only signal a real desk uses to decide which way to lean a quote — this section asks you to try at least one more.</em></p>
+<p><code>main.py</code>’s baseline skews the quote linearly in inventory: <code>skew = inventory * INVENTORY_SKEW</code>. Implement <strong>at least one</strong> alternative (or additional) skew signal, chosen from this list or a reasonable variant of your own:</p>
+<ul>
+<li><strong>Order-flow imbalance skew</strong>: skew the quote based on a short trailing window of signed trade flow (e.g., the imbalance between buy-initiated and sell-initiated trade volume in the last <span class="math inline">\(N\)</span> trades or last <span class="math inline">\(T\)</span> seconds), on the hypothesis that recent one-sided flow predicts near-term price direction.</li>
+<li><strong>Volatility-adaptive spread</strong>: instead of a fixed <code>QUOTE_OFFSET</code>, widen or narrow the half-spread based on a rolling estimate of realized short-horizon volatility, so you quote tighter in calm markets and wider in turbulent ones.</li>
+<li><strong>Quote-depth skew</strong>: skew based on the asymmetry between <code>bid_size</code> and <code>ask_size</code> on the prevailing NBBO, on the hypothesis that a heavy bid (or ask) signals near-term pressure in that direction.</li>
+</ul>
+<p>Implement your chosen strategy as a clean variant of <code>handle_next_tick</code>, run it over the same evaluation window as the baseline (holding fees, latency, and fill model fixed at whatever configuration you settled on in Sections 2–4), and compare against both the baseline linear inventory skew and a naive symmetric (no-skew) quoting strategy. Report net P&amp;L, realized inventory path (time series and summary statistics — mean absolute inventory, max absolute inventory), and fill count for all three variants. Did your alternative signal help, hurt, or mostly just trade off average P&amp;L against inventory risk?</p>
+<hr>
 </section>
-<section id="performance-report-the-tearsheet" class="level3" data-number="6.2">
-<h3 data-number="6.2" class="anchored" data-anchor-id="performance-report-the-tearsheet"><span class="header-section-number">6.2</span> 5.2 — Performance Report: The Tearsheet</h3>
-<p>Collect the time series of out-of-sample net returns produced by the loop and package your results as a <strong>one-page tearsheet</strong> — the kind of summary a PM would actually be handed before deciding whether to allocate capital, in the style of tools like <code>quantstats</code> or <code>pyfolio</code> (you are welcome to use either package, or build your own).</p>
-<p>The tearsheet should combine, on a single logical “page” (a markdown cell plus a compact figure or two is fine):</p>
+<section id="section-6-markout-are-you-getting-picked-off" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="section-6-markout-are-you-getting-picked-off"><span class="header-section-number">8</span> Section 6 — Markout: Are You Getting Picked Off?</h2>
+<p><em>In practice: this is how a real desk tells the difference between “we’re earning the spread” and “we’re quietly funding someone else’s edge” — and it’s the sharpest tool in this case study for catching a strategy that looks good but isn’t.</em></p>
+<p><strong>Markout</strong> measures what the midprice does <em>after</em> a fill, signed by the direction of your trade. For a buy fill at time <span class="math inline">\(t\)</span>, define the markout at horizon <span class="math inline">\(h\)</span> as <span class="math display">\[
+\text{markout}_h(t) = \text{mid}(t+h) - \text{fill price}(t)
+\]</span> (and the negative of this for a sell fill — you want the price to move <em>in your favor</em> after you buy, or <em>against</em> the market after you sell, from the market’s perspective as a whole; frame the sign convention however is clearest in your notebook, but state it explicitly and be consistent). A systematically negative markout means you’re being adversely selected: the flow you’re filling tends to be informed, and the price keeps moving against the side you just took on.</p>
+<ul>
+<li>For every fill produced by your Section 5 strategy (or a strategy configuration of your choice), compute markout at several horizons — for example 1 second, 5 seconds, 30 seconds, and 5 minutes after the fill.</li>
+<li>Plot the <strong>markout curve</strong>: average signed markout as a function of horizon, with a confidence band (e.g., from the standard error across fills, or a bootstrap).</li>
+<li>Compare markout curves across at least two of the variants you’ve built so far — for instance, the optimistic vs. pessimistic queue-fill models from Section 4, or the baseline inventory-skew strategy vs. your alternative skew strategy from Section 5. Does resting further behind the touch (larger <code>QUOTE_OFFSET</code>) produce a less toxic markout profile, at the cost of fewer fills? Is there a horizon at which markout stabilizes (suggesting the adverse-selection effect has fully played out) or does it keep drifting?</li>
+</ul>
+<p>Close this section by explicitly filling in Module 8’s edge equation with your own numbers from Sections 2, 3 (at your chosen latency), 4 (at your chosen fill model), and this section: <span class="math display">\[
+\text{edge} = \underbrace{\text{captured spread}}_{\text{Section 1/5}} + \underbrace{\text{rebates}}_{\text{Section 2}} - \underbrace{\text{fees}}_{\text{Section 2}} - \underbrace{\text{adverse selection cost}}_{\text{Section 6, from markout}}
+\]</span> How much of the gross spread you appear to capture survives once adverse selection (estimated from markout) is netted out?</p>
+<hr>
+</section>
+<section id="section-7-full-backtest-and-performance-tearsheet" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="section-7-full-backtest-and-performance-tearsheet"><span class="header-section-number">9</span> Section 7 — Full Backtest and Performance Tearsheet</h2>
+<p><em>In practice: this is what would actually get shown to a head trader deciding whether to give this strategy a live risk allocation.</em></p>
+<p>Combine your best-supported choices from Sections 2–6 (a fee/rebate assumption, a latency assumption, a fill model, and a quoting/skew strategy) into a single configuration. Because you only have one trading day of tape, “walk-forward” here means <strong>re-calibrating</strong> your Section 1 parameters (<span class="math inline">\(\sigma\)</span>, <span class="math inline">\(k\)</span>, <span class="math inline">\(A\)</span>, and/or your Section 5 signal’s own parameters) on a rolling basis through the day — e.g., refit every 30 minutes using only data seen so far — rather than a fixed all-day calibration. Justify your refit frequency in a prose cell.</p>
+<p>Produce a one-page tearsheet (a markdown cell plus compact figures) with, at minimum:</p>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2563,70 +2482,78 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
-<td>Annualized return</td>
+<td>Gross P&amp;L</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>Annualized volatility</td>
+<td>Rebates earned</td>
 <td></td>
 </tr>
 <tr class="odd">
-<td>Sharpe ratio</td>
+<td>Fees paid</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>Maximum drawdown</td>
+<td>Net P&amp;L</td>
 <td></td>
 </tr>
 <tr class="odd">
-<td>Total turnover (annualized)</td>
+<td>Estimated adverse selection cost (from markout)</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>Total costs paid (% of initial capital)</td>
+<td>Fill count (buy / sell)</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Mean | inventory |</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Max | inventory |</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>End-of-day inventory</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>PnL volatility (intraday)</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Max intraday drawdown (PnL)</td>
 <td></td>
 </tr>
 </tbody>
 </table>
-<p>Plot:</p>
+<p>Plot mark-to-market PnL over the day for your full strategy against the zero-latency, optimistic-queue, no-fee baseline from <code>main.py</code> as-is, and against a naive symmetric (no-skew) quoting benchmark. Close with a <strong>desk-facing recommendation paragraph</strong> (3–5 sentences, addressed to the head trader): does the evidence support giving this strategy a live allocation, and under what conditions or caveats?</p>
+<section id="interpretation" class="level3" data-number="9.1">
+<h3 data-number="9.1" class="anchored" data-anchor-id="interpretation"><span class="header-section-number">9.1</span> Interpretation</h3>
+<p>Address each of the following in prose:</p>
 <ul>
-<li>Cumulative wealth of your strategy vs. the SPY and equal-weight benchmarks</li>
-<li>Monthly turnover over time</li>
-<li>A heatmap or line chart of portfolio weights over time</li>
-</ul>
-<p>Close the tearsheet with a short <strong>PM-facing recommendation paragraph</strong> (3-5 sentences, written as if addressed to a portfolio manager deciding whether to fund this strategy): does the evidence support allocating capital to it, and under what conditions or caveats?</p>
-</section>
-<section id="interpretation" class="level3" data-number="6.3">
-<h3 data-number="6.3" class="anchored" data-anchor-id="interpretation"><span class="header-section-number">6.3</span> 5.3 — Interpretation</h3>
-<p>Write a paragraph (or two) addressing each of the following:</p>
-<ul>
-<li>Does the walk-forward strategy beat the benchmarks? If yes, where does the outperformance come from? If no, why not?</li>
-<li>How did transaction costs change your conclusion relative to the frictionless result in Section 4.1?</li>
-<li>What did the weight time series reveal? Did the optimizer concentrate in a small number of sectors, or did it diversify? Was this stable over time?</li>
-<li>If you were managing this portfolio with real money, what changes would you make? Point specifically to findings from Sections 2 and 3 to support your answer.</li>
+<li>Rank the four frictions you investigated (fees, latency, queue priority, adverse selection/markout) by how much they cut into gross P&amp;L. Which one mattered most, and did that surprise you relative to your intuition going in?</li>
+<li>Did your alternative skew strategy from Section 5 survive contact with realistic fees, latency, and fill modeling, or did its edge mostly evaporate once frictions were added?</li>
+<li>If you were actually responsible for this book, what single change (wider quotes, a hard inventory limit, a different skew signal, avoiding certain times of day) would you make first, and why — point to specific numbers from your tearsheet and markout analysis.</li>
 </ul>
 <hr>
 </section>
 </section>
-<section id="section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points"><span class="header-section-number">7</span> Section 6 — Bonus: Push the Strategy Further (Optional, up to 5 extra points)</h2>
-<p>Everything above gets you a defensible, honestly-evaluated strategy. If you want to see how it stacks up against other approaches a real desk might consider, pick <strong>one</strong> of the following and add it to your backtest comparison:</p>
+<section id="section-8-bonus-push-the-strategy-further-optional-up-to-5-extra-points" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="section-8-bonus-push-the-strategy-further-optional-up-to-5-extra-points"><span class="header-section-number">10</span> Section 8 — Bonus: Push the Strategy Further (Optional, up to 5 extra points)</h2>
+<p>Pick <strong>one</strong> of the following and add it to your analysis:</p>
 <ul>
-<li>A <strong>minimum-variance</strong> portfolio (ignore <span class="math inline">\(\boldsymbol{\mu}\)</span> entirely and minimize risk) as an additional benchmark.</li>
-<li>A <strong>risk-parity</strong> portfolio (weights inversely proportional to volatility, or the full risk-parity solution) as an additional benchmark.</li>
-<li>A simple <strong>momentum overlay</strong>: tilt <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> toward recent trailing returns before optimizing, and see whether it helps or hurts out-of-sample.</li>
+<li>A <strong>hard inventory kill-switch</strong>: if <code>|inventory|</code> exceeds some threshold, pull both quotes entirely (rather than just capping new order size as <code>MAX_INVENTORY</code> does) until inventory mean-reverts, and compare the risk/return tradeoff to your Section 7 strategy.</li>
+<li>A <strong>toxicity-aware quoting rule</strong>: use your Section 6 markout analysis to identify time-of-day windows (or trade-size buckets, or venues, if you break out the <code>exchange</code> field) that are particularly toxic, and quote wider (or step aside entirely) during those windows. Does it improve net-of-markout P&amp;L?</li>
+<li>A simple <strong>fill-probability model fit to data</strong>: instead of assuming a fixed exponential intensity form for <span class="math inline">\(\lambda(\delta)\)</span>, fit a flexible model (e.g., logistic regression or a small tree) to predict fill probability from quoted distance, recent volatility, and queue-depth features, and compare its out-of-sample calibration to the parametric Avellaneda-Stoikov intensity from Section 1.</li>
 </ul>
-<p>Briefly explain your choice and what it revealed relative to your Section 5 strategy. This section is not required for full credit on the assignment — it’s here for students who want to keep exploring.</p>
+<p>Briefly explain your choice and what it revealed relative to your Section 7 strategy. This section is not required for full credit — it’s here for students who want to keep exploring.</p>
 <hr>
 </section>
-<section id="deliverables-and-grading" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="deliverables-and-grading"><span class="header-section-number">8</span> Deliverables and Grading</h2>
-<p>Submit a single <code>.ipynb</code> that runs top-to-bottom without error. You do not need to commit your cached data file; include the caching function so that a grader can reproduce the download. Where sections ask for “good visualizations,” axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.</p>
+<section id="deliverables-and-grading" class="level2" data-number="11">
+<h2 data-number="11" class="anchored" data-anchor-id="deliverables-and-grading"><span class="header-section-number">11</span> Deliverables and Grading</h2>
+<p>Submit a single <code>.ipynb</code> that runs top-to-bottom without error against <code>scripts/20260401.txt</code>. Where sections ask for “good visualizations,” axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.</p>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 50%">
-<col style="width: 50%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Section</th>
@@ -2635,27 +2562,35 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
-<td>1 — Data pipeline (caching, clean returns)</td>
+<td>1 — Calibration to real data</td>
 <td>10</td>
 </tr>
 <tr class="even">
-<td>2 — Parameter uncertainty (simulation + real data + bootstrap/rolling + dimension)</td>
-<td>30</td>
+<td>2 — Fees and rebates</td>
+<td>15</td>
 </tr>
 <tr class="odd">
-<td>3 — Weight sensitivity (all five sub-parts + visualizations)</td>
-<td>20</td>
+<td>3 — Latency</td>
+<td>15</td>
 </tr>
 <tr class="even">
-<td>4 — Rebalancing and costs (frictionless + cost analysis)</td>
-<td>20</td>
+<td>4 — Queue priority (optimistic vs. pessimistic fill models)</td>
+<td>15</td>
 </tr>
 <tr class="odd">
-<td>5 — Backtester (loop + tearsheet + interpretation)</td>
-<td>20</td>
+<td>5 — Alternative quoting/skew strategy</td>
+<td>15</td>
 </tr>
 <tr class="even">
-<td>6 — Bonus</td>
+<td>6 — Markout / adverse selection</td>
+<td>15</td>
+</tr>
+<tr class="odd">
+<td>7 — Full backtest, tearsheet, and interpretation</td>
+<td>15</td>
+</tr>
+<tr class="even">
+<td>8 — Bonus</td>
 <td>up to +5</td>
 </tr>
 <tr class="odd">
@@ -2665,7 +2600,18 @@ window.Quarto = {
 </tbody>
 </table>
 <p>Partial credit is given for each section independently. A section that is attempted but incomplete receives more credit than a section that is skipped.</p>
-<p><strong>A note on why this matters beyond the grade:</strong> a cleaned-up version of this notebook — especially Sections 5 and 6 — is a legitimate portfolio piece. Many quant research take-home interviews ask for almost exactly this: a reproducible data pipeline, an honest treatment of uncertainty, and a walk-forward backtest with costs. Consider putting a polished version on GitHub.</p>
+<p><strong>A note on why this matters beyond the grade:</strong> fees, latency, queue priority, and adverse selection are the four things that separate a market-making backtest from a market-making business. A cleaned-up version of this notebook — especially Sections 6 and 7 — demonstrates exactly the kind of friction-aware thinking a real trading desk expects from a junior quant researcher’s first pass at a strategy. Consider putting a polished version on GitHub.</p>
+</section>
+<section id="references" class="level2" data-number="12">
+<h2 data-number="12" class="anchored" data-anchor-id="references"><span class="header-section-number">12</span> References</h2>
+<ul>
+<li>Avellaneda, M. &amp; Stoikov, S. (2008). <em>High-frequency trading in a limit order book</em>. Quantitative Finance, 8(3), 217–224.</li>
+<li>Cartea, Á., Jaimungal, S., &amp; Penalva, J. (2015). <em>Algorithmic and High-Frequency Trading</em>. Cambridge University Press.</li>
+<li>Guéant, O. (2016). <em>The Financial Mathematics of Market Liquidity</em>. Chapman and Hall/CRC.</li>
+<li>Harris, L. (2003). <em>Trading and Exchanges: Market Microstructure for Practitioners</em>. Oxford University Press.</li>
+<li>Hendershott, T. &amp; Menkveld, A. J. (2014). <em>Price pressures</em>. Journal of Financial Economics, 114(3), 405–423.</li>
+<li>U.S. Securities and Exchange Commission. <em>Regulation NMS</em>, 17 CFR Part 242.</li>
+</ul>
 
 </section>
 

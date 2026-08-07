@@ -625,24 +625,24 @@ Z_t = \sqrt{h_t}\, e_t, \quad \{e_t\} \sim \text{IID}(0, 1)
 ==============================================================================
 Dep. Variable:              carry_pnl   R-squared:                       0.000
 Mean Model:             Constant Mean   Adj. R-squared:                  0.000
-Vol Model:                      GARCH   Log-Likelihood:               -3087.26
-Distribution:                  Normal   AIC:                           6182.53
-Method:            Maximum Likelihood   BIC:                           6208.01
-                                        No. Observations:                 4316
-Date:                Tue, Aug 04 2026   Df Residuals:                     4315
-Time:                        21:50:08   Df Model:                            1
+Vol Model:                      GARCH   Log-Likelihood:               -3087.60
+Distribution:                  Normal   AIC:                           6183.21
+Method:            Maximum Likelihood   BIC:                           6208.69
+                                        No. Observations:                 4319
+Date:                Fri, Aug 07 2026   Df Residuals:                     4318
+Time:                        20:30:18   Df Model:                            1
                                   Mean Model                                 
 =============================================================================
                  coef    std err          t      P&gt;|t|       95.0% Conf. Int.
 -----------------------------------------------------------------------------
-mu         3.4620e-03  6.891e-03      0.502      0.615 [-1.004e-02,1.697e-02]
+mu         3.5820e-03  6.885e-03      0.520      0.603 [-9.913e-03,1.708e-02]
                               Volatility Model                              
 ============================================================================
                  coef    std err          t      P&gt;|t|      95.0% Conf. Int.
 ----------------------------------------------------------------------------
-omega      1.3948e-03  6.442e-04      2.165  3.037e-02 [1.322e-04,2.657e-03]
-alpha[1]       0.0364  6.322e-03      5.763  8.265e-09 [2.404e-02,4.882e-02]
-beta[1]        0.9588  7.085e-03    135.322      0.000     [  0.945,  0.973]
+omega      1.3868e-03  6.420e-04      2.160  3.076e-02 [1.285e-04,2.645e-03]
+alpha[1]       0.0364  6.309e-03      5.777  7.614e-09 [2.408e-02,4.881e-02]
+beta[1]        0.9588  7.065e-03    135.707      0.000     [  0.945,  0.973]
 ============================================================================
 
 Covariance estimator: robust</code></pre>
@@ -729,9 +729,9 @@ Covariance estimator: robust</code></pre>
 <span id="cb10-5"><a href="" aria-label="5"></a><span class="bu">print</span>(lb)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>      lb_stat  lb_pvalue
-5    4.844408   0.435163
-10   9.364455   0.497900
-20  29.673938   0.075312</code></pre>
+5    4.765794   0.445126
+10   9.301366   0.503762
+20  29.584864   0.076865</code></pre>
 </div>
 </div>
 <p>If squared standardized residuals still show autocorrelation, try a higher-order GARCH or a different error distribution.</p>
@@ -758,29 +758,29 @@ Covariance estimator: robust</code></pre>
 ====================================================================================
 Dep. Variable:                    carry_pnl   R-squared:                       0.000
 Mean Model:                   Constant Mean   Adj. R-squared:                  0.000
-Vol Model:                            GARCH   Log-Likelihood:               -2998.34
-Distribution:      Standardized Student's t   AIC:                           6006.69
-Method:                  Maximum Likelihood   BIC:                           6038.54
-                                              No. Observations:                 4316
-Date:                      Tue, Aug 04 2026   Df Residuals:                     4315
-Time:                              21:50:08   Df Model:                            1
+Vol Model:                            GARCH   Log-Likelihood:               -2998.67
+Distribution:      Standardized Student's t   AIC:                           6007.35
+Method:                  Maximum Likelihood   BIC:                           6039.20
+                                              No. Observations:                 4319
+Date:                      Fri, Aug 07 2026   Df Residuals:                     4318
+Time:                              20:30:18   Df Model:                            1
                                   Mean Model                                 
 =============================================================================
                  coef    std err          t      P&gt;|t|       95.0% Conf. Int.
 -----------------------------------------------------------------------------
-mu         2.3452e-03  6.454e-03      0.363      0.716 [-1.030e-02,1.499e-02]
+mu         2.5107e-03  6.450e-03      0.389      0.697 [-1.013e-02,1.515e-02]
                               Volatility Model                              
 ============================================================================
                  coef    std err          t      P&gt;|t|      95.0% Conf. Int.
 ----------------------------------------------------------------------------
-omega      8.7146e-04  4.241e-04      2.055  3.988e-02 [4.028e-05,1.703e-03]
-alpha[1]       0.0367  5.296e-03      6.922  4.442e-12 [2.628e-02,4.704e-02]
-beta[1]        0.9608  5.623e-03    170.859      0.000     [  0.950,  0.972]
+omega      8.6685e-04  4.226e-04      2.051  4.025e-02 [3.854e-05,1.695e-03]
+alpha[1]       0.0367  5.289e-03      6.932  4.156e-12 [2.630e-02,4.703e-02]
+beta[1]        0.9608  5.614e-03    171.136      0.000     [  0.950,  0.972]
                               Distribution                              
 ========================================================================
                  coef    std err          t      P&gt;|t|  95.0% Conf. Int.
 ------------------------------------------------------------------------
-nu             7.3368      0.782      9.384  6.325e-21 [  5.805,  8.869]
+nu             7.3442      0.783      9.384  6.378e-21 [  5.810,  8.878]
 ========================================================================
 
 Covariance estimator: robust</code></pre>
@@ -878,10 +878,10 @@ w_t = \frac{\sigma^*}{\hat{\sigma}_{t+1|t}}, \quad \hat{\sigma}_{t+1|t} = \sqrt{
 <section id="performance-metrics-output" class="slide level2 output-location-slide"><h2>Performance Metrics</h2><div class="cell output-location-slide" data-execution_count="12">
 <div class="cell-output cell-output-stdout">
 <pre><code>                  Unscaled  Vol-Scaled
-Ann. Return (%)       1.05        0.50
-Ann. Vol (%)          8.43        8.46
-Sharpe                0.12        0.06
-Max Drawdown (%)    -26.59      -35.48</code></pre>
+Ann. Return (%)       1.06        0.53
+Ann. Vol (%)          8.42        8.46
+Sharpe                0.13        0.06
+Max Drawdown (%)    -26.59      -35.49</code></pre>
 </div>
 </div></section><section id="value-at-risk-from-garch" class="slide level2">
 <h2>Value at Risk from GARCH</h2>
@@ -912,8 +912,8 @@ Max Drawdown (%)    -26.59      -35.48</code></pre>
 </section>
 <section id="value-at-risk-from-garch-output" class="slide level2 output-location-slide"><h2>Value at Risk from GARCH</h2><div class="cell output-location-slide" data-execution_count="13">
 <div class="cell-output cell-output-stdout">
-<pre><code>1-day conditional vol:  0.5791%
-5% conditional VaR:     1.0897%  ($10,897)</code></pre>
+<pre><code>1-day conditional vol:  0.5747%
+5% conditional VaR:     1.0811%  ($10,811)</code></pre>
 </div>
 </div></section><section id="what-we-learned-part-2-summary" class="slide level2">
 <h2>What We Learned: Part 2 Summary</h2>

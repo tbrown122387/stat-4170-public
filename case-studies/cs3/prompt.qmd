@@ -1,0 +1,218 @@
+---
+title: "Case Study 3: Market Making the SPY Limit Order Book"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Due: see Gradescope"
+format:
+  html:
+    theme: default
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    math: mathjax
+    self-contained: true
+execute:
+  echo: true
+  eval: false
+---
+
+## Overview
+
+**The scenario:** You've just joined the market-making desk at a small electronic trading firm. The pedagogical Avellaneda-Stoikov strategy from Module 8 — rest a little behind the touch, skew by inventory, run it against a real SPY tape — makes money in the demo. Your head trader has seen this movie before: a backtest that fills instantly at zero cost, with no fee schedule, no latency, and no accounting for who's actually first in line at a price level, always looks better than the real thing. Before any of this gets a risk allocation, she wants five specific questions answered: how much do exchange fees and rebates actually matter, how much does latency cost you, how important is queue priority, is inventory skew the best way to tilt a quote, and — the question that decides whether the strategy is "collecting the spread" or "getting picked off" — what does the P&L look like *after* you account for what the price does in the seconds following your fills.
+
+Modules 7 and 8 gave you the building blocks: Poisson arrivals and Brownian motion as the two random ingredients, the Avellaneda-Stoikov reservation price and half-spread as a first policy, and a real, event-by-event backtest (`fake_broker.py` / `main.py` in `lectures/module08/backtest/`) that plays back one real trading day of SPY quotes and trades (`scripts/20260401.txt`) and matches your resting limit orders against it. This case study asks you to take that infrastructure — not rebuild it from scratch — and use it to answer the head trader's five questions with real numbers, not intuition.
+
+Submit your work as a single, self-contained **Jupyter notebook** (`.ipynb`). You are extending `fake_broker.py` and `main.py`, not starting over — read both files closely before writing any code. Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error. Figures must render inline. Show all intermediate outputs that support your written interpretation.
+
+### Some Rookie Mistakes That Will Sink a Real Market-Making Book {.unnumbered}
+
+Every one of these has turned a promising backtest into a strategy that loses money live. Watch for them:
+
+- **Zero-latency backtests that stay zero-latency.** `fake_broker.py` fills your orders and processes your cancels instantly by design — that's the right *starting point*, but reporting its P&L as-is and calling it a day ignores exactly the question this case study asks you to answer in Section 3.
+- **Treating Level 1 data as if it tells you your queue position.** `scripts/20260401.txt` is top-of-book only (`bid_size`, `ask_size`, no order-level detail) — as Module 8 explained, only Level 3/MBO data actually shows who's first in line. The baseline fill model in `fake_broker.py` implicitly assumes you're always at the front of the queue the instant you rest an order. That's an optimistic best case, not a neutral assumption — Section 4 asks you to confront this directly.
+- **Peeking ahead.** Your quoting logic at tick $t$ may only use information from ticks already read by the broker. This is the same off-by-one/lookahead family of bugs as CS 1 and CS 2, just relocated to an event loop instead of a daily bar.
+- **Counting the spread but not the fees.** As Module 8's edge equation makes explicit, $\text{edge} = \text{captured spread} + \text{rebates} - \text{fees} - \text{adverse selection cost}$ — a tearsheet that reports only gross spread capture is missing three of four terms.
+- **Unmanaged inventory.** A strategy that quotes symmetrically without any skew lets inventory drift like a random walk toward whatever hard position limit you've set — and then you're carrying directional risk, not making markets.
+- **Confusing "profitable at the moment of the fill" with "profitable."** A fill that looks good when it happens can still be adverse selection if the price keeps moving against you afterward — that's exactly what markout (Section 6) is built to catch, and it's the single most common way a market-making backtest lies to you.
+- **Ignoring trading-hours boundaries.** `main.py` already cancels resting orders outside 9:30–4:00 — if you rebuild any part of the loop, don't accidentally quote (or leave stale quotes resting) outside regular hours.
+- **Comparing strategy variants on different slices of the tape.** If one variant runs on the first 300k messages and another on a different subset, differences in P&L may just be differences in market conditions, not strategy quality. Hold the evaluation window fixed across every comparison in this notebook.
+
+---
+
+## Section 0 — Before You Start: What's Already Built
+
+Read `lectures/module08/backtest/fake_broker.py` and `lectures/module08/backtest/main.py` in full before starting. `FakeBroker` parses `scripts/20260401.txt` into `QuoteUpdate` and `TradePrint` messages, holds your resting limit orders, and manufactures an `OrderFilled` message the instant a trade print crosses one of your orders. `main.py`'s `handle_next_tick` is the strategy loop: read messages, update the book, cancel and re-quote behind the touch with a fixed per-share inventory skew.
+
+You are extending this infrastructure — subclassing or modifying `FakeBroker`, adding new fields to `book`, adding new command-line-free helper functions — not writing a new event-driven backtester from zero. Confirm you can run the baseline as-is before changing anything:
+
+```
+cd lectures/module08/backtest
+python main.py ../../../scripts/20260401.txt --plot
+```
+
+---
+
+## Section 1 — Calibrating the Model to Real Data
+
+*In practice: nobody trades a model whose parameters were never checked against the market it's meant to describe.*
+
+The Avellaneda-Stoikov simulation in the Module 8 slides (`simulate_as`) uses assumed values for $\sigma$ (midprice volatility), and $k$, $A$ (the fill-intensity parameters governing $\lambda(\delta) = A e^{-k\delta}$). Before extending the strategy, calibrate these to the real tape:
+
+- Estimate $\sigma$ from the realized volatility of the SPY midprice over the trading day (annualize or leave in the tape's native units — be explicit and consistent for the rest of the notebook).
+- Estimate $k$ and $A$ by relating quoted distance from the touch to observed fill/trade intensity in the tape (e.g., bucket trades by how far the trade price sat from the prevailing midpoint at the time, and fit the exponential intensity form to the resulting counts — describe and justify your estimation approach in a prose cell).
+- Compare a `simulate_as` run using your calibrated parameters to a run of the real `main.py` backtest over the same session. Do the two roughly agree on the *shape* of PnL, inventory, and drawdown behavior, even though one is simulated and one replays real ticks? Write a short paragraph on where they diverge and why.
+
+---
+
+## Section 2 — Trading Fees and Rebates: How Much Do They Matter?
+
+*In practice: this is the first line item on the head trader's list — a strategy that "wins on the tape" but loses to its own fee schedule doesn't get funded.*
+
+Every fill in `fake_broker.py` is currently free. Extend the broker (or the P&L accounting in `main.py`) so that every `OrderFilled` also books a **maker rebate** of $\rho$ dollars per share (since your resting limit order is, by construction, always the passive side of the trade — you're never crossing the spread yourself in the baseline strategy).
+
+- Using the real maker-taker figures from Module 8 (roughly \$0.0020–0.0028/share rebate) as a starting point, report total rebate revenue over the session and what fraction of gross P&L it represents.
+- Sweep $\rho$ across a grid that includes zero, the realistic range above, and a negative value (representing an **inverted** venue, where the maker pays and the taker earns — Module 8 mentions these exist). At what rebate level does the strategy's net P&L cross zero, holding everything else fixed?
+- Now consider the other side of the ledger: suppose at the end of the trading day you must flatten any remaining inventory by **crossing the spread** (an aggressive, taker order) rather than waiting for a passive fill. Add a taker fee (roughly \$0.0030/share) applied only to this end-of-day flattening trade. How much does this single, unavoidable taker trade eat into the day's rebate revenue?
+
+Produce at least one plot showing net P&L as a function of $\rho$, and write a paragraph answering the head trader's question directly: how much do fees and rebates actually matter to this strategy's economics?
+
+---
+
+## Section 3 — Latency: How Much Does Speed Cost You?
+
+*In practice: this is Module 8's SIP-vs-direct-feed and colocation discussion, made concrete — the zero-latency backtest is the SIP-latency-arbitrage victim's mirror image, and now you get to measure the cost of being that victim.*
+
+`FakeBroker` currently applies your `send_limit_order` and `cancel_order` calls the instant you call them, and lets you react to a `QuoteUpdate` the instant it's read. Real market makers face two distinct latencies:
+
+- **Outbound latency**: the time between your strategy deciding to send an order or cancel and the exchange actually processing it.
+- **Market-data latency**: the time between an event happening at the exchange and your strategy observing it.
+
+Extend the broker to simulate a fixed latency $L$ (in milliseconds) on both legs — for example, by buffering your outgoing `send_limit_order`/`cancel_order` calls and only applying them to the resting-order book $L$ ms of tape-time later, and/or by delaying which messages `poll()` reveals to your strategy by $L$ ms. Be careful: this changes what "cancel old quote, send new quote" means when a `QuoteUpdate` arrives faster than your cancel can land — model (and describe in prose) what happens to a stale resting order that the market has moved past before your cancel takes effect.
+
+Run the backtest at $L \in \{0, 1, 5, 20, 100, 500\}$ milliseconds (or a similar grid spanning "colocated" to "meaningfully slow"). Plot net P&L, fill count, and average markout-free realized spread capture as a function of $L$. At what latency does the strategy stop being profitable? Connect your answer back to Module 8's latency table — is the latency level where the strategy breaks down closer to "colocated direct feed" or closer to "a human noticing a quote change"?
+
+---
+
+## Section 4 — Queue Priority: How Important Is It Really?
+
+*In practice: this is the Level 1 vs. Level 3 gap from Module 8, made unavoidable — you cannot observe your true queue position with this data, so you have to model it, and the choice of model changes the answer.*
+
+The baseline `fake_broker.py` fill model is **optimistic**: any trade print that crosses your resting price fills you immediately and in full, which implicitly assumes you are at the front of the queue the instant you post. Build a second, **pessimistic** fill model that respects price-time priority more realistically:
+
+- When you post a resting order at a price level, assume you join the *back* of the queue, behind the currently displayed `bid_size`/`ask_size` at that price (from the most recent `QuoteUpdate`).
+- Before your order can fill, the size ahead of you in the queue must be depleted — approximate this using the sequence of trade prints and quote-size changes at that price level (you'll need to make and clearly document simplifying assumptions here; there is no fully correct way to reconstruct queue position from Level 1 data, and saying so explicitly is part of the exercise).
+- Only once the queue ahead of you is (approximately) exhausted does a subsequent trade print at your price fill you.
+
+Run the same strategy configuration under both the optimistic (baseline) and pessimistic (queue-aware) fill models, holding fees, latency, and quoting logic fixed. Report and plot, for both: fill count, fill rate as a function of quoted distance from the touch, and net P&L. How much of the baseline strategy's apparent profitability was an artifact of assuming perfect queue priority? Write a paragraph giving your best estimate of where the truth likely sits between these two bounds, and why.
+
+---
+
+## Section 5 — Alternative Quoting Strategies: Tilting Away from the Midpoint
+
+*In practice: inventory skew is the textbook answer, but it's not the only signal a real desk uses to decide which way to lean a quote — this section asks you to try at least one more.*
+
+`main.py`'s baseline skews the quote linearly in inventory: `skew = inventory * INVENTORY_SKEW`. Implement **at least one** alternative (or additional) skew signal, chosen from this list or a reasonable variant of your own:
+
+- **Order-flow imbalance skew**: skew the quote based on a short trailing window of signed trade flow (e.g., the imbalance between buy-initiated and sell-initiated trade volume in the last $N$ trades or last $T$ seconds), on the hypothesis that recent one-sided flow predicts near-term price direction.
+- **Volatility-adaptive spread**: instead of a fixed `QUOTE_OFFSET`, widen or narrow the half-spread based on a rolling estimate of realized short-horizon volatility, so you quote tighter in calm markets and wider in turbulent ones.
+- **Quote-depth skew**: skew based on the asymmetry between `bid_size` and `ask_size` on the prevailing NBBO, on the hypothesis that a heavy bid (or ask) signals near-term pressure in that direction.
+
+Implement your chosen strategy as a clean variant of `handle_next_tick`, run it over the same evaluation window as the baseline (holding fees, latency, and fill model fixed at whatever configuration you settled on in Sections 2–4), and compare against both the baseline linear inventory skew and a naive symmetric (no-skew) quoting strategy. Report net P&L, realized inventory path (time series and summary statistics — mean absolute inventory, max absolute inventory), and fill count for all three variants. Did your alternative signal help, hurt, or mostly just trade off average P&L against inventory risk?
+
+---
+
+## Section 6 — Markout: Are You Getting Picked Off?
+
+*In practice: this is how a real desk tells the difference between "we're earning the spread" and "we're quietly funding someone else's edge" — and it's the sharpest tool in this case study for catching a strategy that looks good but isn't.*
+
+**Markout** measures what the midprice does *after* a fill, signed by the direction of your trade. For a buy fill at time $t$, define the markout at horizon $h$ as
+$$
+\text{markout}_h(t) = \text{mid}(t+h) - \text{fill price}(t)
+$$
+(and the negative of this for a sell fill — you want the price to move *in your favor* after you buy, or *against* the market after you sell, from the market's perspective as a whole; frame the sign convention however is clearest in your notebook, but state it explicitly and be consistent). A systematically negative markout means you're being adversely selected: the flow you're filling tends to be informed, and the price keeps moving against the side you just took on.
+
+- For every fill produced by your Section 5 strategy (or a strategy configuration of your choice), compute markout at several horizons — for example 1 second, 5 seconds, 30 seconds, and 5 minutes after the fill.
+- Plot the **markout curve**: average signed markout as a function of horizon, with a confidence band (e.g., from the standard error across fills, or a bootstrap).
+- Compare markout curves across at least two of the variants you've built so far — for instance, the optimistic vs. pessimistic queue-fill models from Section 4, or the baseline inventory-skew strategy vs. your alternative skew strategy from Section 5. Does resting further behind the touch (larger `QUOTE_OFFSET`) produce a less toxic markout profile, at the cost of fewer fills? Is there a horizon at which markout stabilizes (suggesting the adverse-selection effect has fully played out) or does it keep drifting?
+
+Close this section by explicitly filling in Module 8's edge equation with your own numbers from Sections 2, 3 (at your chosen latency), 4 (at your chosen fill model), and this section:
+$$
+\text{edge} = \underbrace{\text{captured spread}}_{\text{Section 1/5}} + \underbrace{\text{rebates}}_{\text{Section 2}} - \underbrace{\text{fees}}_{\text{Section 2}} - \underbrace{\text{adverse selection cost}}_{\text{Section 6, from markout}}
+$$
+How much of the gross spread you appear to capture survives once adverse selection (estimated from markout) is netted out?
+
+---
+
+## Section 7 — Full Backtest and Performance Tearsheet
+
+*In practice: this is what would actually get shown to a head trader deciding whether to give this strategy a live risk allocation.*
+
+Combine your best-supported choices from Sections 2–6 (a fee/rebate assumption, a latency assumption, a fill model, and a quoting/skew strategy) into a single configuration. Because you only have one trading day of tape, "walk-forward" here means **re-calibrating** your Section 1 parameters ($\sigma$, $k$, $A$, and/or your Section 5 signal's own parameters) on a rolling basis through the day — e.g., refit every 30 minutes using only data seen so far — rather than a fixed all-day calibration. Justify your refit frequency in a prose cell.
+
+Produce a one-page tearsheet (a markdown cell plus compact figures) with, at minimum:
+
+| Metric | Value |
+|---|---|
+| Gross P&L | |
+| Rebates earned | |
+| Fees paid | |
+| Net P&L | |
+| Estimated adverse selection cost (from markout) | |
+| Fill count (buy / sell) | |
+| Mean \| inventory \| | |
+| Max \| inventory \| | |
+| End-of-day inventory | |
+| PnL volatility (intraday) | |
+| Max intraday drawdown (PnL) | |
+
+Plot mark-to-market PnL over the day for your full strategy against the zero-latency, optimistic-queue, no-fee baseline from `main.py` as-is, and against a naive symmetric (no-skew) quoting benchmark. Close with a **desk-facing recommendation paragraph** (3–5 sentences, addressed to the head trader): does the evidence support giving this strategy a live allocation, and under what conditions or caveats?
+
+### Interpretation
+
+Address each of the following in prose:
+
+- Rank the four frictions you investigated (fees, latency, queue priority, adverse selection/markout) by how much they cut into gross P&L. Which one mattered most, and did that surprise you relative to your intuition going in?
+- Did your alternative skew strategy from Section 5 survive contact with realistic fees, latency, and fill modeling, or did its edge mostly evaporate once frictions were added?
+- If you were actually responsible for this book, what single change (wider quotes, a hard inventory limit, a different skew signal, avoiding certain times of day) would you make first, and why — point to specific numbers from your tearsheet and markout analysis.
+
+---
+
+## Section 8 — Bonus: Push the Strategy Further (Optional, up to 5 extra points)
+
+Pick **one** of the following and add it to your analysis:
+
+- A **hard inventory kill-switch**: if `|inventory|` exceeds some threshold, pull both quotes entirely (rather than just capping new order size as `MAX_INVENTORY` does) until inventory mean-reverts, and compare the risk/return tradeoff to your Section 7 strategy.
+- A **toxicity-aware quoting rule**: use your Section 6 markout analysis to identify time-of-day windows (or trade-size buckets, or venues, if you break out the `exchange` field) that are particularly toxic, and quote wider (or step aside entirely) during those windows. Does it improve net-of-markout P&L?
+- A simple **fill-probability model fit to data**: instead of assuming a fixed exponential intensity form for $\lambda(\delta)$, fit a flexible model (e.g., logistic regression or a small tree) to predict fill probability from quoted distance, recent volatility, and queue-depth features, and compare its out-of-sample calibration to the parametric Avellaneda-Stoikov intensity from Section 1.
+
+Briefly explain your choice and what it revealed relative to your Section 7 strategy. This section is not required for full credit — it's here for students who want to keep exploring.
+
+---
+
+## Deliverables and Grading
+
+Submit a single `.ipynb` that runs top-to-bottom without error against `scripts/20260401.txt`. Where sections ask for "good visualizations," axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.
+
+| Section | Points |
+|---|---|
+| 1 — Calibration to real data | 10 |
+| 2 — Fees and rebates | 15 |
+| 3 — Latency | 15 |
+| 4 — Queue priority (optimistic vs. pessimistic fill models) | 15 |
+| 5 — Alternative quoting/skew strategy | 15 |
+| 6 — Markout / adverse selection | 15 |
+| 7 — Full backtest, tearsheet, and interpretation | 15 |
+| 8 — Bonus | up to +5 |
+| **Total** | **100 (+5 bonus)** |
+
+Partial credit is given for each section independently. A section that is attempted but incomplete receives more credit than a section that is skipped.
+
+**A note on why this matters beyond the grade:** fees, latency, queue priority, and adverse selection are the four things that separate a market-making backtest from a market-making business. A cleaned-up version of this notebook — especially Sections 6 and 7 — demonstrates exactly the kind of friction-aware thinking a real trading desk expects from a junior quant researcher's first pass at a strategy. Consider putting a polished version on GitHub.
+
+## References
+
+- Avellaneda, M. & Stoikov, S. (2008). *High-frequency trading in a limit order book*. Quantitative Finance, 8(3), 217–224.
+- Cartea, Á., Jaimungal, S., & Penalva, J. (2015). *Algorithmic and High-Frequency Trading*. Cambridge University Press.
+- Guéant, O. (2016). *The Financial Mathematics of Market Liquidity*. Chapman and Hall/CRC.
+- Harris, L. (2003). *Trading and Exchanges: Market Microstructure for Practitioners*. Oxford University Press.
+- Hendershott, T. & Menkveld, A. J. (2014). *Price pressures*. Journal of Financial Economics, 114(3), 405–423.
+- U.S. Securities and Exchange Commission. *Regulation NMS*, 17 CFR Part 242.

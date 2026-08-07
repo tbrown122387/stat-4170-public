@@ -87,6 +87,23 @@ Choose one estimation method from 2.2. Using the same data:
 
 Write at least one paragraph interpreting what you observe, with specific reference to your figures.
 
+### 2.4 — Dimension vs. Sample Size: When the Universe Outgrows the Data
+
+Sections 2.1–2.3 held the universe fixed at 12 assets and varied how much *history* you had. But a PM can just as easily expand the *universe* — trading 50 or 200 individual names instead of 12 sector ETFs — without getting any more years of data to estimate with. This subsection asks the same question as 2.1 (how good is $\hat{\boldsymbol{\Sigma}}$?), but sweeps dimension $k$ instead of sample size $n$.
+
+Fix the sample size at $n = 252$ (one trading year — a realistic amount of history for a newer strategy or a recently-listed set of names) for the entire subsection. You'll need a "ground truth" $\boldsymbol{\Sigma}^*(k)$ that scales to arbitrary $k$, since you only have 12 real assets to work with:
+
+- For $k \leq 12$, you can use your real full-sample sector-ETF estimates (as in 2.1), subset to the first $k$ assets.
+- For $k > 12$, construct a synthetic ground truth with the same one-factor structure as your CAPM estimates in 2.2: $\boldsymbol{\Sigma}^*(k) = \mathbf{D} + \boldsymbol{\beta}\boldsymbol{\beta}^\intercal \sigma_m^2$, where $\sigma_m^2$ is your estimated market (SPY) variance, and the $k$-vector $\boldsymbol{\beta}$ and diagonal idiosyncratic variances $\mathbf{D}$ are drawn to match the *empirical spread* of the betas and idiosyncratic variances you actually estimated for the 12 sector ETFs in 2.2 (e.g., sample from a distribution fit to those 12 real values, rather than inventing arbitrary numbers). Document this construction in a prose cell — the point isn't that this is a realistic 200-asset universe, it's that it's a $k$-asset ground truth grounded in real, estimated parameters.
+
+For a grid of $k$ that spans well below, near, and **above** $n = 252$ (e.g., $k \in \{5, 12, 50, 150, 252, 400\}$), simulate many samples of size $n$ from $\mathcal{N}(\boldsymbol{\mu}^*(k), \boldsymbol{\Sigma}^*(k))$ and compute $\hat{\boldsymbol{\Sigma}}$ for each. Track, across simulations and as a function of $k$:
+
+- The **condition number** of $\hat{\boldsymbol{\Sigma}}$ (ratio of largest to smallest eigenvalue) — a numerically well-behaved matrix has a modest condition number; a nearly-singular one has a huge one.
+- The **smallest eigenvalue** of $\hat{\boldsymbol{\Sigma}}$ directly. What happens to it as $k$ approaches, and then exceeds, $n$? (Recall that a sample covariance matrix estimated from $n$ observations of $k$ variables is mathematically guaranteed to be singular once $k > n$ — this isn't a modeling failure, it's a hard fact about how many independent directions of variation $n$ data points can possibly pin down.)
+- The magnitude of the resulting **unconstrained** $\mathbf{w}^*$ (e.g., its $L_2$ norm, or gross leverage $\sum_i|w_i|$) computed from each simulated $\hat{\boldsymbol{\Sigma}}$, at a fixed $\gamma$.
+
+Produce a plot (or small panel of plots) showing all three quantities against $k$, on a log scale for $k$ if that helps readability. Write a paragraph connecting what you see to the closed-form $\mathbf{w}^* \propto \hat{\boldsymbol{\Sigma}}^{-1}\hat{\boldsymbol{\mu}}$: why does a near-singular (or literally singular) $\hat{\boldsymbol{\Sigma}}$ make the *inverse* — and therefore the weights — blow up numerically, even when the *true* $\boldsymbol{\Sigma}^*(k)$ is perfectly well-behaved at every $k$? This is the dimension-side counterpart to 2.1's sample-size finding, and it's the reason Section 3.5's constrained weights and (in industry) shrinkage estimators like Ledoit-Wolf exist — not required here, but worth knowing that "regularize $\hat{\boldsymbol{\Sigma}}$ before inverting it" is a standard professional response to exactly the failure mode you just produced.
+
 ---
 
 ## Section 3 — How Uncertainty in Parameters Propagates to Weights
@@ -258,8 +275,8 @@ Submit a single `.ipynb` that runs top-to-bottom without error. You do not need 
 | Section | Points |
 |---|---|
 | 1 — Data pipeline (caching, clean returns) | 10 |
-| 2 — Parameter uncertainty (simulation + real data + bootstrap/rolling) | 25 |
-| 3 — Weight sensitivity (all five sub-parts + visualizations) | 25 |
+| 2 — Parameter uncertainty (simulation + real data + bootstrap/rolling + dimension) | 30 |
+| 3 — Weight sensitivity (all five sub-parts + visualizations) | 20 |
 | 4 — Rebalancing and costs (frictionless + cost analysis) | 20 |
 | 5 — Backtester (loop + tearsheet + interpretation) | 20 |
 | 6 — Bonus | up to +5 |

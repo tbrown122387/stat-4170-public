@@ -8,7 +8,7 @@
 
 <meta name="author" content="Due: see Gradescope">
 
-<title>Case Study 1: Building a Mean-Variance Portfolio Pipeline</title>
+<title>Case Study 4: Pricing, Hedging, and Calibrating a Real Option</title>
 <style>
 
 span.smallcaps{font-variant: small-caps;}
@@ -2317,37 +2317,36 @@ window.Quarto = {
   <ul>
   <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview"><span class="header-section-number">1</span> Overview</a>
   <ul class="collapse">
-  <li><a href="#some-rookie-mistakes-that-will-sink-a-real-portfolio" id="toc-some-rookie-mistakes-that-will-sink-a-real-portfolio" class="nav-link" data-scroll-target="#some-rookie-mistakes-that-will-sink-a-real-portfolio">Some Rookie Mistakes That Will Sink a Real Portfolio</a></li>
+  <li><a href="#some-rookie-mistakes-that-will-sink-a-real-options-book" id="toc-some-rookie-mistakes-that-will-sink-a-real-options-book" class="nav-link" data-scroll-target="#some-rookie-mistakes-that-will-sink-a-real-options-book">Some Rookie Mistakes That Will Sink a Real Options Book</a></li>
   </ul></li>
-  <li><a href="#section-1-data-pipeline" id="toc-section-1-data-pipeline" class="nav-link" data-scroll-target="#section-1-data-pipeline"><span class="header-section-number">2</span> Section 1 — Data Pipeline</a></li>
-  <li><a href="#section-2-parameter-and-model-uncertainty" id="toc-section-2-parameter-and-model-uncertainty" class="nav-link" data-scroll-target="#section-2-parameter-and-model-uncertainty"><span class="header-section-number">3</span> Section 2 — Parameter and Model Uncertainty</a>
+  <li><a href="#section-0-before-you-start-whats-already-built" id="toc-section-0-before-you-start-whats-already-built" class="nav-link" data-scroll-target="#section-0-before-you-start-whats-already-built"><span class="header-section-number">2</span> Section 0 — Before You Start: What’s Already Built</a></li>
+  <li><a href="#section-1-data-pipeline-a-real-historical-spx-option-panel" id="toc-section-1-data-pipeline-a-real-historical-spx-option-panel" class="nav-link" data-scroll-target="#section-1-data-pipeline-a-real-historical-spx-option-panel"><span class="header-section-number">3</span> Section 1 — Data Pipeline: A Real, Historical SPX Option Panel</a>
   <ul class="collapse">
-  <li><a href="#simulation-study-no-model-risk" id="toc-simulation-study-no-model-risk" class="nav-link" data-scroll-target="#simulation-study-no-model-risk"><span class="header-section-number">3.1</span> 2.1 — Simulation Study (No Model Risk)</a></li>
-  <li><a href="#model-uncertainty-on-real-data" id="toc-model-uncertainty-on-real-data" class="nav-link" data-scroll-target="#model-uncertainty-on-real-data"><span class="header-section-number">3.2</span> 2.2 — Model Uncertainty on Real Data</a></li>
-  <li><a href="#bootstrap-and-rolling-window" id="toc-bootstrap-and-rolling-window" class="nav-link" data-scroll-target="#bootstrap-and-rolling-window"><span class="header-section-number">3.3</span> 2.3 — Bootstrap and Rolling Window</a></li>
-  <li><a href="#dimension-vs.-sample-size-when-the-universe-outgrows-the-data" id="toc-dimension-vs.-sample-size-when-the-universe-outgrows-the-data" class="nav-link" data-scroll-target="#dimension-vs.-sample-size-when-the-universe-outgrows-the-data"><span class="header-section-number">3.4</span> 2.4 — Dimension vs. Sample Size: When the Universe Outgrows the Data</a></li>
+  <li><a href="#what-youre-given" id="toc-what-youre-given" class="nav-link" data-scroll-target="#what-youre-given"><span class="header-section-number">3.1</span> 1.1 — What You’re Given</a></li>
+  <li><a href="#choosing-a-working-universe" id="toc-choosing-a-working-universe" class="nav-link" data-scroll-target="#choosing-a-working-universe"><span class="header-section-number">3.2</span> 1.2 — Choosing a Working Universe</a></li>
+  <li><a href="#the-underlying-and-the-risk-free-rate" id="toc-the-underlying-and-the-risk-free-rate" class="nav-link" data-scroll-target="#the-underlying-and-the-risk-free-rate"><span class="header-section-number">3.3</span> 1.3 — The Underlying and the Risk-Free Rate</a></li>
+  <li><a href="#building-the-panel" id="toc-building-the-panel" class="nav-link" data-scroll-target="#building-the-panel"><span class="header-section-number">3.4</span> 1.4 — Building the Panel</a></li>
   </ul></li>
-  <li><a href="#section-3-how-uncertainty-in-parameters-propagates-to-weights" id="toc-section-3-how-uncertainty-in-parameters-propagates-to-weights" class="nav-link" data-scroll-target="#section-3-how-uncertainty-in-parameters-propagates-to-weights"><span class="header-section-number">4</span> Section 3 — How Uncertainty in Parameters Propagates to Weights</a>
+  <li><a href="#section-2-from-model-to-market-pricing-and-no-arbitrage-checks" id="toc-section-2-from-model-to-market-pricing-and-no-arbitrage-checks" class="nav-link" data-scroll-target="#section-2-from-model-to-market-pricing-and-no-arbitrage-checks"><span class="header-section-number">4</span> Section 2 — From Model to Market: Pricing and No-Arbitrage Checks</a>
   <ul class="collapse">
-  <li><a href="#sensitivity-to-gamma" id="toc-sensitivity-to-gamma" class="nav-link" data-scroll-target="#sensitivity-to-gamma"><span class="header-section-number">4.1</span> 3.1 — Sensitivity to <span class="math inline">\(\gamma\)</span></a></li>
-  <li><a href="#sensitivity-to-boldsymbolmu" id="toc-sensitivity-to-boldsymbolmu" class="nav-link" data-scroll-target="#sensitivity-to-boldsymbolmu"><span class="header-section-number">4.2</span> 3.2 — Sensitivity to <span class="math inline">\(\boldsymbol{\mu}\)</span></a></li>
-  <li><a href="#sensitivity-to-correlations" id="toc-sensitivity-to-correlations" class="nav-link" data-scroll-target="#sensitivity-to-correlations"><span class="header-section-number">4.3</span> 3.3 — Sensitivity to Correlations</a></li>
-  <li><a href="#sensitivity-to-volatility" id="toc-sensitivity-to-volatility" class="nav-link" data-scroll-target="#sensitivity-to-volatility"><span class="header-section-number">4.4</span> 3.4 — Sensitivity to Volatility</a></li>
-  <li><a href="#a-dose-of-realism-constrained-weights" id="toc-a-dose-of-realism-constrained-weights" class="nav-link" data-scroll-target="#a-dose-of-realism-constrained-weights"><span class="header-section-number">4.5</span> 3.5 — A Dose of Realism: Constrained Weights</a></li>
+  <li><a href="#black-scholes-price-vs.-market-quote" id="toc-black-scholes-price-vs.-market-quote" class="nav-link" data-scroll-target="#black-scholes-price-vs.-market-quote"><span class="header-section-number">4.1</span> 2.1 — Black-Scholes Price vs. Market Quote</a></li>
+  <li><a href="#put-call-parity-properly-bounded" id="toc-put-call-parity-properly-bounded" class="nav-link" data-scroll-target="#put-call-parity-properly-bounded"><span class="header-section-number">4.2</span> 2.2 — Put-Call Parity, Properly Bounded</a></li>
   </ul></li>
-  <li><a href="#section-4-the-effect-of-rebalancing-and-trading-costs" id="toc-section-4-the-effect-of-rebalancing-and-trading-costs" class="nav-link" data-scroll-target="#section-4-the-effect-of-rebalancing-and-trading-costs"><span class="header-section-number">5</span> Section 4 — The Effect of Rebalancing and Trading Costs</a>
+  <li><a href="#section-3-implied-volatility-and-the-smile" id="toc-section-3-implied-volatility-and-the-smile" class="nav-link" data-scroll-target="#section-3-implied-volatility-and-the-smile"><span class="header-section-number">5</span> Section 3 — Implied Volatility and the Smile</a></li>
+  <li><a href="#section-4-delta-hedging-a-simulated-distribution-and-one-real-path" id="toc-section-4-delta-hedging-a-simulated-distribution-and-one-real-path" class="nav-link" data-scroll-target="#section-4-delta-hedging-a-simulated-distribution-and-one-real-path"><span class="header-section-number">6</span> Section 4 — Delta Hedging: A Simulated Distribution, and One Real Path</a>
   <ul class="collapse">
-  <li><a href="#frictionless-rebalancing" id="toc-frictionless-rebalancing" class="nav-link" data-scroll-target="#frictionless-rebalancing"><span class="header-section-number">5.1</span> 4.1 — Frictionless Rebalancing</a></li>
-  <li><a href="#introducing-transaction-costs" id="toc-introducing-transaction-costs" class="nav-link" data-scroll-target="#introducing-transaction-costs"><span class="header-section-number">5.2</span> 4.2 — Introducing Transaction Costs</a></li>
+  <li><a href="#a-simulated-pl-distribution" id="toc-a-simulated-pl-distribution" class="nav-link" data-scroll-target="#a-simulated-pl-distribution"><span class="header-section-number">6.1</span> 4.1 — A Simulated P&amp;L Distribution</a></li>
+  <li><a href="#what-actually-happened-one-real-lifecycle" id="toc-what-actually-happened-one-real-lifecycle" class="nav-link" data-scroll-target="#what-actually-happened-one-real-lifecycle"><span class="header-section-number">6.2</span> 4.2 — What Actually Happened: One Real Lifecycle</a></li>
   </ul></li>
-  <li><a href="#section-5-full-backtester" id="toc-section-5-full-backtester" class="nav-link" data-scroll-target="#section-5-full-backtester"><span class="header-section-number">6</span> Section 5 — Full Backtester</a>
+  <li><a href="#section-5-transaction-costs-hedging-isnt-free" id="toc-section-5-transaction-costs-hedging-isnt-free" class="nav-link" data-scroll-target="#section-5-transaction-costs-hedging-isnt-free"><span class="header-section-number">7</span> Section 5 — Transaction Costs: Hedging Isn’t Free</a></li>
+  <li><a href="#section-6-model-limitations-what-a-single-sigma-misses" id="toc-section-6-model-limitations-what-a-single-sigma-misses" class="nav-link" data-scroll-target="#section-6-model-limitations-what-a-single-sigma-misses"><span class="header-section-number">8</span> Section 6 — Model Limitations: What a Single <span class="math inline">\(\sigma\)</span> Misses</a></li>
+  <li><a href="#section-7-full-report-pricing-hedging-and-a-trade-recommendation" id="toc-section-7-full-report-pricing-hedging-and-a-trade-recommendation" class="nav-link" data-scroll-target="#section-7-full-report-pricing-hedging-and-a-trade-recommendation"><span class="header-section-number">9</span> Section 7 — Full Report: Pricing, Hedging, and a Trade Recommendation</a>
   <ul class="collapse">
-  <li><a href="#the-loop" id="toc-the-loop" class="nav-link" data-scroll-target="#the-loop"><span class="header-section-number">6.1</span> 5.1 — The Loop</a></li>
-  <li><a href="#performance-report-the-tearsheet" id="toc-performance-report-the-tearsheet" class="nav-link" data-scroll-target="#performance-report-the-tearsheet"><span class="header-section-number">6.2</span> 5.2 — Performance Report: The Tearsheet</a></li>
-  <li><a href="#interpretation" id="toc-interpretation" class="nav-link" data-scroll-target="#interpretation"><span class="header-section-number">6.3</span> 5.3 — Interpretation</a></li>
+  <li><a href="#interpretation" id="toc-interpretation" class="nav-link" data-scroll-target="#interpretation"><span class="header-section-number">9.1</span> Interpretation</a></li>
   </ul></li>
-  <li><a href="#section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points" id="toc-section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points" class="nav-link" data-scroll-target="#section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points"><span class="header-section-number">7</span> Section 6 — Bonus: Push the Strategy Further (Optional, up to 5 extra points)</a></li>
-  <li><a href="#deliverables-and-grading" id="toc-deliverables-and-grading" class="nav-link" data-scroll-target="#deliverables-and-grading"><span class="header-section-number">8</span> Deliverables and Grading</a></li>
+  <li><a href="#section-8-bonus-push-the-analysis-further-optional-up-to-5-extra-points" id="toc-section-8-bonus-push-the-analysis-further-optional-up-to-5-extra-points" class="nav-link" data-scroll-target="#section-8-bonus-push-the-analysis-further-optional-up-to-5-extra-points"><span class="header-section-number">10</span> Section 8 — Bonus: Push the Analysis Further (Optional, up to 5 extra points)</a></li>
+  <li><a href="#deliverables-and-grading" id="toc-deliverables-and-grading" class="nav-link" data-scroll-target="#deliverables-and-grading"><span class="header-section-number">11</span> Deliverables and Grading</a></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">12</span> References</a></li>
   </ul>
 </nav>
 </div>
@@ -2355,7 +2354,7 @@ window.Quarto = {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Case Study 1: Building a Mean-Variance Portfolio Pipeline</h1>
+<h1 class="title">Case Study 4: Pricing, Hedging, and Calibrating a Real Option</h1>
 <p class="subtitle lead">STAT 4170 – Financial Time Series and Forecasting</p>
 </div>
 
@@ -2381,247 +2380,267 @@ window.Quarto = {
 
 <section id="overview" class="level2" data-number="1">
 <h2 data-number="1" class="anchored" data-anchor-id="overview"><span class="header-section-number">1</span> Overview</h2>
-<p><strong>The scenario:</strong> You’ve just joined the quantitative strategies group at a mid-size asset manager. Your portfolio manager wants a sector-rotation pipeline built on mean-variance theory — but before any capital gets allocated, she wants proof that you understand <em>how much to trust your own numbers</em>. That means a reproducible data pipeline, an honest accounting of estimation and model uncertainty, a sensitivity analysis of the optimizer’s outputs, and a backtest that reflects real trading frictions rather than a frictionless fantasy. This is, in miniature, the actual workflow of a junior quant researcher — and the structure of this case study (build → interrogate the inputs → stress-test the outputs → backtest honestly) mirrors take-home exercises used in real quant research interviews.</p>
-<p>In modules 1 and 2 you learned the building blocks of mean-variance portfolio theory: how to compute estimates of forecast moments <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>, how the optimal weight vector <span class="math inline">\(\mathbf{w}^*\)</span> follows from those moments and a risk-aversion parameter <span class="math inline">\(\gamma\)</span>, and how cross-sectional regression (CAPM) provides a structured way to estimate those moments. This case study asks you to turn those ideas into a working pipeline applied to a real universe of assets.</p>
-<p>The universe is the eleven SPDR sector ETFs — <strong>XLC, XLY, XLP, XLE, XLF, XLV, XLI, XLB, XLRE, XLK, XLU</strong> — plus the S&amp;P 500 index ETF <strong>SPY</strong> as the market factor.</p>
-<p>Submit your work as a single, self-contained <strong>Jupyter notebook</strong> (<code>.ipynb</code>). Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error. Figures must render inline. Show all intermediate outputs that support your written interpretation.</p>
-<section id="some-rookie-mistakes-that-will-sink-a-real-portfolio" class="level3 unnumbered">
-<h3 class="unnumbered anchored" data-anchor-id="some-rookie-mistakes-that-will-sink-a-real-portfolio">Some Rookie Mistakes That Will Sink a Real Portfolio</h3>
-<p>Every one of these has ended a junior quant’s strategy before it ever got funded. Watch for them:</p>
+<p><strong>The scenario:</strong> You’ve just rotated onto the options desk. Modules 9–11 gave you the full theoretical machinery — martingales and Itô’s lemma to make “no arbitrage” precise, the Black-Scholes PDE and its closed-form solution, the Greeks, and implied volatility — all built and checked against synthetic, idealized data. Your desk head has one question that idealized data can never answer: <strong>does any of this survive contact with a real option chain?</strong> Real quotes have a bid-ask spread instead of one “true” price. Real implied volatility varies by strike — the smile Module 11 manufactured synthetically is a fact of life, not a demo. Real hedging costs money to execute, not just to compute. And real hedging P&amp;L depends on a volatility you have to estimate, not one you get to assume.</p>
+<p>This case study asks you to take a real, historical panel of SPX (S&amp;P 500 index) option quotes, price them, extract the volatility smile, delta-hedge under realistic frictions — checked against both a simulated distribution of outcomes <em>and</em> what actually happened on one real, fully-observed contract — and write the kind of memo a trading desk actually reads before deciding whether a model-based hedge is trustworthy.</p>
+<p><strong>Why SPX and not SPY:</strong> everything in Modules 9–11 derives the price of a <strong>European</strong> option — one that can only be exercised at expiration. SPX index options are cash-settled and European-style, so they’re the fair, apples-to-apples test of the model. SPY (and single-name equity) options are <strong>American-style</strong>: they can be exercised early, which means their market price includes an early-exercise premium that plain Black-Scholes does not, and cannot, account for. Comparing a European closed-form price to an American-style market quote would blame the model for a gap that’s actually a mismatch in contract terms, not a modeling error — exactly the kind of confound this case study is designed to avoid.</p>
+<p><strong>A note on the data:</strong> unlike CS 1–3, your options data for this case study is <strong>not</strong> something you pull yourself from a free API. The instructor will provide you with a real historical panel of consolidated SPX option quotes (details in Section 1) — a genuine, multi-week <em>time series</em> of a full option chain, not a single live snapshot. This is licensed vendor data: <strong>do not redistribute it, do not commit it to any public repository (including a public fork of this course’s materials), and do not share it outside this course.</strong> You will still use <code>yfinance</code> for the underlying’s own price history and for a risk-free rate, exactly as in earlier case studies.</p>
+<p>Submit your work as a single, self-contained <strong>Jupyter notebook</strong> (<code>.ipynb</code>). Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error against the provided dataset, read from wherever your instructor tells you to place it locally (see Section 1). Figures must render inline. Show all intermediate outputs that support your written interpretation.</p>
+<section id="some-rookie-mistakes-that-will-sink-a-real-options-book" class="level3 unnumbered">
+<h3 class="unnumbered anchored" data-anchor-id="some-rookie-mistakes-that-will-sink-a-real-options-book">Some Rookie Mistakes That Will Sink a Real Options Book</h3>
+<p>Every one of these has cost a junior derivatives trader real money or a real embarrassment in front of a desk head. Watch for them:</p>
 <ul>
-<li><strong>Lookahead bias / data leakage.</strong> Using anything from the test period — even implicitly, like fitting a scaler or picking a hyperparameter — to make decisions in the training period. If you ever “know” something in Section 5’s loop that you couldn’t have known on that actual trading day, you have leakage.</li>
-<li><strong>Off-by-one errors in the trading loop.</strong> Estimating <span class="math inline">\(\hat{\boldsymbol{\mu}}_t\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}_t\)</span> using data <em>through</em> day <span class="math inline">\(t\)</span> and then trading on day <span class="math inline">\(t\)</span>’s close (rather than day <span class="math inline">\(t+1\)</span>) silently injects lookahead bias into a walk-forward backtest — this is the single most common bug in Section 5.</li>
-<li><strong>Mixing return conventions.</strong> Switching between log returns and simple (percent) returns partway through a notebook, or forgetting that log returns don’t sum across assets the way simple returns do when computing portfolio returns.</li>
-<li><strong>Annualization errors.</strong> Multiplying mean daily return by 252 but volatility by <span class="math inline">\(252\)</span> instead of <span class="math inline">\(\sqrt{252}\)</span> (or vice versa), or comparing a Sharpe ratio computed on daily data to one computed on monthly data without adjusting.</li>
-<li><strong>Treating unconstrained weights as “the answer.”</strong> If <span class="math inline">\(\mathbf{w}^*\)</span> wants to short one sector 300% and lever another 400%, that’s a signal your inputs are noisy or your <span class="math inline">\(\gamma\)</span> is too low — not a strategy to trade as-is (see Sections 3 and 3.5).</li>
-<li><strong>Reporting gross returns dressed up as net returns</strong>, or applying transaction costs at the wrong point in the loop (e.g., after applying the return instead of before, which under- or overstates P&amp;L).</li>
-<li><strong>Silent stale-cache bugs.</strong> A cache that never re-validates against the latest available trading day will quietly grade you on old data — and a grader re-running your notebook weeks later may get different results than you did.</li>
-<li><strong>Cherry-picking the flattering metric.</strong> Reporting Sharpe ratio and cumulative return but conveniently leaving out max drawdown or a bad three-month stretch. A real PM will ask about the drawdown before anything else.</li>
+<li><strong>Confusing <span class="math inline">\(\mu\)</span> and <span class="math inline">\(r\)</span>.</strong> Module 10’s entire point was that the option price and the Greeks depend on the risk-free rate <span class="math inline">\(r\)</span> under the risk-neutral measure, <em>not</em> the stock’s real-world expected return <span class="math inline">\(\mu\)</span>. If you price or hedge using <span class="math inline">\(\mu\)</span> where <span class="math inline">\(r\)</span> belongs (or vice versa), you have silently broken the no-arbitrage argument the whole model rests on.</li>
+<li><strong>Treating implied volatility as “the” volatility.</strong> A single Black-Scholes <span class="math inline">\(\sigma\)</span> cannot simultaneously match every strike’s market price (that’s what the smile in Module 11 and Section 3 below demonstrates) — using one strike’s implied vol to price or hedge a different strike is a real, quantifiable source of error, not a rounding issue.</li>
+<li><strong>Quoting “the market price” as the last trade instead of the bid-ask midpoint (or being sloppy about which).</strong> Illiquid strikes can go hours or days between trades; the last trade may be stale relative to where the market actually is right now. Be explicit about whether you’re using mid, bid, or ask, and why, in every comparison.</li>
+<li><strong>Getting <span class="math inline">\(\tau\)</span> (time to maturity) wrong.</strong> Calendar days vs. trading days, and whether “today” counts, changes <span class="math inline">\(\sigma\sqrt{\tau}\)</span> meaningfully for short-dated options — be explicit and consistent about your day-count convention.</li>
+<li><strong>Declaring an arbitrage that’s just the bid-ask spread.</strong> Put-call parity (<span class="math inline">\(C - P = S - Ke^{-r\tau}\)</span>) is a model-free identity, but real quotes aren’t a single number — a “violation” smaller than the sum of the relevant bid-ask spreads is transaction-cost noise, not a free lunch. Section 2 asks you to check this properly.</li>
+<li><strong>Hedging with Delta alone and ignoring Vega.</strong> A delta-hedged position is <em>not</em> riskless if implied volatility itself moves — Module 11’s Vega is exactly the exposure a delta-only hedge leaves on the table, and Section 4/5 ask you to quantify it, not just define it.</li>
+<li><strong>Look-ahead bias in a hedging backtest.</strong> If you calibrate <span class="math inline">\(\sigma\)</span> using data that includes the period you’re simulating the hedge over, you’ve let the hedger “know” volatility it couldn’t have known in real time — the same family of bug as CS 1’s trading loop and CS 3’s quoting loop, relocated again.</li>
+<li><strong>Ignoring transaction costs on the hedge.</strong> The replication argument in Module 10 assumed free, continuous rebalancing. Every real rebalance costs something to execute — a hedging P&amp;L analysis that doesn’t deduct it is fiction, exactly as in CS 1 Section 4 and CS 3 Section 2.</li>
 </ul>
 <hr>
 </section>
 </section>
-<section id="section-1-data-pipeline" class="level2" data-number="2">
-<h2 data-number="2" class="anchored" data-anchor-id="section-1-data-pipeline"><span class="header-section-number">2</span> Section 1 — Data Pipeline</h2>
-<p><em>In practice: this is the unglamorous infrastructure work every quant desk depends on — nobody trusts a signal built on data nobody can reproduce.</em></p>
-<p>Write a function (or small collection of functions) that fetches daily adjusted closing prices for the twelve tickers above using <code>yfinance</code>. The function must implement a <strong>disk cache</strong>: on the first call it downloads the data and saves it to a local file (e.g., a CSV or Parquet); on subsequent calls it reads from disk and only queries the internet if the locally stored data does not cover the most recent available trading day.</p>
-<p>The pipeline should return a clean <code>DataFrame</code> of <strong>daily log returns</strong> (or percent returns — be explicit about which you choose and be consistent throughout the notebook), with dates as the index and tickers as columns, with <code>NaN</code> rows dropped.</p>
-<p>Your cache should behave correctly across different machines and be easy for a grader to reproduce. Include a brief prose cell explaining your cache invalidation logic.</p>
+<section id="section-0-before-you-start-whats-already-built" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="section-0-before-you-start-whats-already-built"><span class="header-section-number">2</span> Section 0 — Before You Start: What’s Already Built</h2>
+<p>The Module 10 and Module 11 slides gave you working code for <code>black_scholes(...)</code>, <code>greeks(...)</code> (Delta, Gamma, Vega, Theta), <code>implied_vol(...)</code> (a <code>scipy.optimize.brentq</code> root-find), and a discrete delta-hedging simulator, <code>simulate_hedge_pnl(...)</code>, that sells one option at the Black-Scholes premium, delta-hedges under simulated GBM at a chosen rebalancing frequency, and returns the terminal hedging P&amp;L. You are extending these — adding real data, transaction costs, and a volatility-estimation step — not rewriting Black-Scholes from scratch. Re-read both modules’ code before starting.</p>
 <hr>
 </section>
-<section id="section-2-parameter-and-model-uncertainty" class="level2" data-number="3">
-<h2 data-number="3" class="anchored" data-anchor-id="section-2-parameter-and-model-uncertainty"><span class="header-section-number">3</span> Section 2 — Parameter and Model Uncertainty</h2>
-<p><em>In practice: this is what risk and model-validation teams call “parameter risk” or “model risk” — before a strategy ever touches real capital, someone has to answer “how much do we actually trust these inputs?”</em></p>
-<p>The central inputs to portfolio optimization are (estimates of) <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>. Before we ever optimize, we should ask: <strong>how well can we actually estimate these?</strong></p>
-<section id="simulation-study-no-model-risk" class="level3" data-number="3.1">
-<h3 data-number="3.1" class="anchored" data-anchor-id="simulation-study-no-model-risk"><span class="header-section-number">3.1</span> 2.1 — Simulation Study (No Model Risk)</h3>
-<p>Suppose the <em>true</em> return distribution is multivariate normal with some known <span class="math inline">\(\boldsymbol{\mu}^*\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}^*\)</span> (use your full-sample estimates from the sector ETF data as the “ground truth”). For sample sizes <span class="math inline">\(n \in \{63, 126, 252, 504, 1008, 2520\}\)</span> (roughly one quarter, one half year, one year, two years, four years, and ten years of trading days):</p>
-<ul>
-<li>Simulate many independent samples of size <span class="math inline">\(n\)</span> from <span class="math inline">\(\mathcal{N}(\boldsymbol{\mu}^*, \boldsymbol{\Sigma}^*)\)</span>.</li>
-<li>For each sample, compute the sample mean <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and sample covariance <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>.</li>
-<li>Summarize, across simulations, the estimation error for both <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span>.</li>
-</ul>
-<p>Produce visualizations that make a clear and honest case for how reliable the estimates are at each <span class="math inline">\(n\)</span>. Some quantities you might consider: element-wise RMSE, the Frobenius norm of <span class="math inline">\(\hat{\boldsymbol{\Sigma}} - \boldsymbol{\Sigma}^*\)</span>, the distribution of <span class="math inline">\(\hat{\mu}_i - \mu_i^*\)</span> for a few assets, or the distribution of estimated Sharpe ratios for a fixed <span class="math inline">\(\mathbf{w}\)</span>. You are encouraged to go beyond these suggestions. Write a brief interpretation: at what sample sizes are the estimates “good enough” for practical use, and are <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span> equally reliable?</p>
-</section>
-<section id="model-uncertainty-on-real-data" class="level3" data-number="3.2">
-<h3 data-number="3.2" class="anchored" data-anchor-id="model-uncertainty-on-real-data"><span class="header-section-number">3.2</span> 2.2 — Model Uncertainty on Real Data</h3>
-<p>Now use the actual sector ETF returns. Estimate <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span> under at least two different approaches:</p>
-<ul>
-<li><strong>Sample moments</strong>: sample mean vector and sample covariance matrix.</li>
-<li><strong>CAPM</strong>: multivariate OLS with SPY as the single factor (as derived in module 2), then use the law of total expectation and law of total covariance to obtain <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>.</li>
-</ul>
-<p>For each pair of estimates, report the full mean vector and covariance matrix (or correlation matrix — your choice). How different are the estimates across methods? Which elements differ the most? What does that tell you about model sensitivity?</p>
-</section>
-<section id="bootstrap-and-rolling-window" class="level3" data-number="3.3">
-<h3 data-number="3.3" class="anchored" data-anchor-id="bootstrap-and-rolling-window"><span class="header-section-number">3.3</span> 2.3 — Bootstrap and Rolling Window</h3>
-<p>Choose one estimation method from 2.2. Using the same data:</p>
-<ul>
-<li><p><strong>Bootstrap</strong>: resample the daily return rows with replacement 500–1000 times. For each resample, compute <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>. Visualize the resulting distributions. For instance: plot the bootstrap distribution of <span class="math inline">\(\hat{\mu}_i\)</span> for each sector with a confidence band; plot the distribution of <span class="math inline">\(\hat{\Sigma}_{ij}\)</span> for a selection of covariance pairs.</p></li>
-<li><p><strong>Rolling window</strong>: compute <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> using a rolling 252-day window. Plot how these estimates evolve over time. Are there identifiable regimes? Do any estimates look stable, or are they volatile?</p></li>
-</ul>
-<p>Write at least one paragraph interpreting what you observe, with specific reference to your figures.</p>
-</section>
-<section id="dimension-vs.-sample-size-when-the-universe-outgrows-the-data" class="level3" data-number="3.4">
-<h3 data-number="3.4" class="anchored" data-anchor-id="dimension-vs.-sample-size-when-the-universe-outgrows-the-data"><span class="header-section-number">3.4</span> 2.4 — Dimension vs. Sample Size: When the Universe Outgrows the Data</h3>
-<p>Sections 2.1–2.3 held the universe fixed at 12 assets and varied how much <em>history</em> you had. But a PM can just as easily expand the <em>universe</em> — trading 50 or 200 individual names instead of 12 sector ETFs — without getting any more years of data to estimate with. This subsection asks the same question as 2.1 (how good is <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>?), but sweeps dimension <span class="math inline">\(k\)</span> instead of sample size <span class="math inline">\(n\)</span>.</p>
-<p>Fix the sample size at <span class="math inline">\(n = 252\)</span> (one trading year — a realistic amount of history for a newer strategy or a recently-listed set of names) for the entire subsection. You’ll need a “ground truth” <span class="math inline">\(\boldsymbol{\Sigma}^*(k)\)</span> that scales to arbitrary <span class="math inline">\(k\)</span>, since you only have 12 real assets to work with:</p>
-<ul>
-<li>For <span class="math inline">\(k \leq 12\)</span>, you can use your real full-sample sector-ETF estimates (as in 2.1), subset to the first <span class="math inline">\(k\)</span> assets.</li>
-<li>For <span class="math inline">\(k &gt; 12\)</span>, construct a synthetic ground truth with the same one-factor structure as your CAPM estimates in 2.2: <span class="math inline">\(\boldsymbol{\Sigma}^*(k) = \mathbf{D} + \boldsymbol{\beta}\boldsymbol{\beta}^\intercal \sigma_m^2\)</span>, where <span class="math inline">\(\sigma_m^2\)</span> is your estimated market (SPY) variance, and the <span class="math inline">\(k\)</span>-vector <span class="math inline">\(\boldsymbol{\beta}\)</span> and diagonal idiosyncratic variances <span class="math inline">\(\mathbf{D}\)</span> are drawn to match the <em>empirical spread</em> of the betas and idiosyncratic variances you actually estimated for the 12 sector ETFs in 2.2 (e.g., sample from a distribution fit to those 12 real values, rather than inventing arbitrary numbers). Document this construction in a prose cell — the point isn’t that this is a realistic 200-asset universe, it’s that it’s a <span class="math inline">\(k\)</span>-asset ground truth grounded in real, estimated parameters.</li>
-</ul>
-<p>For a grid of <span class="math inline">\(k\)</span> that spans well below, near, and <strong>above</strong> <span class="math inline">\(n = 252\)</span> (e.g., <span class="math inline">\(k \in \{5, 12, 50, 150, 252, 400\}\)</span>), simulate many samples of size <span class="math inline">\(n\)</span> from <span class="math inline">\(\mathcal{N}(\boldsymbol{\mu}^*(k), \boldsymbol{\Sigma}^*(k))\)</span> and compute <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> for each. Track, across simulations and as a function of <span class="math inline">\(k\)</span>:</p>
-<ul>
-<li>The <strong>condition number</strong> of <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> (ratio of largest to smallest eigenvalue) — a numerically well-behaved matrix has a modest condition number; a nearly-singular one has a huge one.</li>
-<li>The <strong>smallest eigenvalue</strong> of <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> directly. What happens to it as <span class="math inline">\(k\)</span> approaches, and then exceeds, <span class="math inline">\(n\)</span>? (Recall that a sample covariance matrix estimated from <span class="math inline">\(n\)</span> observations of <span class="math inline">\(k\)</span> variables is mathematically guaranteed to be singular once <span class="math inline">\(k &gt; n\)</span> — this isn’t a modeling failure, it’s a hard fact about how many independent directions of variation <span class="math inline">\(n\)</span> data points can possibly pin down.)</li>
-<li>The magnitude of the resulting <strong>unconstrained</strong> <span class="math inline">\(\mathbf{w}^*\)</span> (e.g., its <span class="math inline">\(L_2\)</span> norm, or gross leverage <span class="math inline">\(\sum_i|w_i|\)</span>) computed from each simulated <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>, at a fixed <span class="math inline">\(\gamma\)</span>.</li>
-</ul>
-<p>Produce a plot (or small panel of plots) showing all three quantities against <span class="math inline">\(k\)</span>, on a log scale for <span class="math inline">\(k\)</span> if that helps readability. Write a paragraph connecting what you see to the closed-form <span class="math inline">\(\mathbf{w}^* \propto \hat{\boldsymbol{\Sigma}}^{-1}\hat{\boldsymbol{\mu}}\)</span>: why does a near-singular (or literally singular) <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> make the <em>inverse</em> — and therefore the weights — blow up numerically, even when the <em>true</em> <span class="math inline">\(\boldsymbol{\Sigma}^*(k)\)</span> is perfectly well-behaved at every <span class="math inline">\(k\)</span>? This is the dimension-side counterpart to 2.1’s sample-size finding, and it’s the reason Section 3.5’s constrained weights and (in industry) shrinkage estimators like Ledoit-Wolf exist — not required here, but worth knowing that “regularize <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> before inverting it” is a standard professional response to exactly the failure mode you just produced.</p>
-<hr>
-</section>
-</section>
-<section id="section-3-how-uncertainty-in-parameters-propagates-to-weights" class="level2" data-number="4">
-<h2 data-number="4" class="anchored" data-anchor-id="section-3-how-uncertainty-in-parameters-propagates-to-weights"><span class="header-section-number">4</span> Section 3 — How Uncertainty in Parameters Propagates to Weights</h2>
-<p><em>In practice: this is a sensitivity / stress-testing exercise — the kind of analysis a risk team runs on any model before it’s approved, and the kind of question a PM will ask you the moment you present a portfolio: “how fragile is this?”</em></p>
-<p>The quantities <span class="math inline">\(\boldsymbol{\mu}\)</span> and <span class="math inline">\(\boldsymbol{\Sigma}\)</span> are not directly observable in a portfolio — the observable outcome is the weight vector <span class="math inline">\(\mathbf{w}^*\)</span>. This section asks you to understand <em>how sensitive</em> <span class="math inline">\(\mathbf{w}^*\)</span> is to its inputs.</p>
-<p>Use a fixed base estimate (e.g., your CAPM or sample-moment estimates from Section 2 on the full training window) as the reference <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span>.</p>
-<section id="sensitivity-to-gamma" class="level3" data-number="4.1">
-<h3 data-number="4.1" class="anchored" data-anchor-id="sensitivity-to-gamma"><span class="header-section-number">4.1</span> 3.1 — Sensitivity to <span class="math inline">\(\gamma\)</span></h3>
-<p>Compute <span class="math inline">\(\mathbf{w}^*(\gamma)\)</span> for a grid of risk-aversion values, say <span class="math inline">\(\gamma \in [0.1,\, 20]\)</span> on a log scale. For each <span class="math inline">\(\gamma\)</span>, record the full weight vector. Produce a plot that shows how each sector’s weight evolves across this range. What are the extreme cases? At what <span class="math inline">\(\gamma\)</span> does the portfolio become “reasonable” (no extreme allocations)?</p>
-</section>
-<section id="sensitivity-to-boldsymbolmu" class="level3" data-number="4.2">
-<h3 data-number="4.2" class="anchored" data-anchor-id="sensitivity-to-boldsymbolmu"><span class="header-section-number">4.2</span> 3.2 — Sensitivity to <span class="math inline">\(\boldsymbol{\mu}\)</span></h3>
-<p>Starting from the base <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span>, explore what happens as you move it toward zero. Specifically, define the family <span class="math display">\[
-\boldsymbol{\mu}(\alpha) = (1 - \alpha)\,\hat{\boldsymbol{\mu}}, \qquad \alpha \in [0, 1].
-\]</span> At <span class="math inline">\(\alpha = 0\)</span> you have the estimated means; at <span class="math inline">\(\alpha = 1\)</span> all means are zero. Compute <span class="math inline">\(\mathbf{w}^*\)</span> along this path (fixing <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> and a chosen <span class="math inline">\(\gamma\)</span>) and visualize how the weights evolve. At what value of <span class="math inline">\(\alpha\)</span> do the weights become “well-behaved”?</p>
-</section>
-<section id="sensitivity-to-correlations" class="level3" data-number="4.3">
-<h3 data-number="4.3" class="anchored" data-anchor-id="sensitivity-to-correlations"><span class="header-section-number">4.3</span> 3.3 — Sensitivity to Correlations</h3>
-<p>To inflate or deflate correlations while keeping the matrix positive definite and the variances unchanged, you need to work with the <strong>correlation matrix</strong>. Decompose: <span class="math display">\[
-\boldsymbol{\Sigma} = \mathbf{D}\,\mathbf{C}\,\mathbf{D},
-\]</span> where <span class="math inline">\(\mathbf{D} = \text{diag}(\sigma_1, \ldots, \sigma_k)\)</span> is the diagonal matrix of standard deviations and <span class="math inline">\(\mathbf{C}\)</span> is the correlation matrix. Define the perturbed correlation matrix <span class="math display">\[
-\mathbf{C}(\rho) = (1 - \rho)\,\mathbf{C} + \rho\,\mathbf{1}\mathbf{1}^\intercal / k, \qquad \rho \in [0, 1),
-\]</span> (or another reasonable perturbation of your choice) and reconstruct <span class="math inline">\(\boldsymbol{\Sigma}(\rho) = \mathbf{D}\,\mathbf{C}(\rho)\,\mathbf{D}\)</span>. Compute <span class="math inline">\(\mathbf{w}^*\)</span> across values of <span class="math inline">\(\rho\)</span> and visualize. What is the intuition for what happens as all assets become more correlated?</p>
-</section>
-<section id="sensitivity-to-volatility" class="level3" data-number="4.4">
-<h3 data-number="4.4" class="anchored" data-anchor-id="sensitivity-to-volatility"><span class="header-section-number">4.4</span> 3.4 — Sensitivity to Volatility</h3>
-<p>Using the same decomposition <span class="math inline">\(\boldsymbol{\Sigma} = \mathbf{D}\,\mathbf{C}\,\mathbf{D}\)</span>, define the scaled covariance matrix <span class="math display">\[
-\boldsymbol{\Sigma}(s) = (s\,\mathbf{D})\,\mathbf{C}\,(s\,\mathbf{D}), \qquad s &gt; 0,
-\]</span> which scales all standard deviations by <span class="math inline">\(s\)</span> while preserving all pairwise correlations. Compute <span class="math inline">\(\mathbf{w}^*\)</span> across values of <span class="math inline">\(s \in [0.5, 3]\)</span> and visualize. Does scaling volatility up or down change the <em>composition</em> of the portfolio or just the implied risk?</p>
-</section>
-<section id="a-dose-of-realism-constrained-weights" class="level3" data-number="4.5">
-<h3 data-number="4.5" class="anchored" data-anchor-id="a-dose-of-realism-constrained-weights"><span class="header-section-number">4.5</span> 3.5 — A Dose of Realism: Constrained Weights</h3>
-<p>The closed-form <span class="math inline">\(\mathbf{w}^*\)</span> you’ve been computing is unconstrained — it is free to short assets and to take arbitrarily large positions. Real mandates almost always impose some constraint on top of the mean-variance objective, though which constraint depends a lot on the fund. A few common ones:</p>
-<ul>
-<li><strong>Long-only</strong> (<span class="math inline">\(w_i \geq 0\)</span>): common for retail-facing funds and many institutional mandates, but plenty of funds (long/short equity, market-neutral, macro) short freely — this is a mandate choice, not a law of nature.</li>
-<li><strong>Position cap</strong> (e.g., <span class="math inline">\(w_i \leq 0.25\)</span>): limits concentration in any single name or sector.</li>
-<li><strong>Leverage constraint</strong> (<span class="math inline">\(\sum_i |w_i| \leq L\)</span> for some <span class="math inline">\(L\)</span>, e.g. <span class="math inline">\(L=1\)</span> for no leverage or <span class="math inline">\(L=2\)</span> for 2-to-1 gross leverage): caps total gross exposure regardless of the long/short split — this is how many hedge funds actually bound risk instead of (or in addition to) going long-only.</li>
-</ul>
-<p>Pick <strong>one or two constraints from this list (or a reasonable variant of your own)</strong> that you find most interesting, and re-solve for <span class="math inline">\(\mathbf{w}^*\)</span> under them using your base <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}\)</span> from Section 2. You will need a numerical solver rather than the closed-form formula — <code>scipy.optimize.minimize</code> (SLSQP) or <code>cvxpy</code> both work well for this (note the leverage constraint is not smooth as written; either reformulate it for your solver or pick a smooth relaxation). Compare the constrained weights to the unconstrained weights from earlier in Section 3: what changed, and how much expected utility (in the mean-variance objective) is “given up” by imposing the constraint(s) you chose?</p>
-<hr>
-</section>
-</section>
-<section id="section-4-the-effect-of-rebalancing-and-trading-costs" class="level2" data-number="5">
-<h2 data-number="5" class="anchored" data-anchor-id="section-4-the-effect-of-rebalancing-and-trading-costs"><span class="header-section-number">5</span> Section 4 — The Effect of Rebalancing and Trading Costs</h2>
-<p><em>In practice: this is implementation shortfall — the gap between a paper strategy and a tradeable one. It’s often the difference between a strategy that gets funded and one that doesn’t.</em></p>
-<p>Sections 2 and 3 were about the inputs. This section is about what happens when we actually use <span class="math inline">\(\mathbf{w}^*\)</span> in practice.</p>
-<p><strong>Train/test split</strong>: use the first 60% of your data as the training period (estimate parameters here) and the remaining 40% as the test period (evaluate performance here). Never use test data to make portfolio decisions.</p>
-<p><strong>Benchmarks</strong>: in every comparison below, include two passive benchmarks: - <strong>Equal-weight (EW)</strong>: <span class="math inline">\(\mathbf{w} = \mathbf{1}/k\)</span> held fixed and rebalanced each period. - <strong>SPY</strong>: the market ETF return series.</p>
-<section id="frictionless-rebalancing" class="level3" data-number="5.1">
-<h3 data-number="5.1" class="anchored" data-anchor-id="frictionless-rebalancing"><span class="header-section-number">5.1</span> 4.1 — Frictionless Rebalancing</h3>
-<p>Assume you can trade at zero cost. At the start of the test period, invest according to <span class="math inline">\(\mathbf{w}^*\)</span> computed on the training data. Rebalance back to <span class="math inline">\(\mathbf{w}^*\)</span> every trading day (i.e., <span class="math inline">\(\mathbf{w}\)</span> is held constant throughout the test period).</p>
-<p>Report and plot:</p>
-<ul>
-<li>Cumulative return over the test period (log scale optional)</li>
-<li>Annualized Sharpe ratio (use the risk-free rate from one of your data sources, or set it to zero and note that)</li>
-<li>Maximum drawdown</li>
-<li>Annualized volatility</li>
-</ul>
-<p>How do your model-based portfolios compare to the benchmarks?</p>
-</section>
-<section id="introducing-transaction-costs" class="level3" data-number="5.2">
-<h3 data-number="5.2" class="anchored" data-anchor-id="introducing-transaction-costs"><span class="header-section-number">5.2</span> 4.2 — Introducing Transaction Costs</h3>
-<p>Now make the simulation more realistic. At each rebalancing event, you must buy and sell assets to restore the target weights. Each dollar of turnover incurs a cost of <span class="math inline">\(c\)</span> (expressed in basis points, where <span class="math inline">\(1\,\text{bp} = 0.0001\)</span>). The turnover at time <span class="math inline">\(t\)</span> is: <span class="math display">\[
-\text{turnover}_t = \sum_{i=1}^k \lvert w_{t,i}^{\text{target}} - w_{t,i}^{\text{drifted}} \rvert
-\]</span> where <span class="math inline">\(w_{t,i}^{\text{drifted}}\)</span> is the weight in asset <span class="math inline">\(i\)</span> just <em>before</em> rebalancing, after price changes have moved the portfolio away from the target. The cost is deducted from the portfolio value before applying the next period’s returns.</p>
-<p>Additionally, model a fixed <strong>management fee</strong> of <span class="math inline">\(f\)</span> basis points per year, deducted as a daily haircut: <span class="math inline">\(r_{\text{net},t} = r_t - f/252\)</span>.</p>
-<p>Investigate performance as a function of:</p>
-<ul>
-<li>Rebalancing frequency (daily, weekly, monthly, quarterly)</li>
-<li>Cost level <span class="math inline">\(c\)</span> (try a few values in the range 1–20 bps)</li>
-</ul>
-<p>Produce at least one plot of net-of-cost annualized Sharpe ratio as a function of rebalancing frequency and cost level. What rebalancing frequency is approximately optimal? Does the answer depend on <span class="math inline">\(c\)</span>?</p>
-<hr>
-</section>
-</section>
-<section id="section-5-full-backtester" class="level2" data-number="6">
-<h2 data-number="6" class="anchored" data-anchor-id="section-5-full-backtester"><span class="header-section-number">6</span> Section 5 — Full Backtester</h2>
-<p><em>In practice: a walk-forward backtest is the minimum bar for a strategy to be taken seriously by any PM or allocator — and this is close to verbatim what many quant research take-home interviews ask you to build. Do this section well and you’ll have a legitimate work sample.</em></p>
-<p>Sections 1–4 used a single fixed train/test split. This section asks you to build a proper <strong>walk-forward backtester</strong> that simulates how a real portfolio manager would operate: at each point in time, use only the history available up to that point to estimate parameters and set weights.</p>
-<section id="the-loop" class="level3" data-number="6.1">
-<h3 data-number="6.1" class="anchored" data-anchor-id="the-loop"><span class="header-section-number">6.1</span> 5.1 — The Loop</h3>
-<p>Implement the following loop. Let <span class="math inline">\(T\)</span> be the full length of your return series and <span class="math inline">\(T_0\)</span> be a minimum burn-in period (e.g., 252 trading days — one year of history).</p>
-<p>For <span class="math inline">\(t = T_0, T_0+1, \ldots, T-1\)</span>:</p>
-<ol type="1">
-<li><strong>Fit</strong>: using only returns from day <span class="math inline">\(1\)</span> through day <span class="math inline">\(t\)</span> (expanding window) or a rolling window of fixed length <span class="math inline">\(W\)</span>, estimate <span class="math inline">\(\hat{\boldsymbol{\mu}}_t\)</span> and <span class="math inline">\(\hat{\boldsymbol{\Sigma}}_t\)</span>.</li>
-<li><strong>Optimize</strong>: compute <span class="math inline">\(\mathbf{w}_t^* = \mathbf{w}^*(\hat{\boldsymbol{\mu}}_t, \hat{\boldsymbol{\Sigma}}_t, \gamma)\)</span> using the MPT formula.</li>
-<li><strong>Trade</strong>: if <span class="math inline">\(t\)</span> is a rebalancing day (e.g., the first trading day of each month), execute trades to move from the current drifted weights to <span class="math inline">\(\mathbf{w}_t^*\)</span>. Apply transaction costs as in Section 4.2.</li>
-<li><strong>Evolve</strong>: apply day <span class="math inline">\(t+1\)</span> returns to the portfolio to get the new dollar value and drifted weights.</li>
-<li><strong>Record</strong>: store <span class="math inline">\(r_{t+1}^{\text{net}}\)</span>, <span class="math inline">\(\mathbf{w}_t^*\)</span>, turnover<span class="math inline">\(_t\)</span>, and costs<span class="math inline">\(_t\)</span>.</li>
-</ol>
-<p>You must use either an expanding window or a rolling window — justify your choice in a prose cell.</p>
-</section>
-<section id="performance-report-the-tearsheet" class="level3" data-number="6.2">
-<h3 data-number="6.2" class="anchored" data-anchor-id="performance-report-the-tearsheet"><span class="header-section-number">6.2</span> 5.2 — Performance Report: The Tearsheet</h3>
-<p>Collect the time series of out-of-sample net returns produced by the loop and package your results as a <strong>one-page tearsheet</strong> — the kind of summary a PM would actually be handed before deciding whether to allocate capital, in the style of tools like <code>quantstats</code> or <code>pyfolio</code> (you are welcome to use either package, or build your own).</p>
-<p>The tearsheet should combine, on a single logical “page” (a markdown cell plus a compact figure or two is fine):</p>
+<section id="section-1-data-pipeline-a-real-historical-spx-option-panel" class="level2" data-number="3">
+<h2 data-number="3" class="anchored" data-anchor-id="section-1-data-pipeline-a-real-historical-spx-option-panel"><span class="header-section-number">3</span> Section 1 — Data Pipeline: A Real, Historical SPX Option Panel</h2>
+<p><em>In practice: this is the unglamorous, at-scale data-engineering step every real derivatives desk depends on — consolidated options data arrives as enormous per-day files covering an entire chain, and getting from “a folder of multi-hundred-megabyte files” down to “a clean, analyzable panel for the handful of contracts you actually care about” is most of the real work.</em></p>
+<section id="what-youre-given" class="level3" data-number="3.1">
+<h3 data-number="3.1" class="anchored" data-anchor-id="what-youre-given"><span class="header-section-number">3.1</span> 1.1 — What You’re Given</h3>
+<p>Your instructor will provide a folder of real market data: <strong>Databento OPRA.PILLAR, <code>cbbo-1m</code> schema, for <code>SPX.OPT</code></strong> (the full SPX option chain), covering a run of consecutive trading days. One file per day, named <code>opra-pillar-YYYYMMDD.cbbo-1m.csv.zst</code> (zstd-compressed CSV — <code>pandas.read_csv(..., compression=&quot;zstd&quot;)</code> reads these directly, or decompress on the fly with the <code>zstd</code>/<code>unzstd</code> command-line tool). Each file has one row per SPX contract per minute: a <strong>consolidated best-bid/offer (NBBO) snapshot</strong>, sampled once per minute, for every listed SPX option. Columns:</p>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
 <thead>
 <tr class="header">
-<th>Metric</th>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ts_recv</code></td>
+<td>Timestamp (UTC) this 1-minute snapshot was captured.</td>
+</tr>
+<tr class="even">
+<td><code>ts_event</code></td>
+<td>Timestamp of the <strong>last trade</strong> in that minute, if any occurred — <strong>blank otherwise</strong>. Most rows are quote-only; only a minority of (contract, minute) rows have an actual trade.</td>
+</tr>
+<tr class="odd">
+<td><code>instrument_id</code></td>
+<td>Numeric contract ID (paired with <code>symbol</code> below).</td>
+</tr>
+<tr class="even">
+<td><code>price</code>, <code>size</code></td>
+<td>Last trade price/size in that minute — blank / 0 when no trade occurred. Don’t treat these as a complete price series; use them as an occasional cross-check against bid/ask, not your primary quote source.</td>
+</tr>
+<tr class="odd">
+<td><code>bid_px_00</code>, <code>ask_px_00</code></td>
+<td>Best consolidated bid/ask price at that minute — <strong>this is your primary quote source</strong>.</td>
+</tr>
+<tr class="even">
+<td><code>bid_sz_00</code>, <code>ask_sz_00</code></td>
+<td>Size resting at the best bid/ask.</td>
+</tr>
+<tr class="odd">
+<td><code>symbol</code></td>
+<td>OCC-style option symbol, e.g. <code>SPX   270219P03200000</code> = root <code>SPX</code> (padded), expiration <code>2027-02-19</code>, <strong>P</strong>ut, strike <code>$3200.000</code> (last 8 digits, ×1000). Parse this into (root, expiration date, call/put, strike) — you’ll need all four.</td>
+</tr>
+</tbody>
+</table>
+<p>A handful of other columns (<code>rtype</code>, <code>publisher_id</code>, <code>side</code>, <code>flags</code>, <code>bid_pb_00</code>, <code>ask_pb_00</code>) are Databento bookkeeping fields you can ignore for this case study.</p>
+<p><strong>This is licensed data provided for coursework only.</strong> Do not commit it, or any file derived from it, to a public repository — keep it entirely local, and keep any derived cache files out of your submitted notebook’s tracked outputs (a <code>.gitignore</code> entry, if you’re using git at all for this, is a good habit).</p>
+</section>
+<section id="choosing-a-working-universe" class="level3" data-number="3.2">
+<h3 data-number="3.2" class="anchored" data-anchor-id="choosing-a-working-universe"><span class="header-section-number">3.2</span> 1.2 — Choosing a Working Universe</h3>
+<p>Each day’s file covers roughly 10,000 contracts across ~20 expirations — far more than you need, and too large to load in full without a plan. Before touching the bulk of the data:</p>
+<ul>
+<li>Inspect the <code>symbol</code> column of your <strong>first</strong> day’s file to see which expirations are available, and check whether any of them <strong>stop appearing in the data before your last day’s file</strong> — i.e., a contract whose full lifecycle is entirely contained in your data window. If one exists, that’s your <strong>near-dated contract</strong> for Section 4 — it lets you observe a real option all the way to a real, known terminal payoff, not just a partial slice. If none of the available expirations happens to fall inside your window, pick the nearest-dated expiration still available on your <em>last</em> day instead, and plan to mark it to market rather than to a terminal payoff (Section 4 covers both cases). <strong>One real wrinkle to expect:</strong> SPX’s standard monthly options are AM-settled — they stop trading (and stop appearing in the data) on the trading day <em>before</em> their nominal expiration date, since they’re already settled by the time that expiration day’s session starts. So a contract listed as expiring, say, <code>2026-07-17</code> will typically show its <strong>last live quotes on 2026-07-16</strong>, with zero rows for it on the 17th itself. Confirm this in your own data (check the day-by-day row count for your chosen contract) rather than assuming it — this is exactly the kind of “the data just stops” surprise a real desk has to know to expect rather than debug as a bug.</li>
+<li>Pick a second, <strong>further-dated</strong> expiration (several months to roughly a year out) that’s present across your <em>entire</em> window, for the smile/model-limitations work in Sections 3 and 6.</li>
+<li>Restrict strikes to a reasonable band around the money (e.g., within about ±15%) for both expirations — you need real spot levels to define “the money” (next bullet), not a strike count guess.</li>
+</ul>
+</section>
+<section id="the-underlying-and-the-risk-free-rate" class="level3" data-number="3.3">
+<h3 data-number="3.3" class="anchored" data-anchor-id="the-underlying-and-the-risk-free-rate"><span class="header-section-number">3.3</span> 1.3 — The Underlying and the Risk-Free Rate</h3>
+<p>The OPRA data is options-only — there’s no index spot level in it. Using <code>yfinance</code>, pull the underlying’s own daily price history: <code>^SPX</code> if your installed <code>yfinance</code> version supports it, otherwise <code>^GSPC</code> is a close, standard proxy for the S&amp;P 500 index level (state which one you used, and note in one sentence what, if anything, could differ between the two). Pull enough history to (a) cover your full OPRA data window and (b) give you a trailing window <em>before</em> it for a realized-volatility estimate (at least 60–90 additional trading days). Also pull a short-term risk-free rate as in earlier case studies (<code>^IRX</code>, or a FRED short-rate series), covering the same span.</p>
+</section>
+<section id="building-the-panel" class="level3" data-number="3.4">
+<h3 data-number="3.4" class="anchored" data-anchor-id="building-the-panel"><span class="header-section-number">3.4</span> 1.4 — Building the Panel</h3>
+<p>Your Section 4.2 real-path hedging analysis rebalances <strong>once per trading day</strong>, not intraday — so you don’t need every one of a day’s ~390 one-minute snapshots per contract, just one clean, consistent quote per contract per day. Write a pipeline that, for each day’s file:</p>
+<ol type="1">
+<li>Reads the compressed CSV (don’t decompress every day to disk up front — that’s several extra gigabytes you don’t need sitting around).</li>
+<li>Immediately filters to your Section 1.2 working universe (two expirations, moneyness band) — do this filtering <strong>before</strong> any expensive processing, since the unfiltered file is 4–5 million rows.</li>
+<li>Within that filtered set, keeps <strong>one snapshot per contract per day</strong>: the row closest to a fixed time you choose (e.g., 15:59 ET, just before the close) — a consistent daily “closing quote,” analogous to how you’d use a daily closing price for the underlying. State your chosen time and why.</li>
+<li>Parses the <code>symbol</code> column into expiration date, type, and strike; computes bid/ask mid and <span class="math inline">\(\tau\)</span> (time to that day’s expiration, in years, with your day-count convention stated explicitly); and keeps a clean set of columns (date, symbol, expiration, type, strike, <span class="math inline">\(\tau\)</span>, bid, ask, mid, bid size, ask size).</li>
+<li>Caches the filtered, one-snapshot-per-day result (Parquet is a good choice) so that re-running your notebook doesn’t require re-reading the raw multi-hundred-megabyte files every time. Include a prose cell explaining your caching design and why it matters at this data size — this is the same caching lesson as CS 1–3, but now the cost of <em>not</em> caching is measured in real minutes of runtime, not just good practice.</li>
+</ol>
+<p>Concatenate the per-day results into one tidy panel <code>DataFrame</code> spanning your whole data window — one row per (contract, day). <strong>Define “today” as the last date in your data window</strong> — Sections 2, 3, 6, and 7 below refer to “your chain” or “today’s chain,” and that phrase means the cross-section of this panel on your last available day. Section 4 is the one section that uses the full multi-day panel, not just the “today” slice.</p>
+<hr>
+</section>
+</section>
+<section id="section-2-from-model-to-market-pricing-and-no-arbitrage-checks" class="level2" data-number="4">
+<h2 data-number="4" class="anchored" data-anchor-id="section-2-from-model-to-market-pricing-and-no-arbitrage-checks"><span class="header-section-number">4</span> Section 2 — From Model to Market: Pricing and No-Arbitrage Checks</h2>
+<p><em>In practice: before trusting a model’s Greeks for hedging, a desk first checks whether the model’s price is even in the right neighborhood of where the market actually trades — and whether the market itself is internally consistent.</em></p>
+<section id="black-scholes-price-vs.-market-quote" class="level3" data-number="4.1">
+<h3 data-number="4.1" class="anchored" data-anchor-id="black-scholes-price-vs.-market-quote"><span class="header-section-number">4.1</span> 2.1 — Black-Scholes Price vs. Market Quote</h3>
+<p>For a handful of strikes spanning in-the-money, near-the-money, and out-of-the-money on your nearer expiration, compute the Black-Scholes price using <strong>a single, reasonable <span class="math inline">\(\sigma\)</span></strong> (e.g., the realized volatility of the underlying over your recent history — Section 3 will complicate this). Compare your model price to the market bid, ask, and mid. Report the results in a table. Where (if anywhere) does the model price fall outside the bid-ask spread entirely, and where does it land comfortably inside it?</p>
+<p>You’ll likely find your model price, built from <em>historical</em> volatility, doesn’t match the market — often by more than the bid-ask spread alone can explain. Before Section 3 gives you the formal tool (implied volatility) to characterize this gap precisely, write a short prose answer: <strong>why might the market be pricing in a different volatility than what the underlying has recently realized?</strong> Think about what the market is actually doing when it sets an option’s price — is it describing the past, or pricing in something about the future that trailing historical data can’t see?</p>
+</section>
+<section id="put-call-parity-properly-bounded" class="level3" data-number="4.2">
+<h3 data-number="4.2" class="anchored" data-anchor-id="put-call-parity-properly-bounded"><span class="header-section-number">4.2</span> 2.2 — Put-Call Parity, Properly Bounded</h3>
+<p>For at-the-money-ish strikes where you have both a call and a put quote at the same strike and expiration, check put-call parity, <span class="math inline">\(C - P = S - Ke^{-r\tau}\)</span>, using <strong>bid-ask bounds</strong> rather than a single midpoint number: is there a portfolio (buy the cheap side at its ask, sell the expensive side at its bid) that would actually lock in a profit net of both spreads, or does every apparent “violation” disappear once you account for the spread you’d have to cross to trade it? Connect this explicitly back to Module 9: parity is a restatement of the no-arbitrage/martingale argument, and real markets should — and, once frictions are accounted for, generally do — respect it.</p>
+<hr>
+</section>
+</section>
+<section id="section-3-implied-volatility-and-the-smile" class="level2" data-number="5">
+<h2 data-number="5" class="anchored" data-anchor-id="section-3-implied-volatility-and-the-smile"><span class="header-section-number">5</span> Section 3 — Implied Volatility and the Smile</h2>
+<p><em>In practice: this is the volatility smile from Module 11, Part 4 — except now it’s not a synthetic demonstration, it’s the actual shape the market is quoting today, and reading it correctly is a core skill on any options desk.</em></p>
+<ul>
+<li>For every strike on your two expirations, back out the Black-Scholes implied volatility from the market <strong>mid</strong> price using your <code>implied_vol</code> root-finder. Some very illiquid, deep out-of-the-money strikes may fail to solve cleanly (wide or crossed spreads, near-zero prices) — handle these explicitly (drop with a stated reason, or flag and discuss) rather than letting the notebook silently error or plot nonsense.</li>
+<li>Plot implied volatility against strike (or moneyness) for each expiration separately. Does it look flat (as Module 11’s control case predicted a truly-constant-<span class="math inline">\(\sigma\)</span> market would), or does it show the smile/skew shape? Compare the shape across your two expirations — does the smile flatten out at longer maturities, as is typically observed in real index and equity options?</li>
+<li>Compute the <strong>realized volatility</strong> of the underlying over a trailing window (e.g., the last 21 or 63 trading days) from your Section 1 price history, annualized consistently with your <span class="math inline">\(\tau\)</span> convention. Compare it to the at-the-money implied volatility from your smile. Which is higher? This gap is known as the <strong>variance risk premium</strong> — briefly research and state in a sentence or two why it tends to run one direction rather than the other, and whether your data is consistent with that.</li>
+</ul>
+<hr>
+</section>
+<section id="section-4-delta-hedging-a-simulated-distribution-and-one-real-path" class="level2" data-number="6">
+<h2 data-number="6" class="anchored" data-anchor-id="section-4-delta-hedging-a-simulated-distribution-and-one-real-path"><span class="header-section-number">6</span> Section 4 — Delta Hedging: A Simulated Distribution, and One Real Path</h2>
+<p><em>In practice: this is Module 11 Part 3’s discrete-hedging simulation, except now you get to check it against something a simulation alone never gives you — what actually happened, once, for real.</em></p>
+<p><strong>First, an important clarification, because it’s easy to get turned around here:</strong> in 4.1 below, you are never simulating the <em>option’s</em> price. The option’s price at <span class="math inline">\(t=0\)</span> is a real number you already have — a market mid price from your Section 1 panel, the actual premium you’d collect for selling it. The only thing that ever gets simulated is the <strong>underlying’s</strong> spot path, <span class="math inline">\(S(t)\)</span>. At each rebalance, <span class="math inline">\(\Delta\)</span> is just a formula (Module 10/11’s <span class="math inline">\(\Delta = N(d_1)\)</span>) evaluated at the current spot — it takes a <span class="math inline">\(\sigma\)</span> as an input, but that <span class="math inline">\(\sigma\)</span> is a modeling <em>choice</em> about how to hedge, not something you need to know the option’s future price to compute.</p>
+<p>So there are two, separate volatility roles here, and it’s the whole point of the exercise to keep them distinct:</p>
+<ol type="1">
+<li><strong>The “true-world” <span class="math inline">\(\sigma\)</span></strong> — the volatility used to describe how the underlying actually moves. In 4.1 this drives a <em>simulation</em>; in 4.2 the underlying’s real moves play this role directly, no simulation needed.</li>
+<li><strong>The “hedging” <span class="math inline">\(\sigma\)</span></strong> — the volatility plugged into the <span class="math inline">\(\Delta\)</span> formula at each rebalance to decide how many shares to hold. This is a policy choice a real hedger has to make, and it need not match #1.</li>
+</ol>
+<section id="a-simulated-pl-distribution" class="level3" data-number="6.1">
+<h3 data-number="6.1" class="anchored" data-anchor-id="a-simulated-pl-distribution"><span class="header-section-number">6.1</span> 4.1 — A Simulated P&amp;L Distribution</h3>
+<p>A single real historical path (4.2) can only ever show you <em>one</em> outcome — it can’t tell you whether that outcome was typical or a fluke, and it can’t give you a distribution across many rebalancing frequencies the way Module 11’s simulator can. That’s what this part is still for.</p>
+<p>Pick your <strong>further-dated</strong> contract from Section 1.2 (state strike, expiration, type, and today’s mid price). Using Module 11’s <code>simulate_hedge_pnl</code> as a starting point: collect the real market mid price as your starting premium (not a model price), simulate <span class="math inline">\(S(t)\)</span> under GBM out to this contract’s expiration using your Section 3 realized-vol estimate as the true-world <span class="math inline">\(\sigma\)</span>, and run the hedge twice, varying only the hedging <span class="math inline">\(\sigma\)</span>:</p>
+<ul>
+<li><strong>Hedging <span class="math inline">\(\sigma\)</span> = your realized-vol estimate</strong> (matches the true-world <span class="math inline">\(\sigma\)</span> — a hedger who happens to have exactly the right volatility).</li>
+<li><strong>Hedging <span class="math inline">\(\sigma\)</span> = the contract’s market-implied volatility from Section 3</strong> (a hedger who computes <span class="math inline">\(\Delta\)</span> the way the market’s own quote implies — what a real desk typically does, since implied vol is often treated as the market’s best forward-looking estimate, even though converting it into a hedge ratio still requires a model).</li>
+</ul>
+<p>Sweep rebalancing frequency (e.g., daily, weekly, biweekly, monthly, adapted to this contract’s <span class="math inline">\(\tau\)</span>) and report the mean and standard deviation of terminal hedging P&amp;L for each frequency, for both hedging-<span class="math inline">\(\sigma\)</span> choices.</p>
+</section>
+<section id="what-actually-happened-one-real-lifecycle" class="level3" data-number="6.2">
+<h3 data-number="6.2" class="anchored" data-anchor-id="what-actually-happened-one-real-lifecycle"><span class="header-section-number">6.2</span> 4.2 — What Actually Happened: One Real Lifecycle</h3>
+<p>Now use your <strong>near-dated</strong> contract from Section 1.2 — the one whose real lifecycle is (fully or partly) inside your data window. Using your Section 1.4 daily panel, walk forward one real trading day at a time from your first available day to your last available day for this contract:</p>
+<ul>
+<li>Each day, recompute <span class="math inline">\(\Delta\)</span> using the Black-Scholes formula at that day’s real <span class="math inline">\(\tau\)</span> and the underlying’s real closing level (from your Section 1.3 <code>yfinance</code> pull), for a chosen hedging <span class="math inline">\(\sigma\)</span>, and adjust your share holdings accordingly — exactly the daily-rebalance version of 4.1’s loop, except every input is now a real, observed number instead of a simulated one.</li>
+<li>Track cash and shares day by day the same way <code>simulate_hedge_pnl</code> does internally.</li>
+<li><strong>If your contract’s full lifecycle is inside your window</strong> (Section 1.2’s AM-settlement note applies: its last live quote day is the day <em>before</em> its nominal expiration date), close out the position using the real terminal payoff, <span class="math inline">\(\max(S_T - K, 0)\)</span> or <span class="math inline">\(\max(K - S_T, 0)\)</span>, computed from the underlying’s real closing level on that last day. <strong>If it isn’t</strong> (your data window ends before this contract expires), mark the position to market instead, using this contract’s real quoted mid price on your last available day — and say so explicitly. Not having a terminal payoff for every contract is an honest data limitation, not a mistake to paper over.</li>
+<li>Run this real walk-forward hedge <strong>twice</strong>, exactly as in 4.1: once hedging with your realized-vol <span class="math inline">\(\sigma\)</span>, once with this contract’s own market-implied <span class="math inline">\(\sigma\)</span> (use its implied vol on your <em>first</em> available day for this contract — using a later day’s implied vol would be look-ahead, per this case study’s rookie-mistakes list).</li>
+</ul>
+<p>Report the realized hedging P&amp;L for both hedging-<span class="math inline">\(\sigma\)</span> choices on this one real path. Then locate both real outcomes within your <strong>4.1 simulated P&amp;L distribution</strong> at the matching (or closest) rebalancing frequency — e.g., what percentile of the simulated distribution did the real outcome fall at? A single real path can’t prove which hedging <span class="math inline">\(\sigma\)</span> is “better” (that’s exactly what a distribution is for, and <span class="math inline">\(n=1\)</span> is not a distribution) — but it’s a concrete, non-hypothetical check on whether your simulation’s spread of outcomes was in the right ballpark.</p>
+<p>Write a paragraph: does hedging with the market-implied <span class="math inline">\(\sigma\)</span> instead of your realized-vol estimate produce a meaningfully different result, in 4.1’s distribution and in 4.2’s real path? Connect your answer to Vega from Module 11 — a mismatch between the <span class="math inline">\(\sigma\)</span> you hedge with and the <span class="math inline">\(\sigma\)</span> that actually governs the underlying’s moves is exactly the kind of exposure Vega is meant to describe.</p>
+<hr>
+</section>
+</section>
+<section id="section-5-transaction-costs-hedging-isnt-free" class="level2" data-number="7">
+<h2 data-number="7" class="anchored" data-anchor-id="section-5-transaction-costs-hedging-isnt-free"><span class="header-section-number">7</span> Section 5 — Transaction Costs: Hedging Isn’t Free</h2>
+<p><em>In practice: this is CS 1 Section 4 and CS 3 Section 2’s lesson, applied to the hedge leg of an options position instead of a portfolio or a market-making quote — frequent rebalancing reduces hedging error but costs money to execute, and somewhere in between is the frequency a real desk would actually choose.</em></p>
+<p>Extend your <strong>Section 4.1</strong> simulator so that every hedge rebalance (buying or selling shares of the underlying to adjust <span class="math inline">\(\Delta\)</span>) incurs a transaction cost proportional to the number of shares traded, in basis points of the trade’s dollar value (try a few values in the 1–20 bps range, as in earlier case studies). If you have time, apply the same cost to your <strong>Section 4.2</strong> real walk-forward hedge too — it’s a small extension and gives you a real-dollar cost figure to put next to the simulated one, but it’s not required.</p>
+<ul>
+<li>For your chosen rebalancing-frequency grid from Section 4.1, report <strong>net-of-cost</strong> hedging P&amp;L (mean and standard deviation) at each frequency and cost level.</li>
+<li>Produce a plot that makes the tradeoff visible: too-infrequent rebalancing leaves large hedging-error variance (Section 4.1); too-frequent rebalancing bleeds P&amp;L to transaction costs. Is there a rebalancing frequency that looks like a reasonable sweet spot for your chosen cost level? Does the answer change at a higher cost level?</li>
+</ul>
+<hr>
+</section>
+<section id="section-6-model-limitations-what-a-single-sigma-misses" class="level2" data-number="8">
+<h2 data-number="8" class="anchored" data-anchor-id="section-6-model-limitations-what-a-single-sigma-misses"><span class="header-section-number">8</span> Section 6 — Model Limitations: What a Single <span class="math inline">\(\sigma\)</span> Misses</h2>
+<p><em>In practice: this is the gap between “the model is useful” and “the model is true” — every desk that uses Black-Scholes knows it’s the second one that’s false, and knowing exactly how it’s false is what keeps a book from blowing up.</em></p>
+<p>Using your real smile from Section 3:</p>
+<ul>
+<li>Pick one strike away from at-the-money on your nearer expiration. Price it two ways: (a) using the at-the-money implied volatility from the same expiration, and (b) using that strike’s own implied volatility from the smile. How large is the resulting price difference, in dollars and as a percentage? If a trader mistakenly used a single “the” implied vol for the whole expiration (a genuinely common shortcut under time pressure), how costly would that mistake have been on this specific strike?</li>
+<li>In a prose cell, connect this back to Module 11 Part 4’s explanation for <em>why</em> the smile exists (constant-<span class="math inline">\(\sigma\)</span> GBM structurally cannot represent strike-dependent risk like crash risk or skew) and briefly describe, at a conceptual level only (no implementation required), one class of model real desks use instead to address it (e.g., local volatility, stochastic volatility, or jump-diffusion — pick one and describe in 2-3 sentences what it changes relative to Black-Scholes).</li>
+</ul>
+<hr>
+</section>
+<section id="section-7-full-report-pricing-hedging-and-a-trade-recommendation" class="level2" data-number="9">
+<h2 data-number="9" class="anchored" data-anchor-id="section-7-full-report-pricing-hedging-and-a-trade-recommendation"><span class="header-section-number">9</span> Section 7 — Full Report: Pricing, Hedging, and a Trade Recommendation</h2>
+<p><em>In practice: this is what would actually get shown to a desk head deciding whether to trade and hedge this specific option using this model.</em></p>
+<p>Produce a one-page report (a markdown cell plus compact figures) on your <strong>Section 4.1 further-dated contract</strong>, combining the results of Sections 2, 3, 4, 5, and 6:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Item</th>
 <th>Value</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>Annualized return</td>
+<td>Contract (underlying, strike, expiration, type)</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>Annualized volatility</td>
+<td>Market mid price</td>
 <td></td>
 </tr>
 <tr class="odd">
-<td>Sharpe ratio</td>
+<td>Black-Scholes price (realized-vol <span class="math inline">\(\sigma\)</span>)</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>Maximum drawdown</td>
+<td>Black-Scholes price (implied <span class="math inline">\(\sigma\)</span>, by construction ≈ market mid)</td>
 <td></td>
 </tr>
 <tr class="odd">
-<td>Total turnover (annualized)</td>
+<td>At-the-money implied vol vs. trailing realized vol</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>Total costs paid (% of initial capital)</td>
+<td>Chosen rebalancing frequency and transaction cost level</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Net-of-cost hedging P&amp;L (Section 4.1 simulation): mean, std</td>
+<td></td>
+</tr>
+<tr class="even">
+<td>Section 4.2 real-path hedging P&amp;L, and its percentile in the Section 4.1 distribution</td>
+<td></td>
+</tr>
+<tr class="odd">
+<td>Mispricing from using ATM vol instead of this strike’s own smile vol (Section 6)</td>
 <td></td>
 </tr>
 </tbody>
 </table>
-<p>Plot:</p>
+<p>Include: the volatility smile plot from Section 3 (with this strike marked), and the net-of-cost hedging P&amp;L distribution from Section 5 at your chosen frequency/cost level, with your Section 4.2 real-path outcome marked on it. Close with a <strong>desk-facing recommendation paragraph</strong> (3–5 sentences): is a Black-Scholes-based delta hedge, at your chosen rebalancing frequency and realistic costs, a reasonable way to manage this specific position? What’s the single biggest risk left unmanaged by a delta-only hedge, and what would you want in place before trading this at real size?</p>
+<section id="interpretation" class="level3" data-number="9.1">
+<h3 data-number="9.1" class="anchored" data-anchor-id="interpretation"><span class="header-section-number">9.1</span> Interpretation</h3>
+<p>Address each of the following in prose:</p>
 <ul>
-<li>Cumulative wealth of your strategy vs. the SPY and equal-weight benchmarks</li>
-<li>Monthly turnover over time</li>
-<li>A heatmap or line chart of portfolio weights over time</li>
-</ul>
-<p>Close the tearsheet with a short <strong>PM-facing recommendation paragraph</strong> (3-5 sentences, written as if addressed to a portfolio manager deciding whether to fund this strategy): does the evidence support allocating capital to it, and under what conditions or caveats?</p>
-</section>
-<section id="interpretation" class="level3" data-number="6.3">
-<h3 data-number="6.3" class="anchored" data-anchor-id="interpretation"><span class="header-section-number">6.3</span> 5.3 — Interpretation</h3>
-<p>Write a paragraph (or two) addressing each of the following:</p>
-<ul>
-<li>Does the walk-forward strategy beat the benchmarks? If yes, where does the outperformance come from? If no, why not?</li>
-<li>How did transaction costs change your conclusion relative to the frictionless result in Section 4.1?</li>
-<li>What did the weight time series reveal? Did the optimizer concentrate in a small number of sectors, or did it diversify? Was this stable over time?</li>
-<li>If you were managing this portfolio with real money, what changes would you make? Point specifically to findings from Sections 2 and 3 to support your answer.</li>
+<li>Did put-call parity (Section 2) hold up once you accounted for the bid-ask spread, or did you find a genuine, spread-adjusted violation? If genuine, how would you explain it (liquidity, stale quotes, dividend/borrow effects you didn’t model)?</li>
+<li>Which mattered more to your final hedging P&amp;L: the choice of hedging volatility (Section 4) or the transaction costs (Section 5)? Did that ranking surprise you?</li>
+<li>If you were actually responsible for this position, what would you change first — hedging frequency, adding a Vega hedge with a second option, using a strike-specific rather than ATM volatility, or something else? Justify with numbers from your own Section 7 table.</li>
 </ul>
 <hr>
 </section>
 </section>
-<section id="section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points" class="level2" data-number="7">
-<h2 data-number="7" class="anchored" data-anchor-id="section-6-bonus-push-the-strategy-further-optional-up-to-5-extra-points"><span class="header-section-number">7</span> Section 6 — Bonus: Push the Strategy Further (Optional, up to 5 extra points)</h2>
-<p>Everything above gets you a defensible, honestly-evaluated strategy. If you want to see how it stacks up against other approaches a real desk might consider, pick <strong>one</strong> of the following and add it to your backtest comparison:</p>
+<section id="section-8-bonus-push-the-analysis-further-optional-up-to-5-extra-points" class="level2" data-number="10">
+<h2 data-number="10" class="anchored" data-anchor-id="section-8-bonus-push-the-analysis-further-optional-up-to-5-extra-points"><span class="header-section-number">10</span> Section 8 — Bonus: Push the Analysis Further (Optional, up to 5 extra points)</h2>
+<p>Pick <strong>one</strong> of the following and add it to your analysis:</p>
 <ul>
-<li>A <strong>minimum-variance</strong> portfolio (ignore <span class="math inline">\(\boldsymbol{\mu}\)</span> entirely and minimize risk) as an additional benchmark.</li>
-<li>A <strong>risk-parity</strong> portfolio (weights inversely proportional to volatility, or the full risk-parity solution) as an additional benchmark.</li>
-<li>A simple <strong>momentum overlay</strong>: tilt <span class="math inline">\(\hat{\boldsymbol{\mu}}\)</span> toward recent trailing returns before optimizing, and see whether it helps or hurts out-of-sample.</li>
+<li><strong>Vega-hedge, not just delta-hedge</strong>: the underlying itself has zero Vega (its price doesn’t depend on anyone’s volatility assumption), so a stock-only delta hedge can never offset the Vega mismatch you quantified in Section 4 — only another option carries Vega. Add a second option to your hedge portfolio so the combined position is both Delta- and Vega-neutral at each rebalance, and compare hedging P&amp;L to the delta-only result from Section 4/5. (This is a different fix from a <em>Gamma</em> hedge, which addresses the discrete-rebalancing error from Section 4/5’s frequency sweep instead of the volatility-mismatch risk from Section 4’s two-<span class="math inline">\(\sigma\)</span> comparison — both are real, standard hedges on a real desk, just aimed at different residual risks.) Does neutralizing Vega meaningfully reduce P&amp;L variance, especially under a shifting implied volatility?</li>
+<li><strong>Term structure</strong>: using three or more expirations, plot at-the-money implied volatility against time to maturity (the volatility <strong>term structure</strong>, distinct from the strike smile) and discuss its shape.</li>
+<li><strong>Dividends or borrow cost</strong>: if your underlying pays a dividend before your chosen expiration, extend the Black-Scholes formula and your hedging simulation to account for it (a continuous dividend yield adjustment is sufficient), and quantify how much ignoring it would have mispriced your Section 7 contract.</li>
 </ul>
-<p>Briefly explain your choice and what it revealed relative to your Section 5 strategy. This section is not required for full credit on the assignment — it’s here for students who want to keep exploring.</p>
+<p>Briefly explain your choice and what it revealed relative to your Section 7 analysis. This section is not required for full credit — it’s here for students who want to keep exploring.</p>
 <hr>
 </section>
-<section id="deliverables-and-grading" class="level2" data-number="8">
-<h2 data-number="8" class="anchored" data-anchor-id="deliverables-and-grading"><span class="header-section-number">8</span> Deliverables and Grading</h2>
-<p>Submit a single <code>.ipynb</code> that runs top-to-bottom without error. You do not need to commit your cached data file; include the caching function so that a grader can reproduce the download. Where sections ask for “good visualizations,” axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.</p>
+<section id="deliverables-and-grading" class="level2" data-number="11">
+<h2 data-number="11" class="anchored" data-anchor-id="deliverables-and-grading"><span class="header-section-number">11</span> Deliverables and Grading</h2>
+<p>Submit a single <code>.ipynb</code> that runs top-to-bottom without error against the instructor-provided OPRA dataset (read from a local path — do not hardcode a path that only exists on your own machine; use a variable set near the top of the notebook). Where sections ask for “good visualizations,” axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 50%">
@@ -2635,27 +2654,35 @@ window.Quarto = {
 </thead>
 <tbody>
 <tr class="odd">
-<td>1 — Data pipeline (caching, clean returns)</td>
+<td>1 — Data pipeline (OPRA panel, universe selection, caching)</td>
+<td>15</td>
+</tr>
+<tr class="even">
+<td>2 — Pricing vs. market and put-call parity</td>
+<td>15</td>
+</tr>
+<tr class="odd">
+<td>3 — Implied volatility and the smile</td>
+<td>15</td>
+</tr>
+<tr class="even">
+<td>4 — Delta hedging (4.1 simulated distribution + 4.2 real lifecycle)</td>
+<td>25</td>
+</tr>
+<tr class="odd">
+<td>5 — Transaction costs</td>
 <td>10</td>
 </tr>
 <tr class="even">
-<td>2 — Parameter uncertainty (simulation + real data + bootstrap/rolling + dimension)</td>
-<td>30</td>
+<td>6 — Model limitations (smile mispricing)</td>
+<td>10</td>
 </tr>
 <tr class="odd">
-<td>3 — Weight sensitivity (all five sub-parts + visualizations)</td>
-<td>20</td>
+<td>7 — Full report and interpretation</td>
+<td>10</td>
 </tr>
 <tr class="even">
-<td>4 — Rebalancing and costs (frictionless + cost analysis)</td>
-<td>20</td>
-</tr>
-<tr class="odd">
-<td>5 — Backtester (loop + tearsheet + interpretation)</td>
-<td>20</td>
-</tr>
-<tr class="even">
-<td>6 — Bonus</td>
+<td>8 — Bonus</td>
 <td>up to +5</td>
 </tr>
 <tr class="odd">
@@ -2665,7 +2692,18 @@ window.Quarto = {
 </tbody>
 </table>
 <p>Partial credit is given for each section independently. A section that is attempted but incomplete receives more credit than a section that is skipped.</p>
-<p><strong>A note on why this matters beyond the grade:</strong> a cleaned-up version of this notebook — especially Sections 5 and 6 — is a legitimate portfolio piece. Many quant research take-home interviews ask for almost exactly this: a reproducible data pipeline, an honest treatment of uncertainty, and a walk-forward backtest with costs. Consider putting a polished version on GitHub.</p>
+<p><strong>A note on why this matters beyond the grade:</strong> the gap between “I can derive Black-Scholes” and “I can trade an option using it responsibly” is exactly what Sections 2–7 are built to close — checking a model against real, imperfect market data, and being honest about where and how much it’s wrong, is what separates a classroom formula from something a desk will actually let you hedge with. A cleaned-up version of this notebook is a legitimate work sample for exactly that reason. Consider putting a polished version on GitHub.</p>
+</section>
+<section id="references" class="level2" data-number="12">
+<h2 data-number="12" class="anchored" data-anchor-id="references"><span class="header-section-number">12</span> References</h2>
+<ul>
+<li>Black, F. &amp; Scholes, M. (1973). <em>The Pricing of Options and Corporate Liabilities</em>. Journal of Political Economy, 81(3), 637–654.</li>
+<li>Derman, E. &amp; Kani, I. (1994). <em>Riding on a Smile</em>. Risk, 7(2), 32–39.</li>
+<li>Gatheral, J. (2006). <em>The Volatility Surface: A Practitioner’s Guide</em>. Wiley.</li>
+<li>Hull, J. C. <em>Options, Futures, and Other Derivatives</em>.</li>
+<li>Merton, R. C. (1973). <em>Theory of Rational Option Pricing</em>. The Bell Journal of Economics and Management Science, 4(1), 141–183.</li>
+<li>Shreve, S. (2004). <em>Stochastic Calculus for Finance II: Continuous-Time Models</em>. Springer.</li>
+</ul>
 
 </section>
 
