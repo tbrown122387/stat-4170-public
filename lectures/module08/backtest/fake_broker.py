@@ -1,7 +1,7 @@
 """A fake broker for a zero-latency, limit-order backtest.
 
 Reads the real SPY tick data used elsewhere in Module 7/8
-(`scripts/20260401.txt`) and turns each line into an incoming message: either
+(`data/20260812_spy.txt`) and turns each line into an incoming message: either
 a quote update (a new best bid/ask) or a trade print. It also holds our own
 resting limit orders and, on every trade print, checks whether that trade
 would have crossed one of them -- if so it manufactures an OrderFilled message.
@@ -11,6 +11,7 @@ sent, with no simulated wire delay -- not that we can see the future. Only
 information from lines already read is ever used.
 """
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -57,8 +58,11 @@ class OrderFilled:
 def _parse_line(line):
     body = line.strip()
     body = body[len("MarketData(") : -1]
-    fields = dict(part.split("=", 1) for part in body.split(", "))
-    time = datetime.strptime(fields["time"], "%Y-%m-%d %H:%M:%S.%f")
+    # split on ", " only when it precedes the next "key=", so bracketed
+    # list-valued fields like "conditions=[12, 37]" stay intact
+    parts = re.split(r", (?=\w+=)", body)
+    fields = dict(part.split("=", 1) for part in parts)
+    time = datetime.strptime(fields["local_time"], "%Y-%m-%d %H:%M:%S.%f")
     if "bid" in fields:
         return QuoteUpdate(time, float(fields["bid"]), float(fields["ask"]))
     return TradePrint(time, float(fields["last"]), int(fields["size"]))

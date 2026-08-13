@@ -212,12 +212,12 @@ In market microstructure, a common starting assumption: buy orders and sell orde
 
 We'll use exactly this assumption to build a simple market-making model in Module 8, following Avellaneda & Stoikov (2008).
 
-## Real Order Flow: SPY Trades, 2026-04-01
+## Real Order Flow: SPY Trades, 2026-08-12
 
-`scripts/20260401.txt` is a full day of raw SPY market data — 1.78M timestamped lines. Most are quote (bid/ask) updates, but 746,266 of them are **trade prints** (`last=`), each with a microsecond timestamp:
+`data/20260812_spy.txt` is a full day of raw SPY market data — 2.37M timestamped lines. Most are quote (bid/ask) updates, but 471,265 of them are **trade prints** (`last=`), each with a microsecond timestamp:
 
 ```
-MarketData(ticker=SPY, time=2026-04-01 09:04:35.122803, last=652.58, size=100, exchange=BATS)
+MarketData(ticker=SPY, time=2026-08-12 09:04:35.122803, last=652.58, size=100, exchange=BATS)
 ```
 
 We'll pull out just the trade timestamps and treat them as arrivals of a counting process $N(t)$ — exactly like the simulated Poisson process above, but real.
@@ -230,7 +230,7 @@ import numpy as np
 import pandas as pd
 
 times = []
-with open("../../scripts/20260401.txt") as f:
+with open("../../data/20260812_spy.txt") as f:
     for line in f:
         if "last=" not in line:
             continue
@@ -269,7 +269,7 @@ ax.axvline(market_open, color="red", ls=":", lw=1.5, label="9:30 market open")
 ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
 ax.set_xlabel("time of day")
 ax.set_ylabel("N(t)")
-ax.set_title("SPY Trade Arrivals, 2026-04-01")
+ax.set_title("SPY Trade Arrivals, 2026-08-12")
 ax.legend()
 plt.tight_layout()
 plt.show()

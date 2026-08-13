@@ -13,10 +13,10 @@ We only rest quotes during regular trading hours, 9:30 to 4:00 -- outside
 that window we cancel any resting orders and just watch the tape.
 
 Run with the `quant-ts` conda environment active, pointing at a quote/trade
-tape in the same format as `scripts/20260401.txt`:
-    python main.py ../../../scripts/20260401.txt
-    python main.py ../../../scripts/20260401.txt --plot
-    python main.py ../../../scripts/20260401.txt --plot --max-messages 2000000
+tape in the same format as `data/20260812_spy.txt`:
+    python main.py ../../../data/20260812_spy.txt
+    python main.py ../../../data/20260812_spy.txt --plot
+    python main.py ../../../data/20260812_spy.txt --plot --max-messages 2000000
 """
 
 import argparse
@@ -99,7 +99,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "data_path",
-        help="path to a quote/trade tape in the same format as scripts/20260401.txt",
+        help="path to a quote/trade tape in the same format as data/20260812_spy.txt",
     )
     parser.add_argument(
         "--plot",

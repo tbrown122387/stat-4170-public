@@ -189,7 +189,13 @@ If you will render lecture or assignment .qmd files:
 quarto check
 ```
 
-4. Render a file when needed:
+4. Install TinyTeX, needed to render any `.qmd` file to PDF (e.g. the syllabus):
+
+```bash
+quarto install tinytex
+```
+
+5. Render a file when needed:
 
 ```bash
 quarto render path/to/file.qmd
@@ -227,3 +233,4 @@ Before class work begins, confirm all are true:
 4. A Python file runs successfully.
 5. A notebook cell runs with quant-ts kernel.
 6. quarto check runs without critical errors (if using .qmd files).
+7. quarto install tinytex has been run (if you'll be rendering any .qmd files to PDF).

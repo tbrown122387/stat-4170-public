@@ -48,7 +48,7 @@ This is the environment CS 3's market maker operates in — not one order book, 
 
 ## Real Data: How Fragmented Is SPY Trading, Really?
 
-`scripts/20260401.txt` — the same file from Module 7 — tags every trade print with the venue that reported it. Let's look at the actual mix for one day of SPY:
+`data/20260812_spy.txt` — the same file from Module 7 — tags every trade print with the venue that reported it. Let's look at the actual mix for one day of SPY:
 
 ```{python}
 #| label: module08-exchange-fragmentation
@@ -59,30 +59,31 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 exchanges = []
-with open("../../scripts/20260401.txt") as f:
+with open("../../data/20260812_spy.txt") as f:
     for line in f:
         if "last=" not in line:
             continue
         i = line.index("exchange=") + 9
-        exchanges.append(line[i:].strip().rstrip(")"))
+        j = line.index(",", i)
+        exchanges.append(line[i:j])
 
 counts = pd.Series(exchanges).value_counts()
 print(counts)
 
 fig, ax = plt.subplots(figsize=(10, 5))
 counts.plot(kind="bar", ax=ax, color="C0")
-ax.set_ylabel("trade prints, 2026-04-01")
+ax.set_ylabel("trade prints, 2026-08-12")
 ax.set_title("SPY trade prints by reporting venue")
 plt.tight_layout()
 plt.show()
 ```
 
-Real trades in a single, heavily-traded ETF, printed across a dozen-plus distinct venues in one day. `UNKNOWN` and `FINRA` are trades that never touched a lit exchange book at all — more on that shortly.
+Real trades in a single, heavily-traded ETF, printed across a dozen-plus distinct venues in one day. `UNKNOWN` and `DARK` are trades that never touched a lit exchange book at all — more on that shortly.
 
 ## Lit Exchanges vs. Dark Pools
 
 - **Lit exchanges** (NYSE, Nasdaq, Cboe BZX/BYX/EDGX/EDGA, IEX, MEMX, MIAX Pearl, ...) post **public, displayed** bid/ask quotes. These quotes are what combine to form the **NBBO** (National Best Bid and Offer).
-- **Dark pools / ATSs** and off-exchange internalizers take orders **without displaying a quote**. A trade happens, then gets reported after the fact to a **FINRA Trade Reporting Facility (TRF)** — this is the `FINRA` tag in the data above.
+- **Dark pools / ATSs** and off-exchange internalizers take orders **without displaying a quote**. A trade happens, then gets reported after the fact to a **FINRA Trade Reporting Facility (TRF)** — this is the `DARK` tag in the data above.
 - Roughly **40–50% of U.S. equity volume** trades off-exchange in a given period. Dark venues exist because large or informed traders don't want to reveal size and intent by resting a visible order.
 
 For a market maker quoting on a lit exchange, this matters: displayed liquidity is only part of the picture, and a meaningful share of flow never has a chance to interact with your quote at all.
@@ -301,13 +302,13 @@ Individual paths (thin lines) are noisy, fanning out further from each other as 
 
 ## From Simulation to a Real Backtest
 
-The simulation above draws fills from a model. `backtest/` in this module's folder runs a real market-making strategy against the **real SPY tape** from `scripts/20260401.txt`, event by event, with a proper fake broker instead of a fill-probability formula:
+The simulation above draws fills from a model. `backtest/` in this module's folder runs a real market-making strategy against the **real SPY tape** from `data/20260812_spy.txt`, event by event, with a proper fake broker instead of a fill-probability formula:
 
 - **`fake_broker.py`** — parses the tape into two kinds of incoming messages, `QuoteUpdate` (a new best bid/ask) and `TradePrint` (an executed trade), and holds our resting limit orders. On every trade print it checks whether the trade would have crossed one of our orders and, if so, produces an `OrderFilled` message. Zero latency: our orders and cancels take effect instantly, but the broker only ever looks at ticks already read — no peeking ahead.
 - **`main.py`** — a plain `for` loop. Each iteration calls one function, `handle_next_tick(broker, book)`, which (a) reads every message the broker produced since the last call and updates our book (best bid/ask, inventory, cash), then (b) cancels our old quotes and sends new ones resting just *behind* the touch — bid below the best bid, ask above the best ask — shifted by inventory, the same skew idea as $r = s - q\gamma\sigma^2\tau$, without the calculus. Resting behind the touch instead of improving it is what lets the strategy earn the spread rather than pay for fill priority. Quotes only rest during regular trading hours, 9:30–4:00; outside that window we just watch the tape.
 
 ```
-python main.py ../../../scripts/20260401.txt --plot
+python main.py ../../../data/20260812_spy.txt --plot
 ```
 
 `--plot` shows mark-to-market PnL over the course of the trading day.

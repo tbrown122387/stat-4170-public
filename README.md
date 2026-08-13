@@ -34,9 +34,11 @@ To rebuild:
 
 1.  Install [Quarto](https://quarto.org/docs/get-started/) if you don't already have it.
 
-2.  Activate the course environment (see above): `conda activate quant-ts`.
+2.  Install TinyTeX, needed to render any document to PDF (e.g. the syllabus): `quarto install tinytex`.
 
-3.  Render a single file:
+3.  Activate the course environment (see above): `conda activate quant-ts`.
+
+4.  Render a single file:
 
     ``` bash
     quarto render lectures/module01/index.qmd
