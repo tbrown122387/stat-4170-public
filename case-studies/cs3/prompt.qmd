@@ -19,16 +19,18 @@ execute:
 
 **The scenario:** You've just joined the market-making desk at a small electronic trading firm. The pedagogical Avellaneda-Stoikov strategy from Module 8 — rest a little behind the touch, skew by inventory, run it against a real SPY tape — makes money in the demo. Your head trader has seen this movie before: a backtest that fills instantly at zero cost, with no fee schedule, no latency, and no accounting for who's actually first in line at a price level, always looks better than the real thing. Before any of this gets a risk allocation, she wants five specific questions answered: how much do exchange fees and rebates actually matter, how much does latency cost you, how important is queue priority, is inventory skew the best way to tilt a quote, and — the question that decides whether the strategy is "collecting the spread" or "getting picked off" — what does the P&L look like *after* you account for what the price does in the seconds following your fills.
 
-Modules 7 and 8 gave you the building blocks: Poisson arrivals and Brownian motion as the two random ingredients, the Avellaneda-Stoikov reservation price and half-spread as a first policy, and a real, event-by-event backtest (`fake_broker.py` / `main.py` in `lectures/module08/backtest/`) that plays back one real trading day of SPY quotes and trades (`scripts/20260401.txt`) and matches your resting limit orders against it. This case study asks you to take that infrastructure — not rebuild it from scratch — and use it to answer the head trader's five questions with real numbers, not intuition.
+Modules 7 and 8 gave you the building blocks: Poisson arrivals and Brownian motion as the two random ingredients, the Avellaneda-Stoikov reservation price and half-spread as a first policy, and a real, event-by-event backtest (`fake_broker.py` / `main.py` in `lectures/module08/backtest/`) that plays back one real trading day of SPY quotes and trades (`data/20260812_spy.txt`) and matches your resting limit orders against it. This case study asks you to take that infrastructure — not rebuild it from scratch — and use it to answer the head trader's five questions with real numbers, not intuition.
 
-Submit your work as a single, self-contained **Jupyter notebook** (`.ipynb`). You are extending `fake_broker.py` and `main.py`, not starting over — read both files closely before writing any code. Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error. Figures must render inline. Show all intermediate outputs that support your written interpretation.
+**A note on the data:** `data/20260812_spy.txt` is real, vendor-sourced tick data, not something either you or the instructor is meant to redistribute further — you should already have your own copy from following along with Modules 7–8 locally. **Your submission must include that copy alongside your notebook** rather than relying on a shared copy at grading time (see Deliverables below for exactly how).
+
+Submit your work as a single, self-contained **Jupyter notebook** (`.ipynb`), packaged with the tape data as described in Deliverables. You are extending `fake_broker.py` and `main.py`, not starting over — read both files closely before writing any code. Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error. Figures must render inline. Show all intermediate outputs that support your written interpretation.
 
 ### Some Rookie Mistakes That Will Sink a Real Market-Making Book {.unnumbered}
 
 Every one of these has turned a promising backtest into a strategy that loses money live. Watch for them:
 
 - **Zero-latency backtests that stay zero-latency.** `fake_broker.py` fills your orders and processes your cancels instantly by design — that's the right *starting point*, but reporting its P&L as-is and calling it a day ignores exactly the question this case study asks you to answer in Section 3.
-- **Treating Level 1 data as if it tells you your queue position.** `scripts/20260401.txt` is top-of-book only (`bid_size`, `ask_size`, no order-level detail) — as Module 8 explained, only Level 3/MBO data actually shows who's first in line. The baseline fill model in `fake_broker.py` implicitly assumes you're always at the front of the queue the instant you rest an order. That's an optimistic best case, not a neutral assumption — Section 4 asks you to confront this directly.
+- **Treating Level 1 data as if it tells you your queue position.** `data/20260812_spy.txt` is top-of-book only (`bid_size`, `ask_size`, no order-level detail) — as Module 8 explained, only Level 3/MBO data actually shows who's first in line. The baseline fill model in `fake_broker.py` implicitly assumes you're always at the front of the queue the instant you rest an order. That's an optimistic best case, not a neutral assumption — Section 4 asks you to confront this directly.
 - **Peeking ahead.** Your quoting logic at tick $t$ may only use information from ticks already read by the broker. This is the same off-by-one/lookahead family of bugs as CS 1 and CS 2, just relocated to an event loop instead of a daily bar.
 - **Counting the spread but not the fees.** As Module 8's edge equation makes explicit, $\text{edge} = \text{captured spread} + \text{rebates} - \text{fees} - \text{adverse selection cost}$ — a tearsheet that reports only gross spread capture is missing three of four terms.
 - **Unmanaged inventory.** A strategy that quotes symmetrically without any skew lets inventory drift like a random walk toward whatever hard position limit you've set — and then you're carrying directional risk, not making markets.
@@ -40,13 +42,13 @@ Every one of these has turned a promising backtest into a strategy that loses mo
 
 ## Section 0 — Before You Start: What's Already Built
 
-Read `lectures/module08/backtest/fake_broker.py` and `lectures/module08/backtest/main.py` in full before starting. `FakeBroker` parses `scripts/20260401.txt` into `QuoteUpdate` and `TradePrint` messages, holds your resting limit orders, and manufactures an `OrderFilled` message the instant a trade print crosses one of your orders. `main.py`'s `handle_next_tick` is the strategy loop: read messages, update the book, cancel and re-quote behind the touch with a fixed per-share inventory skew.
+Read `lectures/module08/backtest/fake_broker.py` and `lectures/module08/backtest/main.py` in full before starting. `FakeBroker` parses `data/20260812_spy.txt` into `QuoteUpdate` and `TradePrint` messages, holds your resting limit orders, and manufactures an `OrderFilled` message the instant a trade print crosses one of your orders. `main.py`'s `handle_next_tick` is the strategy loop: read messages, update the book, cancel and re-quote behind the touch with a fixed per-share inventory skew.
 
 You are extending this infrastructure — subclassing or modifying `FakeBroker`, adding new fields to `book`, adding new command-line-free helper functions — not writing a new event-driven backtester from zero. Confirm you can run the baseline as-is before changing anything:
 
 ```
 cd lectures/module08/backtest
-python main.py ../../../scripts/20260401.txt --plot
+python main.py ../../../data/20260812_spy.txt --plot
 ```
 
 ---
@@ -190,7 +192,9 @@ Briefly explain your choice and what it revealed relative to your Section 7 stra
 
 ## Deliverables and Grading
 
-Submit a single `.ipynb` that runs top-to-bottom without error against `scripts/20260401.txt`. Where sections ask for "good visualizations," axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.
+**Submit a zip containing your notebook together with your own copy of the tape data**, not the notebook alone: `notebook.ipynb` plus `data/20260812_spy.txt` (same relative layout, `data/` alongside the notebook). Grading runs your notebook against *your* submitted copy of the data, not a shared one — `fake_broker.py`/`main.py` are already provided in the grading environment, but the tape data is not, precisely because everyone is expected to already have their own copy rather than the instructor redistributing one shared file. In your notebook, read the tape from a path variable near the top (e.g. `TAPE_PATH = "data/20260812_spy.txt"`) rather than the `../../../data/...` path Section 0's baseline check uses — that path is specific to your local repo layout and won't resolve once your notebook is graded elsewhere.
+
+Your submission must run top-to-bottom without error against that data. Where sections ask for "good visualizations," axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.
 
 | Section | Points |
 |---|---|

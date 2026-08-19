@@ -23,9 +23,9 @@ This case study asks you to take a real, historical panel of SPX (S&P 500 index)
 
 **Why SPX and not SPY:** everything in Modules 9–11 derives the price of a **European** option — one that can only be exercised at expiration. SPX index options are cash-settled and European-style, so they're the fair, apples-to-apples test of the model. SPY (and single-name equity) options are **American-style**: they can be exercised early, which means their market price includes an early-exercise premium that plain Black-Scholes does not, and cannot, account for. Comparing a European closed-form price to an American-style market quote would blame the model for a gap that's actually a mismatch in contract terms, not a modeling error — exactly the kind of confound this case study is designed to avoid.
 
-**A note on the data:** unlike CS 1–3, your options data for this case study is **not** something you pull yourself from a free API. The instructor will provide you with a real historical panel of consolidated SPX option quotes (details in Section 1) — a genuine, multi-week *time series* of a full option chain, not a single live snapshot. This is licensed vendor data: **do not redistribute it, do not commit it to any public repository (including a public fork of this course's materials), and do not share it outside this course.** You will still use `yfinance` for the underlying's own price history and for a risk-free rate, exactly as in earlier case studies.
+**A note on the data:** unlike CS 1–3, your options data for this case study is **not** something you pull for free from `yfinance`/FRED. You'll need a real, historical panel of consolidated SPX option quotes (details in Section 1) — a genuine, multi-week *time series* of a full option chain, not a single live snapshot. **You will buy this yourself, through your own personal Databento account**, rather than receiving a shared copy from the instructor: sign up for a free account at [databento.com](https://databento.com) — new accounts are credited with $125 of free usage, comfortably enough to cover this case study's data pull (see Section 1.1 for exactly what to request). Buying it individually, rather than redistributing one shared file, isn't a formality — data-vendor licenses like Databento's are tied to the account that pays for the data, and generally don't permit that account holder to redistribute it to anyone else, including classmates or a shared class repository. You will still use `yfinance` for the underlying's own price history and for a risk-free rate, exactly as in earlier case studies.
 
-Submit your work as a single, self-contained **Jupyter notebook** (`.ipynb`). Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error against the provided dataset, read from wherever your instructor tells you to place it locally (see Section 1). Figures must render inline. Show all intermediate outputs that support your written interpretation.
+Submit your work as a single, self-contained **Jupyter notebook** (`.ipynb`). Every section should be clearly delineated with a markdown cell. Code must run top-to-bottom without error against your own purchased dataset, read from a local path you set with a variable near the top of the notebook (see Section 1). Figures must render inline. Show all intermediate outputs that support your written interpretation.
 
 ### Some Rookie Mistakes That Will Sink a Real Options Book {.unnumbered}
 
@@ -52,9 +52,12 @@ The Module 10 and Module 11 slides gave you working code for `black_scholes(...)
 
 *In practice: this is the unglamorous, at-scale data-engineering step every real derivatives desk depends on — consolidated options data arrives as enormous per-day files covering an entire chain, and getting from "a folder of multi-hundred-megabyte files" down to "a clean, analyzable panel for the handful of contracts you actually care about" is most of the real work.*
 
-### 1.1 — What You're Given
+### 1.1 — Getting the Data: Buy Your Own Databento Panel
 
-Your instructor will provide a folder of real market data: **Databento OPRA.PILLAR, `cbbo-1m` schema, for `SPX.OPT`** (the full SPX option chain), covering a run of consecutive trading days. One file per day, named `opra-pillar-YYYYMMDD.cbbo-1m.csv.zst` (zstd-compressed CSV — `pandas.read_csv(..., compression="zstd")` reads these directly, or decompress on the fly with the `zstd`/`unzstd` command-line tool). Each file has one row per SPX contract per minute: a **consolidated best-bid/offer (NBBO) snapshot**, sampled once per minute, for every listed SPX option. Columns:
+1. Create a free account at [databento.com](https://databento.com). New accounts are awarded $125 of free usage credit — this case study's request should cost on the order of the low tens of dollars, well inside that.
+2. From the Databento portal's historical-data / dataset browser, request dataset **OPRA.PILLAR**, schema **`cbbo-1m`**, symbols **`SPX.OPT`** (use the parent/instrument-class symbology so you get every listed SPX contract in one request, not one ticker at a time), for the date range your instructor announces (see Gradescope/Canvas) — **use that same date range**, not one you pick yourself; Section 1.2's contract-selection logic and any in-class discussion of results assume everyone is looking at the same window.
+3. Before confirming the request, Databento shows a cost estimate for the query — confirm it's comfortably inside your $125 credit before submitting.
+4. Once the job completes, download the result: one file per trading day, named `opra-pillar-YYYYMMDD.cbbo-1m.csv.zst` (zstd-compressed CSV — `pandas.read_csv(..., compression="zstd")` reads these directly, or decompress on the fly with the `zstd`/`unzstd` command-line tool). Each file has one row per SPX contract per minute: a **consolidated best-bid/offer (NBBO) snapshot**, sampled once per minute, for every listed SPX option. Columns:
 
 | Column | Meaning |
 |---|---|
@@ -68,7 +71,7 @@ Your instructor will provide a folder of real market data: **Databento OPRA.PILL
 
 A handful of other columns (`rtype`, `publisher_id`, `side`, `flags`, `bid_pb_00`, `ask_pb_00`) are Databento bookkeeping fields you can ignore for this case study.
 
-**This is licensed data provided for coursework only.** Do not commit it, or any file derived from it, to a public repository — keep it entirely local, and keep any derived cache files out of your submitted notebook's tracked outputs (a `.gitignore` entry, if you're using git at all for this, is a good habit).
+**This is licensed data tied to your personal Databento account.** Do not share your downloaded files with classmates — everyone has their own $125 credit for exactly this reason — and do not commit them, or any file derived from them, to a repository, public or private. Keep it entirely local, and keep any derived cache files out of your submitted notebook's tracked outputs (a `.gitignore` entry, if you're using git at all for this, is a good habit).
 
 ### 1.2 — Choosing a Working Universe
 
@@ -225,7 +228,7 @@ Briefly explain your choice and what it revealed relative to your Section 7 anal
 
 ## Deliverables and Grading
 
-Submit a single `.ipynb` that runs top-to-bottom without error against the instructor-provided OPRA dataset (read from a local path — do not hardcode a path that only exists on your own machine; use a variable set near the top of the notebook). Where sections ask for "good visualizations," axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.
+Submit a single `.ipynb` that runs top-to-bottom without error against your own purchased OPRA dataset (read from a local path — do not hardcode a path that only exists on your own machine; use a variable set near the top of the notebook). Where sections ask for "good visualizations," axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.
 
 | Section | Points |
 |---|---|
