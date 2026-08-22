@@ -1,6 +1,6 @@
-# STAT 4170 Computer Setup Guide (First-Time Setup)
+# {{COURSE_CODE}} Computer Setup Guide (First-Time Setup)
 
-Use this guide the first time you set up your machine for STAT 4170. When you finish, you should be able to:
+Use this guide the first time you set up your machine for {{COURSE_CODE}}. When you finish, you should be able to:
 
 1. Open the class folder in VS Code.
 2. Use the correct Conda environment named quant-ts.
@@ -63,7 +63,7 @@ Optional but useful:
 1. autopep8
 2. GitLens
 
-## 5) Get the STAT 4170 course folder on your machine
+## 5) Get the {{COURSE_CODE}} course folder on your machine
 
 Use one of these methods:
 
@@ -107,7 +107,7 @@ The path should include envs/quant-ts.
 2. Select your local ds-5005 folder.
 3. If prompted, click "Yes, I trust the authors" for this course folder.
 
-## 8) Select the STAT 4170 Python interpreter in VS Code
+## 8) Select the {{COURSE_CODE}} Python interpreter in VS Code
 
 This is the most important VS Code integration step.
 
