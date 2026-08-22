@@ -97,7 +97,7 @@ These are examples of "budget constraints"
 
 The **portfolio return** at $t+1$ is then the scalar:
 $$
-r_{t+1} = \mathbf{w}_t^\intercal \mathbf{y}_{t+1} = \sum_{i=1}^k w_i \, y_{t+1,i}
+r_{t+1} = \mathbf{w}_t^\intercal \mathbf{y}_{t+1} = \sum_{i=1}^k w_{t,i} \, y_{t+1,i}
 $$
 
 It combines your decisions with the random future to give you one random percent.
@@ -315,6 +315,7 @@ $$
 = \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}
 $$
 
+NB: I'm going to drop the $t$ subscripts for the rest of the module. The math is the same, and it makes the notation less cluttered.
 
 ## The Covariance Matrix
 
