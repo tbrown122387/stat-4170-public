@@ -76,9 +76,9 @@ In general, with $\mathbf{w}_t = \begin{bmatrix} w_{t,1}, \cdots, w_{t,k} \end{b
 
 These are examples of "budget constraints"
 
-- $\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 1$: fully invested, no leverage, potentially short stuff
-- $\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 2$: levered 2-to-1
-- $\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 0$: "dollar-neutral"
+- $\sum_i w_{t,i} = \mathbf{w}_t^\intercal \mathbf{1} = 1$: fully invested, no leverage, potentially short stuff
+- $\sum_i w_{t,i} = \mathbf{w}_t^\intercal \mathbf{1} = 2$: levered 2-to-1
+- $\sum_i w_{t,i} = \mathbf{w}_t^\intercal \mathbf{1} = 0$: "dollar-neutral"
 
 ## Portfolio Weights
 
@@ -109,7 +109,7 @@ The identity $r_{t+1} = \mathbf{w}_t^\intercal \mathbf{y}_{t+1}$ **only holds fo
 Log returns do not aggregate across assets this way. If $y_{t+1,i} = \ln(P_{t+1,i}/P_{t,i})$, then in general
 
 $$
-\mathbf{w}_t^\intercal \mathbf{y}_{t+1} \;\neq\; \ln\!\left(\frac{\sum_i w_i P_{t+1,i}}{\sum_i w_i P_{t,i}}\right) = \text{true log portfolio return}
+\mathbf{w}_t^\intercal \mathbf{y}_{t+1} \;\neq\; \ln\!\left(\frac{\sum_i w_{t,i} P_{t+1,i}}{\sum_i w_{t,i} P_{t,i}}\right) = \text{true log portfolio return}
 $$
 
 because $\ln$ of a sum isn't the sum of $\ln$'s.
@@ -160,7 +160,7 @@ We will often drop the conditioning from the notation.
 The portfolio's **expected return** follows by linearity of expectation:
 
 $$
-\mathbb{E}[\mathbf{w}^\intercal \mathbf{y}_{t+1}] = \mathbf{w}^\intercal \boldsymbol{\mu}
+\mathbb{E}[\mathbf{w}_t^\intercal \mathbf{y}_{t+1}] = \mathbf{w}_t^\intercal \boldsymbol{\mu}
 $$
 
 ```{python}
@@ -315,7 +315,7 @@ $$
 = \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}
 $$
 
-NB: I'm going to drop the $t$ subscripts for the rest of the module. The math is the same, and it makes the notation less cluttered.
+**NB: I'm going to drop the $t$ subscripts for the rest of the module. The math is the same, and it makes the notation less cluttered.**
 
 ## The Covariance Matrix
 

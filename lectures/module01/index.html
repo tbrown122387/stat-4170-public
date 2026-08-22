@@ -1171,9 +1171,9 @@ p(\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t})
 </ul>
 <p>These are examples of “budget constraints”</p>
 <ul>
-<li><span class="math inline">\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 1</span>: fully invested, no leverage, potentially short stuff</li>
-<li><span class="math inline">\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 2</span>: levered 2-to-1</li>
-<li><span class="math inline">\sum_i w_i = \mathbf{w}_t^\intercal \mathbf{1} = 0</span>: “dollar-neutral”</li>
+<li><span class="math inline">\sum_i w_{t,i} = \mathbf{w}_t^\intercal \mathbf{1} = 1</span>: fully invested, no leverage, potentially short stuff</li>
+<li><span class="math inline">\sum_i w_{t,i} = \mathbf{w}_t^\intercal \mathbf{1} = 2</span>: levered 2-to-1</li>
+<li><span class="math inline">\sum_i w_{t,i} = \mathbf{w}_t^\intercal \mathbf{1} = 0</span>: “dollar-neutral”</li>
 </ul>
 </section>
 <section id="portfolio-weights-2" class="slide level2">
@@ -1218,7 +1218,7 @@ r_{t+1} = \mathbf{w}_t^\intercal \mathbf{y}_{t+1} = \sum_{i=1}^k w_{t,i} \, y_{t
 <p>The identity <span class="math inline">r_{t+1} = \mathbf{w}_t^\intercal \mathbf{y}_{t+1}</span> <strong>only holds for arithmetic (simple) returns.</strong></p>
 <p>Log returns do not aggregate across assets this way. If <span class="math inline">y_{t+1,i} = \ln(P_{t+1,i}/P_{t,i})</span>, then in general</p>
 <p><span class="math display">
-\mathbf{w}_t^\intercal \mathbf{y}_{t+1} \;\neq\; \ln\!\left(\frac{\sum_i w_i P_{t+1,i}}{\sum_i w_i P_{t,i}}\right) = \text{true log portfolio return}
+\mathbf{w}_t^\intercal \mathbf{y}_{t+1} \;\neq\; \ln\!\left(\frac{\sum_i w_{t,i} P_{t+1,i}}{\sum_i w_{t,i} P_{t,i}}\right) = \text{true log portfolio return}
 </span></p>
 <p>because <span class="math inline">\ln</span> of a sum isn’t the sum of <span class="math inline">\ln</span>’s.</p>
 <ul>
@@ -1257,7 +1257,7 @@ p(\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t})
 <p>We will often drop the conditioning from the notation.</p>
 <p>The portfolio’s <strong>expected return</strong> follows by linearity of expectation:</p>
 <p><span class="math display">
-\mathbb{E}[\mathbf{w}^\intercal \mathbf{y}_{t+1}] = \mathbf{w}^\intercal \boldsymbol{\mu}
+\mathbb{E}[\mathbf{w}_t^\intercal \mathbf{y}_{t+1}] = \mathbf{w}_t^\intercal \boldsymbol{\mu}
 </span></p>
 </section>
 <section id="the-mean-vector-1" class="slide level2">
@@ -1312,7 +1312,7 @@ p(\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t})
 <p>For daily returns</p>
 <div id="cell-module01-4" class="cell" data-execution_count="4">
 <div id="module01-4" class="cell-output cell-output-display cell-output-markdown">
-<p><span class="math display">\begin{bmatrix}0.0003984916 &amp; 0.0004077475 \\0.0004077475 &amp; 0.0017914367\end{bmatrix}</span></p>
+<p><span class="math display">\begin{bmatrix}0.0003984918 &amp; 0.0004077474 \\0.0004077474 &amp; 0.0017914367\end{bmatrix}</span></p>
 </div>
 </div>
 <p>For annualized returns</p>
@@ -1328,7 +1328,7 @@ p(\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t})
 <p>Example:</p>
 <div id="cell-module01-6" class="cell" data-execution_count="6">
 <div id="module01-6" class="cell-output cell-output-display cell-output-markdown">
-<p><span class="math display">\begin{bmatrix}0.0003984916 &amp; 0.0004077475 \\0.0004077475 &amp; 0.0017914367\end{bmatrix}</span></p>
+<p><span class="math display">\begin{bmatrix}0.0003984918 &amp; 0.0004077474 \\0.0004077474 &amp; 0.0017914367\end{bmatrix}</span></p>
 </div>
 </div>
 </section>
@@ -1340,7 +1340,7 @@ p(\mathbf{y}_{t+1} \mid \mathbf{y}_{1:t})
 = \sum_i \sum_j w_i w_j \,\text{Cov}(y_i, y_j)
 = \mathbf{w}^\intercal \boldsymbol{\Sigma} \mathbf{w}
 </span></p>
-<p>NB: I’m going to drop the <span class="math inline">t</span> subscripts for the rest of the module. The math is the same, and it makes the notation less cluttered.</p>
+<p><strong>NB: I’m going to drop the <span class="math inline">t</span> subscripts for the rest of the module. The math is the same, and it makes the notation less cluttered.</strong></p>
 </section>
 <section id="the-covariance-matrix-4" class="slide level2">
 <h2>The Covariance Matrix</h2>
