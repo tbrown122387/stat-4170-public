@@ -1,0 +1,426 @@
+================================================================================
+CASE STUDY 1 - GRADING RUBRIC
+Building a Mean-Variance Portfolio Pipeline
+DS 5005
+================================================================================
+
+Total: 100 points, plus up to 5 bonus points (Section 6).
+
+--------------------------------------------------------------------------------
+HOW TO USE THIS RUBRIC
+--------------------------------------------------------------------------------
+- Section point totals (1=10, 2=30, 3=20, 4=20, 5=20) match the assignment
+  prompt exactly.
+- Part A (Presentation & Reproducibility) is scored as DEDUCTIONS from the
+  earned section total, capped at -15 points overall. The hard caps in A1
+  (non-running notebook) apply on top of that cap.
+- Within each section, every row lists the criterion, its point value, and what
+  full / partial / no credit looks like. Partial credit is assessed per row.
+- An attempted-but-flawed answer always scores higher than a skipped one. A
+  section left blank earns 0; the same section attempted badly earns something.
+- Grading is done on a fresh kernel: "Restart & Run All" from a clean
+  environment, with no pre-existing data cache on disk.
+
+================================================================================
+PART A -- PRESENTATION & REPRODUCIBILITY  (cross-cutting; deductions, max -15)
+================================================================================
+
+A1. NOTEBOOK RUNS TOP-TO-BOTTOM WITHOUT ERROR
+    - Clean run, no errors: no deduction.
+    - Runs with harmless warnings only (deprecation notices, solver convergence
+      chatter that does not change results): no deduction.
+    - One or two cells raise errors but the rest of the notebook is independent
+      and gradeable: -5, and the failing section(s) are graded on their visible
+      saved output only.
+    - Notebook errors early and large portions cannot execute: FINAL SCORE
+      CAPPED AT 60% of otherwise-earned points.
+    - Not submitted as a single .ipynb (PDF only, .py only, bare Colab link with
+      no notebook file): not accepted for full credit; see syllabus format/late
+      policy.
+
+A2. SELF-CONTAINED AND REPRODUCIBLE
+    - Data is obtained programmatically through the Section 1 caching function;
+      a grader with no cache file can reproduce the download: no deduction.
+    - Depends on a local cache file that cannot be regenerated (hard-coded
+      absolute path, no download code path, private/renamed file): -5.
+    - Requires undocumented manual steps (install this, hand-download that): -3.
+    - Random seeds are set (or results are shown to be stable without them) for
+      every simulation / bootstrap / resampling step: -2 if missing AND results
+      are visibly seed-sensitive.
+
+A3. SECTION HEADINGS AND NAVIGATION
+    - Every section and subsection from the prompt appears as a markdown header,
+      in order, labeled so it is immediately obvious which question is being
+      answered (e.g. "## Section 2.3 - Bootstrap and Rolling Window"): no
+      deduction.
+    - Headers present but some sub-parts are buried in code comments or not
+      clearly delineated: -3.
+    - No markdown structure; grader has to hunt for where each answer is: -6.
+
+A4. FIGURES
+    - All plots render inline after a clean run: no deduction.
+    - Titles, axis labels, and legends (wherever more than one series is shown)
+      are present on every figure: up to -5 total, scaled to how many plots are
+      unlabeled. Per the prompt, unlabeled plots do not receive full credit.
+    - Figures illegible (too small, overlapping, default styling that hides the
+      point being made): -2.
+
+A5. WRITTEN INTERPRETATION QUALITY
+    - Prose cells actually answer what was asked, cite specific numbers and
+      figures, and are in the student's own words: no deduction.
+    - Interpretation is vague, generic, or just restates the question without
+      engaging the results: up to -5 across the whole notebook.
+
+A6. RETURN CONVENTION & UNITS CONSISTENCY
+    - One return convention (log OR simple) is chosen, stated explicitly, and
+      used consistently throughout; annualization is correct (mean x 252,
+      volatility x sqrt(252); Sharpe ratios compared on a common frequency):
+      no deduction.
+    - Convention switched mid-notebook, or annualization errors that materially
+      change reported numbers: -3 here (plus any per-section correctness loss).
+
+A7. CODE HYGIENE
+    - Reasonably organized; repeated logic is factored into functions; no dead
+      cells that error; no massive copy-paste where a loop or function was
+      clearly intended: no deduction.
+    - Egregiously disorganized: -2.
+
+A8. RED FLAGS (the "rookie mistakes" from the prompt) -- checked in context of
+    Sections 4 and 5, deducted there, but flag them explicitly in feedback:
+    - Lookahead bias / data leakage: fitting anything (scaler, hyperparameter,
+      weights) on data the strategy could not have seen on that trading day.
+    - Off-by-one in the trading loop: estimating with data through day t and
+      then trading on day t's close instead of day t+1.
+    - Reporting gross returns as if net, or applying costs at the wrong point
+      in the loop.
+    - Cherry-picking the flattering metric (Sharpe + cumulative return shown,
+      max drawdown quietly omitted).
+
+MAXIMUM TOTAL PART A DEDUCTION: -15 (A1 hard caps apply on top of this).
+
+================================================================================
+SECTION 1 -- DATA PIPELINE   (10 points)
+================================================================================
+
+1a. Fetches all 12 tickers (XLC, XLY, XLP, XLE, XLF, XLV, XLI, XLB, XLRE, XLK,
+    XLU, SPY) via yfinance, using adjusted / auto-adjusted close .......... 2
+    Full: all 12, adjusted close.
+    Partial: missing tickers, or uses unadjusted close (-1).
+
+1b. Disk cache implemented ............................................... 3
+    Full: first call downloads and writes to a local file (CSV/Parquet);
+          later calls read from disk instead of re-downloading.
+    Partial: "caches" but re-downloads every call, or never reads the file
+             back (1.5).
+
+1c. Cache invalidation against the latest available trading day .......... 2
+    Full: network is queried only when the stored data does not reach the most
+          recent available trading day; the invalidation logic is explained in
+          a prose cell.
+    Partial: refreshes on a crude timer or a manual flag only (1).
+    None: always trusts whatever is on disk (0).
+
+1d. Clean returns DataFrame ............................................... 2
+    Full: daily log OR percent returns (which one is stated explicitly), dates
+          as the index, tickers as columns, NaN rows dropped.
+    Partial: returns raw prices, leaves NaNs in, or does not state the
+             convention (1).
+
+1e. Portability and prose ................................................ 1
+    Full: cache path is relative / portable across machines; a short prose cell
+          explains the cache design and invalidation rule.
+
+================================================================================
+SECTION 2 -- PARAMETER & MODEL UNCERTAINTY   (30 points)
+================================================================================
+
+------------------------------- 2.1  Simulation study, no model risk  (8) -------
+2.1a Simulation setup ................................................... 3
+     Full: full-sample mu*, Sigma* from the sector ETF data used as ground
+           truth; many independent samples drawn from N(mu*, Sigma*) at each
+           n in {63, 126, 252, 504, 1008, 2520}; sample mean and sample
+           covariance computed for each replicate.
+     Partial: only some n values, too few replicates for stable summaries, or
+              resamples the historical data instead of drawing from the normal
+              (1.5).
+
+2.1b Estimation-error summaries ......................................... 3
+     Full: at least one sound metric for mu AND at least one for Sigma
+           (element-wise RMSE, Frobenius norm of Sigma_hat - Sigma*, sampling
+           distribution of mu_hat_i - mu*_i for a few assets, dispersion of
+           estimated Sharpe for a fixed w, etc.), aggregated across replicates.
+     Partial: only mu or only Sigma addressed, or a metric computed but not
+              aggregated across simulations (1.5).
+
+2.1c Honest visualization + interpretation .............................. 2
+     Full: labeled plots showing estimation error shrinking as n grows; prose
+           states at what n the estimates are "good enough" for practical use
+           AND explicitly compares the reliability of mu versus Sigma (mu is
+           the hard one to pin down).
+     Partial: plots with no interpretation, or interpretation that misses the
+              mu-vs-Sigma contrast (1).
+
+------------------------------- 2.2  Model uncertainty on real data  (8) --------
+2.2a Sample moments .................................................... 2
+     Full: sample mean vector and sample covariance matrix on the real sector
+           returns, reported in full (matrix or correlation matrix shown).
+
+2.2b CAPM estimates .................................................... 4
+     Full: multivariate OLS with SPY as the single factor (per-asset alpha,
+           beta); then law of total expectation and law of total covariance
+           used to build mu_hat and Sigma_hat
+           (Sigma_hat = beta beta^T sigma_m^2 + diag(residual variances);
+           mu_hat = alpha + beta * E[r_market]); results reported in full.
+     Partial: regression is run but the total-expectation / total-covariance
+              step is wrong or skipped (2); betas computed but Sigma_hat never
+              reconstructed (1).
+
+2.2c Comparison across methods ......................................... 2
+     Full: estimates compared element-wise; identifies which entries differ the
+           most and what that implies about model sensitivity.
+     Partial: "they look different" with no specifics (1).
+
+------------------------------- 2.3  Bootstrap and rolling window  (7) ----------
+2.3a Bootstrap ........................................................ 3
+     Full: daily return rows resampled with replacement 500-1000 times;
+           mu_hat and Sigma_hat recomputed each resample; resulting
+           distributions visualized (e.g. per-sector mu_hat with a confidence
+           band; distribution of Sigma_hat_ij for a few pairs).
+     Partial: too few resamples, or only mu or only Sigma shown (1.5).
+
+2.3b Rolling window ................................................... 2
+     Full: mu_hat and Sigma_hat computed on a rolling 252-day window; their
+           evolution over time is plotted.
+     Partial: computed but barely visualized (1).
+
+2.3c Interpretation .................................................. 2
+     Full: at least one paragraph referencing specific figures -- identifiable
+           regimes, which estimates look stable, which look volatile.
+     Partial: generic remarks not tied to the figures (1).
+
+------------------------------- 2.4  Dimension vs. sample size  (7) ------------
+2.4a Ground-truth construction ....................................... 2
+     Full: sample size fixed at n = 252 for the whole subsection; for k <= 12,
+           real full-sample estimates are subset to the first k assets; for
+           k > 12, a synthetic Sigma*(k) = D + beta beta^T sigma_m^2 is built
+           with beta and D drawn from distributions FIT TO the 12 real
+           estimated sector values (not arbitrary numbers); the construction is
+           documented in a prose cell.
+     Partial: synthetic Sigma*(k) uses invented numbers instead of fitting to
+              the real 12 (1); no k > 12 case at all (1).
+
+2.4b Simulation across k ............................................. 2
+     Full: k grid spans well below, near, and above n = 252 (e.g.
+           {5, 12, 50, 150, 252, 400}); many samples of size n drawn per k;
+           Sigma_hat computed for each replicate.
+     Partial: grid does not actually cross k = n (1).
+
+2.4c Three tracked quantities ....................................... 2
+     Full: condition number of Sigma_hat, smallest eigenvalue of Sigma_hat,
+           and the magnitude of the unconstrained w* (L2 norm or gross
+           leverage sum|w_i|) at a fixed gamma -- all three plotted against k.
+     Partial: only one or two of the three (1).
+
+2.4d Interpretation tied to w* proportional to Sigma_hat^{-1} mu_hat . 1
+     Full: explains why a near-singular (or singular, once k > n) Sigma_hat
+           makes the inverse -- and therefore the weights -- blow up
+           numerically, even though the true Sigma*(k) is well-conditioned at
+           every k; connects this to why Section 3.5's constraints and
+           industry shrinkage estimators exist.
+
+================================================================================
+SECTION 3 -- WEIGHT SENSITIVITY   (20 points)
+================================================================================
+
+Base estimates: a single fixed mu_hat, Sigma_hat from Section 2 (computed on the
+training window) is used as the reference throughout the section.
+  -1 if the base estimate silently changes between sub-parts.
+
+3.1 Sensitivity to gamma ............................................... 4
+    Full: w*(gamma) over a log-spaced grid roughly [0.1, 20]; the full weight
+          vector recorded at each gamma; a labeled plot shows each sector's
+          weight path; prose identifies the extreme cases and the gamma at
+          which allocations become "reasonable" (no extreme long/short).
+    Partial: grid computed but plot unlabeled or no interpretation (2).
+
+3.2 Sensitivity to mu (shrink-to-zero path) ........................... 4
+    Full: mu(alpha) = (1 - alpha) * mu_hat for alpha in [0, 1], with Sigma_hat
+          and gamma held fixed; weight paths plotted; prose gives the alpha at
+          which the weights become well-behaved.
+    Partial: computed with no interpretation (2).
+
+3.3 Sensitivity to correlations ...................................... 4
+    Full: Sigma = D C D decomposition used; C(rho) = (1-rho) C + rho 11^T / k
+          (or a defensible variant) with variances unchanged and the matrix
+          kept positive definite; w* computed across rho and plotted; intuition
+          given for what happens as all assets become more correlated (weights
+          become unstable / collapse toward a degenerate solution).
+    Partial: perturbs Sigma directly and breaks positive-definiteness or
+             changes the variances (2).
+
+3.4 Sensitivity to volatility ...................................... 4
+    Full: Sigma(s) = (s D) C (s D) for s in [0.5, 3], preserving all pairwise
+          correlations; w* computed across s and plotted; prose correctly notes
+          that scaling volatility changes the implied risk / overall scale of
+          the position but leaves the portfolio composition essentially
+          unchanged.
+    Partial: computed but misses the composition-vs-scale point (2).
+
+3.5 Constrained weights .......................................... 4
+    Full: one or two constraints from the list (long-only, position cap, or
+          leverage/gross-exposure cap; or a reasonable variant) re-solved with
+          a numerical solver (scipy.optimize.minimize SLSQP, or cvxpy) using
+          the Section 2 base mu_hat and Sigma_hat; constrained weights compared
+          to the earlier unconstrained weights; the amount of mean-variance
+          objective value "given up" by the constraint is quantified.
+    Partial: constraint solved but no comparison, or no utility-gap number (2);
+             closed-form only, no solver (1).
+
+================================================================================
+SECTION 4 -- REBALANCING AND TRADING COSTS   (20 points)
+================================================================================
+
+4pre. Setup ......................................................... 2
+      Full: first 60% of the data is the training period (parameters estimated
+            here only), last 40% is the test period; BOTH passive benchmarks
+            present in every comparison -- equal-weight (w = 1/k, rebalanced)
+            and SPY.
+      -1 per missing benchmark. -2 if any test-period information influences
+      the weight choice.
+
+------------------------------- 4.1  Frictionless rebalancing  (8) -------------
+4.1a Backtest mechanics ............................................ 4
+     Full: invest at w* (computed on training data) at the start of the test
+           period; rebalance back to w* every trading day; portfolio return
+           series is correct; no lookahead.
+     Partial: off-by-one in applying returns, or w* recomputed using test data
+              (2).
+
+4.1b Four metrics ................................................. 3
+     Full: cumulative return, annualized Sharpe (risk-free rate taken from a
+           data source, or set to zero with a stated note), maximum drawdown,
+           and annualized volatility -- all reported, and plotted where the
+           prompt asks, for the model portfolio(s) and both benchmarks.
+     Partial: -0.75 per missing or incorrect metric.
+
+4.1c Comparison to benchmarks .................................... 1
+     Full: prose actually compares the model portfolio against EW and SPY.
+
+------------------------------- 4.2  Transaction costs  (10) ------------------
+4.2a Turnover and cost accounting ................................ 3
+     Full: turnover_t = sum_i |w_target_i - w_drifted_i| using the PRE-rebalance
+           drifted weights (after price moves); cost = c * turnover is deducted
+           from portfolio value BEFORE the next period's returns are applied.
+     Partial: turnover computed target-vs-target (ignores drift), or cost
+              applied after returns instead of before (1.5).
+
+4.2b Management fee ............................................. 1
+     Full: fixed fee of f bps/year applied as a daily haircut
+           r_net_t = r_t - f/252.
+
+4.2c Rebalancing-frequency sweep .............................. 2
+     Full: daily, weekly, monthly, and quarterly all tested.
+     Partial: only two or three frequencies (1).
+
+4.2d Cost-level sweep ......................................... 2
+     Full: several values of c across the 1-20 bps range.
+     Partial: only one or two values (1).
+
+4.2e Result plot + interpretation ............................ 2
+     Full: at least one plot of net-of-cost annualized Sharpe as a function of
+           rebalancing frequency and cost level; prose gives the approximately
+           optimal rebalancing frequency and says whether that answer depends
+           on c.
+     Partial: plot present but no interpretation (1).
+
+================================================================================
+SECTION 5 -- FULL WALK-FORWARD BACKTESTER   (20 points)
+================================================================================
+
+------------------------------- 5.1  The loop  (8) --------------------------
+5.1a Expanding/rolling estimation, no leakage ................. 3
+     Full: for each t >= T0, mu_hat_t and Sigma_hat_t are estimated using only
+           returns through day t (expanding window, or a rolling window of
+           fixed length W); the choice between expanding and rolling is
+           justified in a prose cell.
+     Partial: full-sample estimates used inside the loop, or window choice not
+              justified (1.5).
+
+5.1b Optimize ............................................... 1
+     Full: w*_t computed from the MPT formula on (mu_hat_t, Sigma_hat_t,
+           gamma).
+
+5.1c Trade with correct timing ............................. 3
+     Full: on rebalancing days, trades move from the current drifted weights to
+           w*_t; transaction costs applied as in Section 4.2; day t+1 returns
+           applied AFTER trading. The classic off-by-one (trading on day t's
+           close using information through day t) is avoided.
+     Partial: trades on day t using info through day t -- lookahead bias (1.5),
+              and the bug is called out in feedback.
+
+5.1d Recording ........................................... 1
+     Full: net return, w*_t, turnover_t, and costs_t stored at each step.
+
+------------------------------- 5.2  Tearsheet  (8) ------------------------
+5.2a Metrics table ....................................... 3
+     Full: all six rows filled from the loop's out-of-sample net returns --
+           annualized return, annualized volatility, Sharpe ratio, maximum
+           drawdown, annualized total turnover, total costs paid as % of
+           initial capital.
+     Partial: -0.5 per missing or incorrect row.
+
+5.2b Required plots ...................................... 3
+     Full: (i) cumulative wealth of the strategy vs SPY and equal-weight;
+           (ii) monthly turnover over time; (iii) portfolio weights over time
+           (heatmap or line chart). All labeled.
+     Partial: -1 per missing plot.
+
+5.2c PM-facing recommendation ........................... 2
+     Full: 3-5 sentences addressed to a portfolio manager: does the evidence
+           support allocating capital, and under what conditions or caveats;
+           grounded in the tearsheet numbers.
+     Partial: present but hand-wavy or not decision-oriented (1).
+
+------------------------------- 5.3  Interpretation  (4) ------------------
+One point each; full credit requires a specific, evidence-referenced answer:
+  - Does the walk-forward strategy beat the benchmarks, and where does the
+    out- or under-performance come from? ................................ 1
+  - How did transaction costs change the conclusion relative to the
+    frictionless result in Section 4.1? ................................. 1
+  - What did the weight time series reveal -- concentration vs
+    diversification, and was it stable over time? ...................... 1
+  - With real money, what would you change, citing specific findings from
+    Sections 2 and 3? ................................................. 1
+
+================================================================================
+SECTION 6 -- BONUS   (up to +5 points, optional)
+================================================================================
+
+  +3  One of: minimum-variance portfolio, risk-parity portfolio, or a momentum
+      overlay on mu_hat -- correctly implemented and added to the Section 5
+      backtest comparison.
+  +2  Clear explanation of what the alternative revealed relative to the
+      Section 5 strategy, supported with numbers and/or figures.
+
+  Partial bonus is allowed. There is no penalty for skipping this section.
+
+================================================================================
+SCORE SUMMARY
+================================================================================
+
+  Section 1  (Data pipeline) ........................  ____ / 10
+  Section 2  (Parameter & model uncertainty) ........  ____ / 30
+  Section 3  (Weight sensitivity) ..................  ____ / 20
+  Section 4  (Rebalancing & trading costs) .........  ____ / 20
+  Section 5  (Walk-forward backtester) .............  ____ / 20
+                                                     ------------
+  Subtotal ........................................  ____ / 100
+
+  Part A deductions (Presentation & Reproducibility)  - ____   (max -15;
+                                                               A1 hard caps
+                                                               may also apply)
+  Section 6 bonus .................................  + ____   (max +5)
+                                                     ------------
+  FINAL ..........................................  ____ / 100 (+ bonus)
+
+================================================================================
