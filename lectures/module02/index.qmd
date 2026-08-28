@@ -68,7 +68,7 @@ For the financial justification---equilibrium arguments, the market portfolio, a
 
 ## CAPM: The Simple Version
 
-The **Capital Asset Pricing Model** says:
+The **Capital Asset Pricing Model** says:[^excess-returns]
 
 $$
 y_{t,i} = \alpha_i + \beta_i \cdot r_{t,\text{SPY}} + \epsilon_{t,i}
@@ -80,8 +80,38 @@ $$
 - $\epsilon_{t,i}$: idiosyncratic noise, $\mathbb{E}[\epsilon_{t,i}] = 0$
 - This is not a forecasting model! It's not trying to forecast the future with historical data.
 
-A high-beta fund/stock/investment amplifies market moves. A low-beta stock is more stable.
+[^excess-returns]: Some references write CAPM in terms of **excess returns** (returns minus the risk-free rate $r_f$): $y_{t,i} - r_{f,t} = \alpha_i + \beta_i (r_{t,\text{SPY}} - r_{f,t}) + \epsilon_{t,i}$. We'll use raw returns here for simplicity.
 
+## CAPM: Taking the Mean of Both Sides
+
+Apply $\mathbb{E}[\cdot \mid \text{past}]$ to both sides of the CAPM equation, using $\mathbb{E}[\epsilon_{t,i}] = 0$:
+
+$$
+\mathbb{E}[y_{t,i}] = \alpha_i + \beta_i \, \mathbb{E}[r_{t,\text{SPY}}] + \mathbb{E}[\epsilon_{t,i}]
+$$
+
+$$
+\mu_i = \alpha_i + \beta_i \, \mu_{\text{SPY}}
+$$
+
+- Asset $i$'s expected return is a linear function of the market's expected return.
+- $\alpha_i$ shifts the line up or down; $\beta_i$ sets its slope.
+
+## CAPM: Taking the Variance of Both Sides
+
+Apply $\mathbb{V}[\cdot]$ to both sides, assuming $\epsilon_{t,i}$ is uncorrelated with $r_{t,\text{SPY}}$:
+
+$$
+\mathbb{V}[y_{t,i}] = \beta_i^2 \, \mathbb{V}[r_{t,\text{SPY}}] + \mathbb{V}[\epsilon_{t,i}]
+$$
+
+$$
+\sigma_i^2 = \beta_i^2 \, \sigma_{\text{SPY}}^2 + \sigma_{\epsilon_i}^2
+$$
+
+- **Systematic risk** $\beta_i^2 \sigma_{\text{SPY}}^2$: risk coming from the market, scaled by $\beta_i^2$.
+- **Idiosyncratic risk** $\sigma_{\epsilon_i}^2$: risk specific to asset $i$, unrelated to the market.
+- A high-beta fund/stock/investment amplifies market moves (large systematic-risk contribution). A low-beta stock is more insulated from market swings.
 
 ## CAPM: Fitting One Asset
 
