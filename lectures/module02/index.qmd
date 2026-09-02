@@ -401,6 +401,12 @@ plt.tight_layout()
 plt.show()
 ```
 
+## Lagrange Multipliers: Motivation
+
+Why does the constrained optimum satisfy $\nabla U = \lambda \nabla g$? Slide a point along the constraint line and watch the gradient of $U$ rotate — it stops exactly where it has no component left *along* the line, i.e. where it's parallel to $\nabla g$.
+
+![](lagrange_multipliers.gif){fig-align="center" width="75%"}
+
 ## Lagrange Multipliers: The Objective
 
 For two assets we can draw $U(w_1, w_2)$ as contours. The unconstrained maximum is the center of the ellipses.

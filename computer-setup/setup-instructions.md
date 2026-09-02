@@ -195,6 +195,14 @@ quarto check
 quarto install tinytex
 ```
 
+4b. If rendering slides that use manim animations (e.g. module02), TinyTeX also
+needs `dvisvgm` for manim's LaTeX-to-SVG rendering — it isn't in TinyTeX's
+default profile:
+
+```bash
+tlmgr install dvisvgm
+```
+
 5. Render a file when needed:
 
 ```bash
