@@ -1806,21 +1806,21 @@ Y_t = \phi_1 Y_{t-1} + \cdots + \phi_p Y_{t-p} + \beta_1 Z_{1,t} + \cdots + \bet
 <pre><code>                               SARIMAX Results                                
 ==============================================================================
 Dep. Variable:                 AUDJPY   No. Observations:                 4334
-Model:                 ARIMA(1, 0, 1)   Log Likelihood               -3394.244
-Date:                Wed, 02 Sep 2026   AIC                           6796.487
-Time:                        02:25:07   BIC                           6821.984
-Sample:                             0   HQIC                          6805.488
+Model:                 ARIMA(1, 0, 1)   Log Likelihood               -3394.177
+Date:                Wed, 02 Sep 2026   AIC                           6796.354
+Time:                        18:01:10   BIC                           6821.851
+Sample:                             0   HQIC                          6805.355
                                - 4334                                         
 Covariance Type:                  opg                                         
 ==============================================================================
                  coef    std err          z      P&gt;|z|      [0.025      0.975]
 ------------------------------------------------------------------------------
-const         -0.0054      0.007     -0.718      0.473      -0.020       0.009
-ar.L1          0.7364      0.175      4.218      0.000       0.394       1.079
-ma.L1         -0.7571      0.168     -4.496      0.000      -1.087      -0.427
-sigma2         0.2804      0.004     68.681      0.000       0.272       0.288
+const         -0.0053      0.007     -0.717      0.474      -0.020       0.009
+ar.L1          0.7362      0.175      4.215      0.000       0.394       1.079
+ma.L1         -0.7569      0.168     -4.492      0.000      -1.087      -0.427
+sigma2         0.2804      0.004     68.684      0.000       0.272       0.288
 ===================================================================================
-Ljung-Box (L1) (Q):                   0.05   Jarque-Bera (JB):              1005.23
+Ljung-Box (L1) (Q):                   0.05   Jarque-Bera (JB):              1005.51
 Prob(Q):                              0.82   Prob(JB):                         0.00
 Heteroskedasticity (H):               0.53   Skew:                            -0.04
 Prob(H) (two-sided):                  0.00   Kurtosis:                         5.36
@@ -1861,14 +1861,14 @@ Warnings:
 </section><section id="model-selection-over-a-grid-output" class="slide level2 output-location-slide"><h2>Model Selection Over a Grid</h2><div class="cell output-location-slide" data-execution_count="13">
 <div class="cell-output cell-output-stdout">
 <pre><code> p  q    AIC    BIC
- 0  0 6796.5 6809.3
- 0  1 6796.1 6815.2
- 1  0 6796.1 6815.3
- 1  1 6796.5 6822.0
- 0  2 6798.1 6823.6
- 2  0 6798.1 6823.6
- 0  3 6795.6 6827.5
- 3  0 6795.9 6827.7</code></pre>
+ 0  0 6796.4 6809.2
+ 0  1 6796.0 6815.1
+ 1  0 6796.0 6815.1
+ 1  1 6796.4 6821.9
+ 0  2 6798.0 6823.5
+ 2  0 6798.0 6823.5
+ 0  3 6795.5 6827.3
+ 3  0 6795.7 6827.6</code></pre>
 </div>
 </div></section></section>
     </div>
