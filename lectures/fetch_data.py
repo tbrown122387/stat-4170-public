@@ -32,7 +32,14 @@ prices = yf.download(
     end="2024-12-31",
     auto_adjust=True,
     progress=False,
+    # Multi-threaded downloads hit yfinance's shared sqlite cookie/crumb
+    # cache concurrently, which intermittently raises "database is locked"
+    # and silently drops the affected ticker. Single-threaded avoids that.
+    threads=False,
 )["Close"]
+missing = [t for t in PRICE_TICKERS if t not in prices.columns or prices[t].isna().all()]
+if missing:
+    raise RuntimeError(f"Failed to download price data for: {missing}")
 prices.to_csv(DATA_DIR / "prices.csv")
 print(f"Saved {len(prices)} rows to data/prices.csv")
 
@@ -53,8 +60,12 @@ fx = yf.download(
     start="2010-01-01",
     auto_adjust=True,
     progress=False,
+    threads=False,
 )["Close"]
 fx.columns = list(fx_tickers.keys())
+missing = [c for c in fx.columns if fx[c].isna().all()]
+if missing:
+    raise RuntimeError(f"Failed to download FX data for: {missing}")
 fx.to_csv(DATA_DIR / "fx_rates.csv")
 print(f"Saved {len(fx)} rows to data/fx_rates.csv")
 
