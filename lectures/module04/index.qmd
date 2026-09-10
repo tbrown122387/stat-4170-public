@@ -455,7 +455,7 @@ rates = pd.read_csv("../data/rates.csv",    index_col=0, parse_dates=True)
 spot_ret    = np.log(fx["AUDJPY"]).diff().dropna() * 100
 aud_rate    = rates["AUD_rate"].reindex(spot_ret.index, method="ffill")
 jpy_rate    = rates["JPY_rate"].reindex(spot_ret.index, method="ffill")
-daily_carry = (aud_rate - jpy_rate) / 252
+daily_carry = (aud_rate - jpy_rate) / 365
 carry_pnl   = (spot_ret + daily_carry).dropna()
 spot_ret    = spot_ret.reindex(carry_pnl.index)
 

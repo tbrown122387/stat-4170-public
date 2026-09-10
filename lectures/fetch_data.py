@@ -62,6 +62,9 @@ fx = yf.download(
     progress=False,
     threads=False,
 )["Close"]
+fx = fx[list(fx_tickers.values())]  # yf.download sorts columns alphabetically
+                                     # by ticker, not by request order — reorder
+                                     # before renaming or labels shift
 fx.columns = list(fx_tickers.keys())
 missing = [c for c in fx.columns if fx[c].isna().all()]
 if missing:
@@ -92,7 +95,7 @@ print(f"Saved {len(rates)} rows to data/rates.csv")
 # --- Carry P&L for the AUD/JPY carry trade (modules 3-6) -----------------
 # Spot return + accrued rate differential, compounded over the actual
 # number of calendar days between observations (so weekend/holiday accrual
-# is included, unlike a flat /252 approximation).
+# is included, unlike a flat /365 approximation).
 
 print("Computing AUD/JPY carry P&L...")
 audjpy = fx["AUDJPY"].dropna()

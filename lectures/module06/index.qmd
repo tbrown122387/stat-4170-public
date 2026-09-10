@@ -591,7 +591,7 @@ Over Modules 3–6, we built a complete univariate pipeline for the FX carry tra
 ## Limitations of This Strategy/Code
 
 - **One pair only:** using AUD/JPY ignores the broader G10 carry basket.
-- **Simple interest accrual:** we approximate the daily carry as the annualized rate differential divided by 252, ignoring compounding and day-count conventions a live desk would use.
+- **Simple interest accrual:** we approximate the daily carry as the annualized rate differential divided by 365, ignoring compounding and day-count conventions a live desk would use.
 - **Regime changes:** carry can be stable for years and then crash suddenly (e.g., 2008 "carry unwind").
 - **Transaction costs:** bid-ask spreads in FX are small but nonzero, especially during stress.
 - **Look-ahead bias:** in-sample GARCH fit uses future information in conditional volatility calculation.
