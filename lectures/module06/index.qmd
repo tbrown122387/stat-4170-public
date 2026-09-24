@@ -608,3 +608,9 @@ The next section moves from **discrete time** to **continuous time**:
 - Black-Scholes option pricing (Modules 10–11)
 
 The carry trade and portfolio construction used return series at daily (or lower) frequency. Options pricing requires modeling prices continuously — a fundamentally different framework.
+
+## References
+
+- Engle, R. F. (1982). *Autoregressive Conditional Heteroscedasticity with Estimates of the Variance of United Kingdom Inflation*. Econometrica, 50(4), 987–1007.
+- Bollerslev, T. (1986). *Generalized Autoregressive Conditional Heteroscedasticity*. Journal of Econometrics, 31(3), 307–327.
+- Brockwell, P. J. & Davis, R. A. (2016). *Introduction to Time Series and Forecasting* (3rd ed.). Springer.

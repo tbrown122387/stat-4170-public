@@ -522,3 +522,7 @@ for label, series in [("Spot log return", spot_ret), ("Carry P&L", carry_pnl)]:
           f"95% CI: ({xbar - 1.96*se:.4f}%, {xbar + 1.96*se:.4f}%)")
     print()
 ```
+
+## References
+
+- Brockwell, P. J. & Davis, R. A. (2016). *Introduction to Time Series and Forecasting* (3rd ed.). Springer.

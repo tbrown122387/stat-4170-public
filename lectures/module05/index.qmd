@@ -165,7 +165,7 @@ There is another (more complicated) way to ensure invertibility of an MA($q$) mo
 
 It's easy to miss the forest through the trees on this: it's just a restriction of the parameter space so we don't get two different models that yield that same acf plot. 
 
-Nobody uses non-invertible MA models. Software will (should) always restrict its attention to this situation. It's just good to know that there is a restriction of the parameter space happening, though. 
+It would be very rare to see someone use a non-invertible MA model. Software will (should) always restrict its attention to this situation. It's just good to know that there is a restriction of the parameter space happening, though. 
 
 
 ## MA(3): Simulated Time Series
@@ -694,4 +694,8 @@ for p in range(0, 4):
 df = pd.DataFrame(rows)
 print(df.sort_values("BIC").head(8).to_string(index=False))
 ```
+
+## References
+
+- Brockwell, P. J. & Davis, R. A. (2016). *Introduction to Time Series and Forecasting* (3rd ed.). Springer.
 
