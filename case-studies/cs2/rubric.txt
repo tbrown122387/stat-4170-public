@@ -1,0 +1,460 @@
+================================================================================
+CASE STUDY 2 - GRADING RUBRIC
+The G10 FX Carry Trade
+DS 5005
+================================================================================
+
+Total: 100 points, plus up to 5 bonus points (Section 6).
+
+--------------------------------------------------------------------------------
+HOW TO USE THIS RUBRIC
+--------------------------------------------------------------------------------
+- Section point totals (1=15, 2=15, 3=20, 4=25, 5=25) match the assignment
+  prompt exactly.
+- Part A (Presentation & Reproducibility) is scored as DEDUCTIONS from the
+  earned section total, capped at -15 points overall. The hard caps in A1
+  (non-running notebook) apply on top of that cap.
+- Within each section, every row lists the criterion, its point value, and what
+  full / partial / no credit looks like. Partial credit is assessed per row.
+- An attempted-but-flawed answer always scores higher than a skipped one. A
+  section left blank earns 0; the same section attempted badly earns something.
+- Grading is done on a fresh kernel: "Restart & Run All" from a clean
+  environment, with no pre-existing data cache on disk. FRED/Yahoo series may
+  have updated since the student ran their notebook; do not penalize numeric
+  drift that is clearly attributable to a refreshed data pull, provided the
+  student documented an as-of date.
+
+================================================================================
+PART A -- PRESENTATION & REPRODUCIBILITY  (cross-cutting; deductions, max -15)
+================================================================================
+
+A1. NOTEBOOK RUNS TOP-TO-BOTTOM WITHOUT ERROR
+    - Clean run, no errors: no deduction.
+    - Runs with harmless warnings only (deprecation notices, GARCH solver
+      convergence chatter that does not change results): no deduction.
+    - One or two cells raise errors but the rest of the notebook is independent
+      and gradeable: -5, and the failing section(s) are graded on their visible
+      saved output only.
+    - Notebook errors early and large portions cannot execute: FINAL SCORE
+      CAPPED AT 60% of otherwise-earned points.
+    - Not submitted as a single .ipynb (PDF only, .py only, bare Colab link with
+      no notebook file): not accepted for full credit; see syllabus format/late
+      policy.
+
+A2. SELF-CONTAINED AND REPRODUCIBLE
+    - Data is obtained programmatically through the Section 1 caching
+      functions (FRED rates + Yahoo spot); a grader with no cache file can
+      reproduce the download; an as-of date is documented so numeric drift
+      from a refreshed FRED/Yahoo pull is not mistaken for a bug: no
+      deduction.
+    - Depends on a local cache file that cannot be regenerated (hard-coded
+      absolute path, no download code path, private/renamed file): -5.
+    - Requires undocumented manual steps (install this, hand-download that,
+      manually looked up a FRED series ID with no record of which one): -3.
+    - Random seeds are set (or results are shown to be stable without them)
+      for every bootstrap step: -2 if missing AND results are visibly
+      seed-sensitive.
+
+A3. SECTION HEADINGS AND NAVIGATION
+    - Every section and subsection from the prompt appears as a markdown
+      header, in order, labeled so it is immediately obvious which question is
+      being answered (e.g. "## Section 3.2 - GARCH Fitting, Basket-Wide"): no
+      deduction.
+    - Headers present but some sub-parts are buried in code comments or not
+      clearly delineated: -3.
+    - No markdown structure; grader has to hunt for where each answer is: -6.
+
+A4. FIGURES
+    - All plots render inline after a clean run: no deduction.
+    - Titles, axis labels, and legends (wherever more than one series or
+      currency is shown) are present on every figure: up to -5 total, scaled
+      to how many plots are unlabeled. Per the prompt, unlabeled plots do not
+      receive full credit.
+    - Figures illegible (a 10-currency multi-panel SACF or GARCH summary
+      crammed too small to read, overlapping legends, default styling that
+      hides the point being made): -2.
+
+A5. WRITTEN INTERPRETATION QUALITY
+    - Prose cells actually answer what was asked, cite specific numbers and
+      figures (per-currency statistics, not just "the basket"), and are in the
+      student's own words: no deduction.
+    - Interpretation is vague, generic, or just restates the question without
+      engaging the results: up to -5 across the whole notebook.
+
+A6. ACCRUAL AND SIGN CONVENTION CONSISTENCY
+    - One accrual convention (flat /365 daily approximation OR calendar-day
+      compounding) is chosen, stated explicitly, and used consistently across
+      every currency and every section; trade-direction sign conventions
+      (long base / short quote) are applied consistently across all nine
+      pairs: no deduction.
+    - Convention switched mid-notebook, or a sign error on one leg of the
+      basket that silently flips that currency's contribution: -3 here (plus
+      any per-section correctness loss, since a flipped sign usually corrupts
+      Sections 2-5 for that currency).
+
+A7. CODE HYGIENE
+    - Reasonably organized; per-currency logic (rate fetch, ARMA grid search,
+      GARCH fit, Fama regression) is factored into functions and looped or
+      mapped over the basket rather than copy-pasted nine times; no dead cells
+      that error: no deduction.
+    - Egregiously disorganized, or nine near-identical copy-pasted blocks where
+      a loop/function over the currency list was clearly intended: -2.
+
+A8. RED FLAGS (the "rookie mistakes" from the prompt) -- checked in context of
+    Sections 4 and 5, deducted there, but flag them explicitly in feedback:
+    - Sign errors on trade direction for any leg of the basket.
+    - Mixing accrual conventions (flat /365 in one place, calendar-day
+      compounding in another) without documenting and holding to one choice.
+    - Ranking currencies by raw rate differential without ever acknowledging
+      (in 4.2 or later) that risk-adjusted sizing is the point of vol-
+      targeting.
+    - Look-ahead leakage: using day t's GARCH conditional-volatility forecast
+      (or day t's rate ranking) to size or select a position that trades on
+      day t instead of t+1.
+    - Treating the funding spread as zero, or applying transaction costs at
+      the wrong point in the loop (after returns instead of before).
+    - Claiming the G10 basket is "diversified" without ever checking or
+      commenting on cross-currency correlation / common risk-sentiment
+      exposure.
+    - Reporting Sharpe ratio alone for a carry strategy and omitting skewness,
+      kurtosis, or max drawdown from the Section 5 tearsheet.
+
+MAXIMUM TOTAL PART A DEDUCTION: -15 (A1 hard caps apply on top of this).
+
+================================================================================
+SECTION 1 -- DATA PIPELINE: BUILDING THE G10 UNIVERSE   (15 points)
+================================================================================
+
+1a. FRED short-term interest rates for all ten currencies ................ 4
+    Full: series ID verified (not blindly copied) for each of the ten
+          currencies; a prose cell documents which FRED series was used per
+          currency and any substitutions (e.g., a different frequency or the
+          IR3TIB01 family for CAD) and why.
+    Partial: series used for most currencies but one or two are wrong,
+             stale, or unexplained substitutions with no documentation (2).
+    None: uses the AUD/JPY series pattern uncritically for all ten without
+          verifying it actually exists / is current for each country (0-1).
+
+1b. Spot FX rates for all ten currencies vs. USD .......................... 3
+    Full: yfinance pull extended to all nine non-USD currencies against USD,
+          following the lecture's ticker convention; base/quote consistently
+          and correctly assigned for every pair (no sign errors).
+    Partial: missing currencies, or an inconsistent base/quote convention that
+             is not caught/corrected (1.5).
+
+1c. Disk cache implemented with invalidation .............................. 4
+    Full: first call downloads FRED + Yahoo data and writes to a local file
+          (CSV/Parquet); later calls read from disk; network is queried only
+          when stored data does not reach the most recent available date; the
+          invalidation logic is explained in a prose cell; cache path is
+          relative/portable.
+    Partial: caches but re-downloads every call, or never reads the file back,
+             or invalidation logic undocumented (2).
+    None: always trusts whatever is on disk, or hard-coded absolute path with
+          no download code path (0-1).
+
+1d. Per-currency carry P&L construction .................................... 4
+    Full: for each of the nine non-USD currencies, daily carry P&L = spot log
+          return + accrued rate differential vs. USD, using one explicitly
+          stated and consistently applied accrual convention; results combined
+          into a single DataFrame (one column per currency, common date index,
+          NaN handling made explicit).
+    Partial: P&L constructed but accrual convention unstated or inconsistent
+             across currencies, or NaN handling left implicit/undocumented
+             (2); combined DataFrame missing or currencies not aligned on a
+             common index (1.5).
+
+================================================================================
+SECTION 2 -- REVISITING MODULES 3-4: IS THE SINGLE-PAIR STORY ROBUST?   (15 points)
+================================================================================
+
+------------------------------- 2.1  Random walk / stationarity, basket-wide  (5) --
+2.1a Basket-wide diagnostics ............................................ 3
+     Full: log-price SACF, log-return SACF, and a random-walk diagnostic
+           (visual and/or formal test) reproduced for all ten spot series, not
+           just AUD/JPY; results collected in a compact multi-panel figure or
+           summary table (one row/panel per currency).
+     Partial: fewer than ten currencies covered, or diagnostics run but not
+              aggregated into a single readable figure/table (1.5).
+
+2.1b Interpretation: exceptions identified .............................. 2
+     Full: prose explicitly states whether every currency behaves like a
+           random walk or whether there are exceptions (e.g., pegged/managed
+           currencies such as CHF post-2015 or a currency with unusually
+           persistent SACF), tied to the specific figure/table.
+     Partial: generic "they all look like random walks" with no engagement
+              with any exceptions or currency-specific detail (1).
+
+------------------------------- 2.2  Mean carry return, basket-wide  (6) -----------
+2.2a Per-currency mean test ............................................. 3
+     Full: Module 4's IID-model mean test repeated for each of the nine
+           currency pairs; summary table with mean daily carry P&L, standard
+           error, and t-statistic per currency.
+     Partial: table present but missing SE or t-stat for some currencies, or
+              fewer than nine currencies covered (1.5).
+
+2.2b Significance identified ............................................ 1
+     Full: clearly states which currencies show statistically significant
+           positive carry and which don't, referencing the table.
+
+2.2c Forward-premium-puzzle connection ................................... 2
+     Full: explicitly checks whether currencies with the largest average rate
+           differential also show the most robust positive carry P&L, and
+           states whether that relationship holds or breaks down across the
+           basket.
+     Partial: mentions the puzzle in the abstract without connecting it to the
+              basket's own numbers (1).
+
+------------------------------- 2.3  Bootstrap robustness  (4) --------------------
+2.3a Bootstrap execution ................................................ 2
+     Full: two or three currencies (including AUD/JPY) bootstrapped, 500-1000
+           resamples of the sample mean carry P&L, resulting distributions
+           visualized.
+     Partial: fewer resamples than called for, or only one currency examined
+              (1).
+
+2.3b Interpretation: robust or fragile? .................................. 2
+     Full: explicitly states, with reference to the bootstrap distribution,
+           whether the lecture's AUD/JPY finding holds up to resampling.
+     Partial: bootstrap shown with no explicit robust/fragile conclusion (1).
+
+================================================================================
+SECTION 3 -- REVISITING MODULES 5-6: MEAN PREDICTABILITY & VOLATILITY   (20 points)
+================================================================================
+
+------------------------------- 3.1  ARMA identification, basket-wide  (6) --------
+3.1a ACF/PACF + IC grid search per currency ............................. 4
+     Full: ACF/PACF examined and an information-criterion grid search run for
+           each of the nine currencies' carry P&L; results summarized in a
+           table of best-fit ARMA order per currency.
+     Partial: grid search run but not for all nine currencies, or no summary
+              table (2).
+
+3.1b Outlier identification ............................................. 2
+     Full: explicitly states whether the "no meaningful mean predictability"
+           finding holds basket-wide or whether one or two currencies deviate,
+           naming them.
+     Partial: states the general finding without checking for outliers (1).
+
+------------------------------- 3.2  GARCH fitting, basket-wide  (8) --------------
+3.2a Per-currency GARCH(1,1) fits ........................................ 4
+     Full: GARCH(1,1) fit with both Normal and Student-t innovations for each
+           of the nine currencies; summary table of alpha1_hat, beta1_hat,
+           persistence (alpha1+beta1), and which innovation distribution wins
+           by AIC/BIC, per currency.
+     Partial: fit run for most but not all currencies, or table missing
+              persistence or the AIC/BIC winner column (2).
+
+3.2b Ljung-Box diagnostic ................................................ 2
+     Full: standardized-residual Ljung-Box test run for each currency's
+           winning fit, results reported (table or summary).
+     Partial: run for only a subset of currencies, or run but results not
+              reported/discussed (1).
+
+3.2c Cross-currency comparison ........................................... 2
+     Full: explicitly compares clustering intensity/persistence across
+           currencies -- which show strong volatility clustering, which are
+           weaker.
+     Partial: table presented with no comparative statement (1).
+
+------------------------------- 3.3  Fama regression, basket-wide  (6) ------------
+3.3a Per-currency Fama/UIP regression ..................................... 3
+     Full: Fama regression (Delta s_{t+1} = alpha + beta*(i_foreign - i_USD) +
+           eps) run for each of the nine currencies; summary table of
+           beta_hat and its standard error per currency.
+     Partial: regression run for most but not all currencies, or SE omitted
+              (1.5).
+
+3.3b UIP / puzzle discussion ............................................. 2
+     Full: explicitly states whether beta_hat < 0 (or < 1) basket-wide,
+           consistent with the forward premium puzzle, or whether it's
+           currency-specific.
+     Partial: states UIP predicts beta=1 with no engagement with the actual
+              estimated betas (1).
+
+3.3c Link to basket rationale ............................................ 1
+     Full: connects the basket-wide Fama results explicitly to why a
+           cross-sectional carry basket should have positive expected P&L
+           (i.e., treats this table as the empirical justification for
+           Section 4, as the prompt asks).
+
+================================================================================
+SECTION 4 -- BUILDING THE G10 CARRY BASKET   (25 points)
+================================================================================
+
+------------------------------- 4.1  Rank-and-sort basket  (6) --------------------
+4.1a Ranking and construction .............................................. 4
+     Full: at the start of each month, nine non-USD currencies ranked by
+           current rate differential vs. USD using only information available
+           at that point (no look-ahead); long top three / short bottom
+           three, equal-weighted within each leg, dollar-neutral overall; held
+           for the month, then re-ranked and rebalanced.
+     Partial: ranking/rebalancing logic correct but not dollar-neutral, or
+              legs not equal-weighted (2); look-ahead in the ranking step (2,
+              and flagged per A8).
+
+4.1b Resulting P&L series .................................................. 2
+     Full: daily P&L series for the basket computed and shown.
+     Partial: computed but with unexplained gaps/NaNs or timing errors (1).
+
+------------------------------- 4.2  Vol-targeted (risk-parity) basket  (7) -------
+4.2a Inverse-volatility weighting .......................................... 4
+     Full: each leg weighted inversely to its GARCH(1,1) one-step-ahead
+           conditional volatility forecast (rather than equal-weighted), so
+           each currency contributes roughly equal risk.
+     Partial: weighting scheme implemented but not actually inverse-vol (e.g.,
+              equal weights relabeled), or applied to only some currencies
+              (2).
+
+4.2b Correct timing (no leakage) ........................................... 3
+     Full: position held on day t+1 uses volatility information known only by
+           the end of day t; the lecture's single-pair indexing is correctly
+           re-derived for nine parallel series rather than copied blindly.
+     Partial: off-by-one/look-ahead in the vol-timing step (1.5, and flagged
+              per A8).
+
+------------------------------- 4.3  Costs and funding spread  (6) ----------------
+4.3a Transaction costs on turnover ......................................... 2
+     Full: bps transaction cost applied to monthly-rebalance turnover, as in
+           CS1 Section 4.2, for both the rank-and-sort and vol-targeted
+           baskets.
+     Partial: applied to only one of the two baskets, or turnover computed
+              incorrectly (1).
+
+4.3b Funding spread ......................................................... 2
+     Full: a funding spread (a few bps) applied against the long leg (pay more
+           than quoted) and/or in favor of the short leg, reflecting that no
+           real desk transacts at the exact reference rate.
+     Partial: spread applied to only one leg or asymmetrically without
+              justification (1).
+
+4.3c Sensitivity comparison ................................................. 2
+     Full: net-of-cost performance compared across a couple of cost levels and
+           a couple of funding-spread assumptions; states how much gross carry
+           P&L survives realistic frictions.
+     Partial: one cost/spread level only, or no explicit statement of how much
+              P&L survives (1).
+
+------------------------------- 4.4  Basket vs. single pair  (6) ------------------
+4.4a Three-way comparison table ............................................. 4
+     Full: Sharpe ratio, annualized return, annualized volatility, and max
+           drawdown reported over the same sample period for (a) single-pair
+           AUD/JPY, (b) equal-weight rank-and-sort basket, (c) vol-targeted
+           basket.
+     Partial: -1 per missing metric or missing strategy.
+
+4.4b Interpretation ........................................................ 2
+     Full: explicitly answers whether diversifying across the G10 basket
+           improves risk-adjusted returns relative to the single pair, and by
+           how much, citing the table.
+     Partial: comparison shown with no explicit answer to the question (1).
+
+================================================================================
+SECTION 5 -- FULL BACKTEST AND RISK TEARSHEET   (25 points)
+================================================================================
+
+------------------------------- 5.1  Walk-forward loop  (10) ----------------------
+5.1a Refit schedule, no leakage ............................................ 4
+     Full: at each monthly rebalance date t, only rate/price history through t
+           is used to rank currencies and refit/refresh GARCH models; the
+           refit frequency (every rebalance vs. a less frequent refresh) is
+           explicitly justified in a prose cell.
+     Partial: full-sample or future information leaks into ranking/GARCH
+              refits, or refit frequency choice unjustified (2, and flagged
+              per A8 if leakage).
+
+5.1b Rank and compute vol-targeted weights ................................. 2
+     Full: at each rebalance date, currencies ranked and vol-targeted basket
+           weights computed from the current GARCH forecasts.
+
+5.1c Trade with correct timing + costs ...................................... 3
+     Full: trades executed into new weights at rebalance; transaction costs
+           and funding spread applied as in 4.3; day-t+1 returns applied after
+           trading, avoiding the classic off-by-one.
+     Partial: trades on day t using information through day t -- lookahead
+              bias (1.5, flagged per A8).
+
+5.1d Recording ............................................................. 1
+     Full: net return, weights, turnover, and costs stored at each step.
+
+------------------------------- 5.2  Tearsheet  (10) -------------------------------
+5.2a Metrics table (9 rows) ................................................ 4
+     Full: all nine rows filled from the loop's net returns -- annualized
+           return, annualized volatility, Sharpe ratio, skewness, excess
+           kurtosis, maximum drawdown, 95% conditional VaR (from the GARCH-t
+           fits), annualized total turnover, total costs+funding spread paid
+           (% of initial capital).
+     Partial: -0.5 per missing or incorrect row; skewness/kurtosis/VaR
+              omission is explicitly not optional per the prompt and is
+              deducted at full weight per missing row.
+
+5.2b Required plot(s) ....................................................... 2
+     Full: cumulative P&L of the basket plotted against single-pair AUD/JPY
+           and against a naive "long every currency, no ranking" benchmark;
+           labeled.
+     Partial: one comparison series missing, or plot unlabeled (1).
+
+5.2c Crash-episode zoom-in .................................................. 2
+     Full: if the sample includes a known unwind episode (2008, August 2024
+           JPY unwind), a zoomed-in view shows the basket's drawdown and the
+           GARCH-based VaR estimate through that window, with an explicit
+           statement of whether the VaR rose in time to be useful or only
+           after the fact.
+     Partial: episode shown but no VaR-timing statement (1); no sample
+              overlap with a known episode and student does not note this
+              (no penalty if genuinely out of sample and explicitly stated).
+
+5.2d PM-facing recommendation .............................................. 2
+     Full: 3-5 sentences addressed to a portfolio manager, grounded in the
+           tearsheet numbers, on whether to allocate risk capital and under
+           what caveats.
+     Partial: present but hand-wavy or not decision-oriented (1).
+
+------------------------------- 5.3  Interpretation  (5) ---------------------------
+Full credit on each requires a specific, evidence-referenced answer:
+  - Did vol-targeting meaningfully reduce drawdown/tail risk relative to
+    equal-weight, or was the improvement mostly cosmetic? .................. 1
+  - How much did costs and funding spread change the conclusion relative to
+    the frictionless 4.1/4.2 results? ....................................... 1
+  - Given skewness/kurtosis and the crash-episode zoom-in: "modest steady
+    edge" or "small premium, rare large losses" -- defended with numbers ... 2
+  - What single change would you make first if running this book with real
+    money, and why? ......................................................... 1
+
+================================================================================
+SECTION 6 -- BONUS: TREND OVERLAY   (up to +5 points, optional)
+================================================================================
+
+  +3  Trend/momentum filter correctly implemented on top of the Section 4.2 (or
+      5.1) vol-targeted basket: long positions kept only if spot is above its
+      trailing moving average, shorts kept only if below (or a justified
+      variant); otherwise flat or reduced, per a stated rule.
+  +2  Clear comparison of tearsheet metrics (especially skewness, max
+      drawdown, and behavior in the identified crash episode) with vs. without
+      the overlay, supported with numbers and/or figures, and an explicit
+      verdict on whether trend helped, hurt, or mostly cost average return for
+      a smoother path.
+
+  Partial bonus is allowed. There is no penalty for skipping this section.
+
+================================================================================
+SCORE SUMMARY
+================================================================================
+
+  Section 1  (Data pipeline) ........................  ____ / 15
+  Section 2  (Revisiting Modules 3-4, basket-wide) ..  ____ / 15
+  Section 3  (Revisiting Modules 5-6, basket-wide) ..  ____ / 20
+  Section 4  (Basket construction) .................  ____ / 25
+  Section 5  (Backtest and tearsheet) ..............  ____ / 25
+                                                     ------------
+  Subtotal ........................................  ____ / 100
+
+  Part A deductions (Presentation & Reproducibility)  - ____   (max -15;
+                                                               A1 hard caps
+                                                               may also apply)
+  Section 6 bonus .................................  + ____   (max +5)
+                                                     ------------
+  FINAL ..........................................  ____ / 100 (+ bonus)
+
+================================================================================
+</content>
