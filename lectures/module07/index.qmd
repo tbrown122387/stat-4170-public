@@ -17,7 +17,49 @@ execute:
   eval: false
 ---
 
-# Part 1: Shifting Gears Again
+# Part 1: An Applied Motivation
+
+## The Order Book
+
+Every exchange keeps a list of standing, unfilled orders waiting to trade — the **order book**:
+
+- **Bids** — orders to buy, sorted best (highest) price first
+- **Asks** — orders to sell, sorted best (lowest) price first
+
+The best bid and best ask together are the **touch** (top of book); the gap between them is the **bid-ask spread**. A trade happens when an incoming order matches a resting order already sitting in the book.
+
+## What a Limit Order Book Looks Like
+
+![A limit order book: asks (red) above the touch, bids (blue) below it.](order_book.png){width="85%" fig-align="center"}
+
+## Levels of Market Data
+
+Exchanges sell market data in tiers, each revealing more of the order book:
+
+- **Level 1 (top of book)** — just the best bid and best ask (and their sizes), plus the last trade price
+- **Level 2 / Market by Price (MBP)** — every resting price level, with the *total* size sitting there (not whose)
+- **Level 3 / Market by Order (MBO)** — every individual order at every price level
+
+The SPY data we'll use later this module is **Level 1**: at each moment we only see the single best bid/ask, not the levels behind it. (Module 8 gets into why the deeper levels matter.)
+
+## Two Kinds of Market Data: Quotes vs. Trades
+
+Within a Level 1 feed, two different kinds of lines show up:
+
+- **Quote** — a standing offer to buy or sell: the best bid (highest price a buyer is offering) and ask (lowest price a seller is offering) *right now*. Nothing has changed hands.
+- **Trade** — an actual completed transaction: a buyer and seller agreed on a price and size.
+
+```
+# Quote: posted prices, no transaction
+MarketData(ticker=SPY, time=..., bid=652.55, ask=652.58, exchange=BATS)
+
+# Trade: an actual transaction just happened
+MarketData(ticker=SPY, time=..., last=652.58, size=100, exchange=BATS)
+```
+
+Quotes update constantly as buyers and sellers adjust their offers; trades only appear when one actually fires. Module 8 covers the exchange rules and routing that shape this order flow in practice — for now, just enough to read the data later in this module.
+
+# Part 2: Shifting Gears Again
 
 ## From Discrete Time to Continuous Time
 
@@ -67,7 +109,7 @@ Two random ingredients drive this problem:
 
 This module builds both tools from scratch, with CS 3 as the running example. Module 8 uses them for CS 3 directly — and the same building blocks resurface in CS 4, once we add Itô's lemma in Module 9.
 
-# Part 2: The Poisson Process
+# Part 3: The Poisson Process
 
 ## Counting Random Arrivals
 
@@ -331,7 +373,7 @@ plt.show()
 
 Variance is roughly **50x** the mean, not equal to it — real order flow is far more **overdispersed** than a Poisson process allows. The Poisson assumption is a useful starting point (it's what makes Module 8's market-making model tractable), but real data shows its limits: rates vary over the day and arrivals cluster in bursts.
 
-# Part 3: Brownian Motion
+# Part 4: Brownian Motion
 
 ## From Random Walk to Brownian Motion
 
@@ -456,7 +498,7 @@ $$
 
 This is the continuous-time analogue of a random walk with drift, and it's the model we'll use for the fair-value price process in the market-making case study.
 
-# Part 4: Looking Ahead to CS 3
+# Part 5: Looking Ahead to CS 3
 
 ## Two Building Blocks, One Model
 
