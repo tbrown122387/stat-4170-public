@@ -1,22 +1,13 @@
 """Pedagogical limit-order backtest: rest behind the touch, skew by inventory.
 
 Strategy: whenever the best bid/ask changes, cancel our resting orders and
-re-quote just behind the touch -- bid a bit below the best bid, ask a bit
-above the best ask -- shifted by a fixed amount per unit of inventory (buy
-less eagerly the more we already own, and vice versa). This is the same
-inventory-skew idea from the Avellaneda-Stoikov model in the Module 8 slides,
-just without the reservation-price math. Resting behind the touch instead of
-improving it is what lets the strategy actually earn the spread rather than
-pay for fill priority.
+re-quote just behind the touch, shifted by a fixed amount per unit of inventory.
+Quotes are only active during regular trading hours, 9:30 to 4:00.
 
-We only rest quotes during regular trading hours, 9:30 to 4:00 -- outside
-that window we cancel any resting orders and just watch the tape.
-
-Run with the `quant-ts` conda environment active, pointing at a quote/trade
-tape in the same format as `data/20260812_spy.txt`:
+Run with the quant-ts environment active, pointing at a quote/trade tape in the
+same format as data/20260812_spy.txt:
     python main.py ../../../data/20260812_spy.txt
     python main.py ../../../data/20260812_spy.txt --plot
-    python main.py ../../../data/20260812_spy.txt --plot --max-messages 2000000
 """
 
 import argparse
@@ -24,22 +15,17 @@ from datetime import time as clock_time
 
 from fake_broker import FakeBroker, OrderFilled, QuoteUpdate, TradePrint
 
-QUOTE_OFFSET = 0.01  # how far behind the touch we rest our quotes
+QUOTE_OFFSET = 0.01
 ORDER_SIZE = 1
-INVENTORY_SKEW = 0.01  # price shift per share of inventory
+INVENTORY_SKEW = 0.01
 MAX_INVENTORY = 20
-MAX_MESSAGES = 300_000  # cap the tape length so the demo finishes quickly
+MAX_MESSAGES = 300_000
 MARKET_OPEN = clock_time(9, 30)
 MARKET_CLOSE = clock_time(16, 0)
 
 
 def handle_next_tick(broker, book):
-    """Read one tick's worth of incoming messages and react by (re-)quoting.
-
-    This is the function the main loop calls once per iteration: it (a) reads
-    every message the fake broker produced for this tick -- market data and
-    broker acks/fills alike -- and (b) sends whatever orders/cancels follow.
-    """
+    """Process broker messages and update resting quotes for the next event."""
     for message in broker.poll():
         if isinstance(message, QuoteUpdate):
             book["time"] = message.time
@@ -96,11 +82,7 @@ def plot_pnl(pnl_history):
 
 
 def run_backtest(data_path, plot=False, max_messages=MAX_MESSAGES):
-    """Run the backtest over a tape and return the final book.
-
-    This is the function to call directly from a notebook, e.g.:
-        book = run_backtest("../../../data/20260812_spy.txt", plot=True)
-    """
+    """Run the event-by-event backtest and return its final book."""
     broker = FakeBroker(data_path)
     book = {
         "time": None,
@@ -134,20 +116,13 @@ def run_backtest(data_path, plot=False, max_messages=MAX_MESSAGES):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "data_path",
-        help="path to a quote/trade tape in the same format as data/20260812_spy.txt",
-    )
-    parser.add_argument(
-        "--plot",
-        action="store_true",
-        help="show a plot of mark-to-market PnL over time when the backtest finishes",
-    )
+    parser.add_argument("data_path", help="path to a quote/trade tape")
+    parser.add_argument("--plot", action="store_true", help="plot mark-to-market PnL")
     parser.add_argument(
         "--max-messages",
         type=int,
         default=MAX_MESSAGES,
-        help=f"stop after this many tape lines, to keep the demo fast (default: {MAX_MESSAGES})",
+        help=f"stop after this many tape lines (default: {MAX_MESSAGES})",
     )
     args = parser.parse_args()
     run_backtest(args.data_path, plot=args.plot, max_messages=args.max_messages)

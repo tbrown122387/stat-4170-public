@@ -96,7 +96,7 @@ _log_ret = np.log(_audjpy).diff().dropna() * 100  # spot return in %
 
 _aud_rate = _rates["AUD_rate"].reindex(_log_ret.index, method="ffill")
 _jpy_rate = _rates["JPY_rate"].reindex(_log_ret.index, method="ffill")
-_daily_carry = (_aud_rate - _jpy_rate) / 252  # annualised % → daily %
+_daily_carry = (_aud_rate - _jpy_rate) / 365  # annualised % → daily %
 _carry_pnl = (_log_ret + _daily_carry).rename("carry_pnl")
 ```
 
@@ -685,10 +685,10 @@ rates = pd.read_csv("../data/rates.csv", index_col=0, parse_dates=True)
 # spot log return (daily %)
 spot_ret = np.log(fx["AUDJPY"]).diff().dropna() * 100
 
-# daily carry: annualised rate differential / 252 trading days
+# daily carry: annualised rate differential / 365 calendar days
 aud_rate = rates["AUD_rate"].reindex(spot_ret.index, method="ffill")
 jpy_rate = rates["JPY_rate"].reindex(spot_ret.index, method="ffill")
-daily_carry = (aud_rate - jpy_rate) / 252
+daily_carry = (aud_rate - jpy_rate) / 365
 
 carry_pnl = (spot_ret + daily_carry).rename("carry_pnl")
 print(carry_pnl.describe())
@@ -701,12 +701,12 @@ print(carry_pnl.describe())
 #| echo: false
 #| eval: true
 _spot_ret = _log_ret
-_daily_carry_plot = (_aud_rate - _jpy_rate) / 252
+_daily_carry_plot = (_aud_rate - _jpy_rate) / 365
 
 fig, axes = plt.subplots(3, 1, figsize=(10, 7))
 _spot_ret.plot(ax=axes[0], title="Spot Return (%)", alpha=0.7, color="steelblue")
 axes[0].set_ylabel("%")
-_daily_carry_plot.plot(ax=axes[1], title="Daily Carry (annualised differential / 252)", color="darkorange")
+_daily_carry_plot.plot(ax=axes[1], title="Daily Carry (annualised differential / 365)", color="darkorange")
 axes[1].set_ylabel("%")
 _carry_pnl.cumsum().plot(ax=axes[2], title="Cumulative Total P&L (%)", color="green")
 axes[2].set_ylabel("Cumulative (%)")

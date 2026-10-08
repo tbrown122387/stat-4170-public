@@ -32,7 +32,14 @@ prices = yf.download(
     end="2024-12-31",
     auto_adjust=True,
     progress=False,
+    # Multi-threaded downloads hit yfinance's shared sqlite cookie/crumb
+    # cache concurrently, which intermittently raises "database is locked"
+    # and silently drops the affected ticker. Single-threaded avoids that.
+    threads=False,
 )["Close"]
+missing = [t for t in PRICE_TICKERS if t not in prices.columns or prices[t].isna().all()]
+if missing:
+    raise RuntimeError(f"Failed to download price data for: {missing}")
 prices.to_csv(DATA_DIR / "prices.csv")
 print(f"Saved {len(prices)} rows to data/prices.csv")
 
@@ -53,8 +60,15 @@ fx = yf.download(
     start="2010-01-01",
     auto_adjust=True,
     progress=False,
+    threads=False,
 )["Close"]
+fx = fx[list(fx_tickers.values())]  # yf.download sorts columns alphabetically
+                                     # by ticker, not by request order — reorder
+                                     # before renaming or labels shift
 fx.columns = list(fx_tickers.keys())
+missing = [c for c in fx.columns if fx[c].isna().all()]
+if missing:
+    raise RuntimeError(f"Failed to download FX data for: {missing}")
 fx.to_csv(DATA_DIR / "fx_rates.csv")
 print(f"Saved {len(fx)} rows to data/fx_rates.csv")
 
@@ -81,7 +95,7 @@ print(f"Saved {len(rates)} rows to data/rates.csv")
 # --- Carry P&L for the AUD/JPY carry trade (modules 3-6) -----------------
 # Spot return + accrued rate differential, compounded over the actual
 # number of calendar days between observations (so weekend/holiday accrual
-# is included, unlike a flat /252 approximation).
+# is included, unlike a flat /365 approximation).
 
 print("Computing AUD/JPY carry P&L...")
 audjpy = fx["AUDJPY"].dropna()

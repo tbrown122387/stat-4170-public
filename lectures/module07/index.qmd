@@ -17,7 +17,51 @@ execute:
   eval: false
 ---
 
-# Part 1: Shifting Gears Again
+# Part 1: Understanding Limit Order Books
+
+## A Limit Order Book
+
+Every exchange keeps a list of standing, unfilled "limit" orders waiting to trade — the **limit order book**:
+
+- **Bids** — orders to buy, sorted best (highest) price first
+- **Asks** — orders to sell, sorted best (lowest) price first
+
+The best bid and best ask together are the **touch** (or top of book); the gap between them is the **bid-ask spread**. A trade happens when an incoming "market" order matches a resting "limit" order already sitting in the book.
+
+## A Limit Order Book At One Moment in Time
+
+![A limit order book: asks (red) above the touch, bids (blue) below it.](order_book.png){width="85%" fig-align="center"}
+
+## Levels of Market Data
+
+You can purchase different types of market data:
+
+- **Level 1 (top of book)** — just the best bid and best ask (and their sizes), plus the last trade price
+- **Level 2 / Market by Price (MBP)** — every resting price level, with the *total* size sitting there (not whose)
+- **Level 3 / Market by Order (MBO)** — every individual order at every price level
+
+The SPY data we'll use later this module is **Level 1**: at each moment we only see the single best bid/ask, not the levels behind it. (Module 8 gets into why the deeper levels matter.)
+
+## Two Kinds of Market Data: Quotes vs. Trades
+
+Within a Level 1 feed, two different kinds of lines show up:
+
+- **Quote Updates** — an update to the price/size of the best bid and/or the best ask 
+- **Trade** — an actual completed transaction: a buyer and seller agreed on a price and size.
+
+```
+# Quote: posted prices, no transaction
+MarketData(ticker=SPY, time=..., bid=652.55, ask=652.58, exchange=BATS)
+
+# Trade: an actual transaction just happened
+MarketData(ticker=SPY, time=..., last=652.58, size=100, exchange=BATS)
+```
+
+Most of the data lines are quote updates. These tell you where the market is currently at. However, trades only appear when a "fill" or "execution" happens. 
+
+Module 8 covers the exchange rules and routing that shape this order flow in practice — for now, just enough to read the data later in this module.
+
+# Part 2: Shifting Gears Again
 
 ## From Discrete Time to Continuous Time
 
@@ -37,12 +81,12 @@ Now we shift to **continuous time**:
 
 Daily closing prices hide everything that happens *during* the day. Some questions can't be answered with daily data at all:
 
-- How wide should a market maker set the bid-ask spread?
-- How do I hedge a position in options at every time point
-- How often does an order arrive at a given price level?
-- How much inventory risk builds up between trades?
+- What was the worst moment in the day for my portfolio?
+- How should a market maker revise his/her orders?
+- Did my static portfolio ever reach the level where I wanted to buy it at?
+- How do I hedge an options position throughout the day?
 
-These require modeling **when** things happen, not just their once-a-day summary.
+Answering these questions requires continuous data and continuous time models.
 
 ## The Case Study for This Part
 
@@ -56,22 +100,22 @@ These require modeling **when** things happen, not just their once-a-day summary
 
 A market maker simultaneously:
 
-- **Quotes** a bid price (buy) and ask price (sell) around the current fair value
+- **Quotes** a bid price (buy) and ask price (sell) around the current "fair value"
 - **Earns** the bid-ask spread on each round trip
 - **Risks** holding unwanted inventory if the market moves before they can offload it
 
 Two random ingredients drive this problem:
 
-1. **When do orders arrive?** — modeled with a **Poisson process**
+1. **When do market orders arrive?** — modeled with a **Poisson process**
 2. **How does the fair price move?** — modeled with **Brownian motion**
 
 This module builds both tools from scratch, with CS 3 as the running example. Module 8 uses them for CS 3 directly — and the same building blocks resurface in CS 4, once we add Itô's lemma in Module 9.
 
-# Part 2: The Poisson Process
+# Part 3: The Poisson Process
 
 ## Counting Random Arrivals
 
-Let $N(t)$ count the number of events (e.g., buy orders) that have occurred by time $t$, starting from $N(0) = 0$.
+Let $N(t)$ count the number of events (e.g., market buy orders) that have occurred by time $t$
 
 $\{N(t)\}_{t \geq 0}$ is a **Poisson process** with rate $\lambda > 0$ if:
 
@@ -96,7 +140,24 @@ $$
 
 **Memorylessness:** given that we've waited $s$ time units for the next event with no arrival yet, the *additional* waiting time is still $\text{Exponential}(\lambda)$ — the process has no memory of how long you've already waited.
 
-This is an assumption that may not hold in practice, but is still useful.
+These assumptions need to be checked against real data!
+
+## Why Are Interarrival Times Exponential?
+
+Let $T_1$ be the time until the first event. The event $T_1 > t$ means that no events have occurred by time $t$:
+
+$$
+P(T_1 > t) = P(N(t) = 0) = e^{-\lambda t}, \qquad t \geq 0
+$$
+
+The last equality follows because $N(t) \sim \text{Poisson}(\lambda t)$, so
+$P(N(t)=0) = e^{-\lambda t}(\lambda t)^0/0! = e^{-\lambda t}$. Therefore,
+
+$$
+P(T_1 \leq t) = 1 - e^{-\lambda t},
+$$
+
+which is the CDF of an $\text{Exponential}(\lambda)$ random variable. Independent, stationary increments give the same distribution independently for every subsequent waiting time, so the interarrival times are IID.
 
 ## Simulating a Poisson Process
 
@@ -207,6 +268,7 @@ The empirical average (red) tracks the theoretical line $\lambda t$ (dashed blac
 
 In market microstructure, a common starting assumption: buy orders and sell orders each arrive as independent Poisson processes with their own rates $\lambda_{\text{buy}}, \lambda_{\text{sell}}$.
 
+- More competitive orders get filled faster.
 - Higher $\lambda$ near the current fair price, lower $\lambda$ further away — orders cluster near the touch.
 - A market maker's fill rate depends on how far their quote sits from fair value: post further away, fewer fills but each is more profitable.
 
@@ -301,7 +363,7 @@ This is a form of clustering the simple Poisson model doesn't capture. **FYI: th
 
 ## Counts per Second: Poisson vs. Reality
 
-If $N(t)$ were really a constant-rate Poisson process, the number of trades in each one-second window should be roughly $\text{Poisson}(\hat\lambda)$ — with **mean equal to variance**.
+If $N(t)$ were really a constant-rate Poisson process, every one second window would give you (roughly) a $\text{Poisson}(\hat\lambda)$ count, and each count would be iid. 
 
 ```{python}
 #| label: module07-real-overdispersion
@@ -331,7 +393,7 @@ plt.show()
 
 Variance is roughly **50x** the mean, not equal to it — real order flow is far more **overdispersed** than a Poisson process allows. The Poisson assumption is a useful starting point (it's what makes Module 8's market-making model tractable), but real data shows its limits: rates vary over the day and arrivals cluster in bursts.
 
-# Part 3: Brownian Motion
+# Part 4: Brownian Motion
 
 ## From Random Walk to Brownian Motion
 
@@ -344,6 +406,38 @@ Recall the discrete-time random walk $S_n = \sum_{i=1}^n Z_i$ with $\{Z_i\} \sim
 - Let $n \to \infty$
 
 The limit is a process with **continuous paths** but that is **nowhere differentiable** — it wiggles infinitely much at every scale.
+
+## A Quick Simulation
+
+Here are a few random-walk paths with small steps of variance $\Delta t$:
+
+```{python}
+#| label: module07-bm-preview
+#| eval: true
+#| output-location: slide
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(5005)
+T = 1.0
+n_steps = 1000
+dt = T / n_steps
+time = np.linspace(0, T, n_steps + 1)
+n_paths = 100
+
+increments = np.random.normal(scale=np.sqrt(dt), size=(n_paths, n_steps))
+paths = np.column_stack([np.zeros(n_paths), increments.cumsum(axis=1)])
+
+fig, ax = plt.subplots(figsize=(9, 4))
+for path in paths:
+    ax.plot(time, path, lw=1.2)
+ax.axhline(0, color="black", lw=0.8, ls="--")
+ax.set_xlabel("t")
+ax.set_ylabel("W(t)")
+ax.set_title("Approximate BM Samps (Random-Walks)")
+plt.tight_layout()
+plt.show()
+```
 
 ## Watching It Get Rough: The Lévy Construction
 
@@ -374,40 +468,6 @@ $$
 - Despite being continuous, the paths are so jagged that the usual notion of "speed" (derivative) doesn't exist anywhere.
 - Brownian motion is the continuous-time analogue of white noise's cumulative sum (a random walk) — it plays the same foundational role in continuous time that the random walk plays in discrete time.
 
-## Simulating Brownian Motion
-
-Approximate a continuous path with a fine discrete grid: $n$ steps of size $\Delta t = T/n$, each Normal with variance $\Delta t$.
-
-```{python}
-#| label: module07-bm-sim
-#| eval: true
-#| output-location: slide
-import numpy as np
-import matplotlib.pyplot as plt
-
-np.random.seed(5005)
-T = 1.0
-n = 1000
-dt = T / n
-t_grid = np.linspace(0, T, n + 1)
-
-n_paths = 5
-increments = np.random.normal(scale=np.sqrt(dt), size=(n_paths, n))
-W = np.concatenate([np.zeros((n_paths, 1)), np.cumsum(increments, axis=1)], axis=1)
-
-fig, ax = plt.subplots(figsize=(10, 5))
-for i in range(n_paths):
-    ax.plot(t_grid, W[i], lw=1, label=f"Path {i+1}")
-ax.axhline(0, color="black", lw=0.8, ls="--")
-ax.set_title("Simulated Brownian Motion Paths")
-ax.set_xlabel("t")
-ax.set_ylabel("W(t)")
-ax.legend()
-plt.tight_layout()
-plt.show()
-```
-
-Every path starts at 0, and no two paths look alike — but all share the same variance-growth behavior.
 
 ## Checking $\text{Var}(W(t)) = t$
 
@@ -456,7 +516,7 @@ $$
 
 This is the continuous-time analogue of a random walk with drift, and it's the model we'll use for the fair-value price process in the market-making case study.
 
-# Part 4: Looking Ahead to CS 3
+# Part 5: Looking Ahead to CS 3
 
 ## Two Building Blocks, One Model
 

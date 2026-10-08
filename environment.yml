@@ -13,6 +13,9 @@ dependencies:
   - jupyter
   - jupyterlab
   - notebook
+  - manim
+  - ffmpeg
+  - gifsicle
   - pip
   - pip:
     - yfinance
