@@ -19,7 +19,7 @@ execute:
 
 **The scenario:** You've just joined the market-making desk at a small electronic trading firm. The pedagogical Avellaneda-Stoikov strategy from Module 8 — rest a little behind the touch, skew by inventory, run it against a real SPY tape — makes money in the demo. Your head trader has seen this movie before: a backtest that fills instantly at zero cost, with no fee schedule, no latency, and no accounting for who's actually first in line at a price level, always looks better than the real thing. Before any of this gets a risk allocation, she wants five specific questions answered: how much do exchange fees and rebates actually matter, how much does latency cost you, how important is queue priority, is inventory skew the best way to tilt a quote, and — the question that decides whether the strategy is "collecting the spread" or "getting picked off" — what does the P&L look like *after* you account for what the price does in the seconds following your fills.
 
-Modules 7 and 8 gave you the building blocks: Poisson arrivals and Brownian motion as the two random ingredients, the Avellaneda-Stoikov reservation price and half-spread as a first policy, and a real, event-by-event backtest (`fake_broker.py` / `main.py` in `lectures/module08/backtest/`) that plays back one real trading day of SPY quotes and trades (`data/20260812_spy.txt`) and matches your resting limit orders against it. This case study asks you to take that infrastructure — not rebuild it from scratch — and use it to answer the head trader's five questions with real numbers, not intuition.
+Modules 7 and 8 gave you the building blocks: Poisson arrivals and Brownian motion as the two random ingredients, the Avellaneda-Stoikov reservation price and half-spread as a first policy, and a real, event-by-event backtest that plays back one real trading day of SPY quotes and trades (`data/20260812_spy.txt`) and matches your resting limit orders against it. The demo files `fake_broker.py`, `main.py`, and `simulate_as.py` are provided alongside this prompt in `case-studies/cs3/`. This case study asks you to take that infrastructure — not rebuild it from scratch — and use it to answer the head trader's questions with real numbers, not intuition.
 
 **A note on the data:** `data/20260812_spy.txt` is real, vendor-sourced tick data, not something either you or the instructor is meant to redistribute further — you should already have your own copy from following along with Modules 7–8 locally. **Your submission must include that copy alongside your notebook** rather than relying on a shared copy at grading time (see Deliverables below for exactly how).
 
@@ -42,12 +42,12 @@ Every one of these has turned a promising backtest into a strategy that loses mo
 
 ## Section 0 — Before You Start: What's Already Built
 
-Read `lectures/module08/backtest/fake_broker.py` and `lectures/module08/backtest/main.py` in full before starting. `FakeBroker` parses `data/20260812_spy.txt` into `QuoteUpdate` and `TradePrint` messages, holds your resting limit orders, and manufactures an `OrderFilled` message the instant a trade print crosses one of your orders. `main.py`'s `handle_next_tick` is the strategy loop: read messages, update the book, cancel and re-quote behind the touch with a fixed per-share inventory skew.
+Read `fake_broker.py` and `main.py` in this case-study folder in full before starting. `FakeBroker` parses `data/20260812_spy.txt` into `QuoteUpdate` and `TradePrint` messages, holds your resting limit orders, and manufactures an `OrderFilled` message the instant a trade print crosses one of your orders. `main.py`'s `handle_next_tick` is the strategy loop: read messages, update the book, cancel and re-quote behind the touch with a fixed per-share inventory skew. The synthetic Avellaneda-Stoikov demo is available as `simulate_as` in `simulate_as.py`.
 
 You are extending this infrastructure — subclassing or modifying `FakeBroker`, adding new fields to `book`, adding new command-line-free helper functions — not writing a new event-driven backtester from zero. Confirm you can run the baseline as-is before changing anything:
 
 ```
-cd lectures/module08/backtest
+cd case-studies/cs3
 python main.py ../../../data/20260812_spy.txt --plot
 ```
 
@@ -57,7 +57,7 @@ python main.py ../../../data/20260812_spy.txt --plot
 
 *In practice: nobody trades a model whose parameters were never checked against the market it's meant to describe.*
 
-The Avellaneda-Stoikov simulation in the Module 8 slides (`simulate_as`) uses assumed values for $\sigma$ (midprice volatility), and $k$, $A$ (the fill-intensity parameters governing $\lambda(\delta) = A e^{-k\delta}$). Before extending the strategy, calibrate these to the real tape:
+The Avellaneda-Stoikov simulation in `simulate_as.py` uses assumed values for $\sigma$ (midprice volatility), and $k$, $A$ (the fill-intensity parameters governing $\lambda(\delta) = A e^{-k\delta}$). Import it with `from simulate_as import simulate_as`. Before extending the strategy, calibrate these to the real tape:
 
 - Estimate $\sigma$ from the realized volatility of the SPY midprice over the trading day (annualize or leave in the tape's native units — be explicit and consistent for the rest of the notebook).
 - Estimate $k$ and $A$ by relating quoted distance from the touch to observed fill/trade intensity in the tape (e.g., bucket trades by how far the trade price sat from the prevailing midpoint at the time, and fit the exponential intensity form to the resulting counts — describe and justify your estimation approach in a prose cell).
@@ -192,7 +192,7 @@ Briefly explain your choice and what it revealed relative to your Section 7 stra
 
 ## Deliverables and Grading
 
-**Submit a zip containing your notebook together with your own copy of the tape data**, not the notebook alone: `notebook.ipynb` plus `data/20260812_spy.txt` (same relative layout, `data/` alongside the notebook). Grading runs your notebook against *your* submitted copy of the data, not a shared one — `fake_broker.py`/`main.py` are already provided in the grading environment, but the tape data is not, precisely because everyone is expected to already have their own copy rather than the instructor redistributing one shared file. In your notebook, read the tape from a path variable near the top (e.g. `TAPE_PATH = "data/20260812_spy.txt"`) rather than the `../../../data/...` path Section 0's baseline check uses — that path is specific to your local repo layout and won't resolve once your notebook is graded elsewhere.
+**Submit a zip containing your notebook together with your own copy of the tape data**, not the notebook alone: `notebook.ipynb` plus `data/20260812_spy.txt` (same relative layout, `data/` alongside the notebook). The demo files `fake_broker.py`, `main.py`, and `simulate_as.py` are included alongside this prompt in the course materials; use those local files rather than importing from `lectures/module08/backtest/`. The tape data is not included in the course materials because it is vendor-sourced and is not to be redistributed — include your own copy with your submission. In your notebook, read the tape from a path variable near the top (e.g. `TAPE_PATH = "data/20260812_spy.txt"`) rather than the `../../../data/...` path Section 0's baseline check uses — that path is specific to your local repo layout.
 
 Your submission must run top-to-bottom without error against that data. Where sections ask for "good visualizations," axis labels, legends, and titles are required. Unlabeled plots will not receive full credit.
 
