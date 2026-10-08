@@ -95,43 +95,6 @@ def plot_pnl(pnl_history):
     plt.show()
 
 
-def run_backtest(data_path, plot=False, max_messages=MAX_MESSAGES):
-    """Run the backtest over a tape and return the final book.
-
-    This is the function to call directly from a notebook, e.g.:
-        book = run_backtest("../../../data/20260812_spy.txt", plot=True)
-    """
-    broker = FakeBroker(data_path)
-    book = {
-        "time": None,
-        "best_bid": None,
-        "best_ask": None,
-        "last_trade_price": None,
-        "inventory": 0,
-        "cash": 0.0,
-        "pnl_history": [],
-    }
-
-    for _ in range(max_messages):
-        if broker.done:
-            break
-        handle_next_tick(broker, book)
-
-    broker.close()
-
-    mark = book["last_trade_price"]
-    pnl = book["cash"] + book["inventory"] * mark
-    print(f"final inventory: {book['inventory']} shares")
-    print(f"final cash:      {book['cash']:,.2f}")
-    print(f"mark-to-market:  {mark:.2f}")
-    print(f"total PnL:       {pnl:,.2f}")
-
-    if plot:
-        plot_pnl(book["pnl_history"])
-
-    return book
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -150,7 +113,34 @@ def main():
         help=f"stop after this many tape lines, to keep the demo fast (default: {MAX_MESSAGES})",
     )
     args = parser.parse_args()
-    run_backtest(args.data_path, plot=args.plot, max_messages=args.max_messages)
+
+    broker = FakeBroker(args.data_path)
+    book = {
+        "time": None,
+        "best_bid": None,
+        "best_ask": None,
+        "last_trade_price": None,
+        "inventory": 0,
+        "cash": 0.0,
+        "pnl_history": [],
+    }
+
+    for _ in range(args.max_messages):
+        if broker.done:
+            break
+        handle_next_tick(broker, book)
+
+    broker.close()
+
+    mark = book["last_trade_price"]
+    pnl = book["cash"] + book["inventory"] * mark
+    print(f"final inventory: {book['inventory']} shares")
+    print(f"final cash:      {book['cash']:,.2f}")
+    print(f"mark-to-market:  {mark:.2f}")
+    print(f"total PnL:       {pnl:,.2f}")
+
+    if args.plot:
+        plot_pnl(book["pnl_history"])
 
 
 if __name__ == "__main__":
