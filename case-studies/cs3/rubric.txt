@@ -1,0 +1,427 @@
+================================================================================
+CASE STUDY 3 - GRADING RUBRIC
+Market Making the SPY Limit Order Book
+DS 5005
+================================================================================
+
+Total: 100 points, plus up to 5 bonus points (Section 8).
+
+--------------------------------------------------------------------------------
+HOW TO USE THIS RUBRIC
+--------------------------------------------------------------------------------
+- Section point totals (1=10, 2=15, 3=15, 4=15, 5=15, 6=15, 7=15) match the
+  assignment prompt exactly.
+- Part A (Presentation & Reproducibility) is scored as DEDUCTIONS from the
+  earned section total, capped at -15 points overall. The hard caps in A1
+  (non-running notebook) apply on top of that cap.
+- Within each section, every row lists the criterion, its point value, and what
+  full / partial / no credit looks like. Partial credit is assessed per row.
+- An attempted-but-flawed answer always scores higher than a skipped one. A
+  section left blank earns 0; the same section attempted badly earns something.
+- Grading is done by running the submitted notebook top-to-bottom against the
+  student's own submitted copy of data/20260812_spy.txt (per the Deliverables
+  section, the tape ships inside each submission's zip, not from a shared
+  grading copy). If the zip is missing the data file or the notebook does not
+  read TAPE_PATH from a variable near the top, see A2.
+
+================================================================================
+PART A -- PRESENTATION & REPRODUCIBILITY  (cross-cutting; deductions, max -15)
+================================================================================
+
+A1. NOTEBOOK RUNS TOP-TO-BOTTOM WITHOUT ERROR
+    - Clean run, no errors: no deduction.
+    - Runs with harmless warnings only (deprecation notices, matplotlib
+      tight-layout chatter that does not change results): no deduction.
+    - One or two cells raise errors but the rest of the notebook is independent
+      and gradeable: -5, and the failing section(s) are graded on their visible
+      saved output only.
+    - Notebook errors early and large portions cannot execute: FINAL SCORE
+      CAPPED AT 60% of otherwise-earned points.
+    - Not submitted as a single .ipynb (PDF only, .py only, bare Colab link with
+      no notebook file): not accepted for full credit; see syllabus format/late
+      policy.
+
+A2. SELF-CONTAINED AND REPRODUCIBLE
+    - Submission is a zip containing the notebook plus the student's own
+      data/20260812_spy.txt in the same relative layout; the notebook reads the
+      tape from a path variable (e.g. TAPE_PATH) near the top rather than the
+      Section 0 ../../../data/... path; a grader can unzip and run without
+      editing any path: no deduction.
+    - Tape missing from the submission, or the notebook still hard-codes the
+      Section 0 relative path / an absolute local path: -5.
+    - Requires undocumented manual steps (hand-editing constants to find a file,
+      re-running main.py separately and pasting in numbers): -3.
+    - Random seeds are set (or results are shown to be stable without them) for
+      every stochastic step (queue-depletion approximations, bootstrap
+      confidence bands on the markout curve, simulate_as calls): -2 if missing
+      AND results are visibly seed-sensitive.
+
+A3. SECTION HEADINGS AND NAVIGATION
+    - Every section and subsection from the prompt appears as a markdown header,
+      in order, labeled so it is immediately obvious which question is being
+      answered (e.g. "## Section 4 - Queue Priority: Pessimistic Fill Model"):
+      no deduction.
+    - Headers present but some sub-parts are buried in code comments or not
+      clearly delineated: -3.
+    - No markdown structure; grader has to hunt for where each answer is: -6.
+
+A4. FIGURES
+    - All plots render inline after a clean run: no deduction.
+    - Titles, axis labels, and legends (wherever more than one series or
+      variant is shown) are present on every figure: up to -5 total, scaled to
+      how many plots are unlabeled. Per the prompt, unlabeled plots do not
+      receive full credit.
+    - Figures illegible (markout curves with overlapping confidence bands and
+      no legend, a latency sweep plotted with no units on the x-axis, default
+      styling that hides the point being made): -2.
+
+A5. WRITTEN INTERPRETATION QUALITY
+    - Prose cells actually answer what was asked, cite specific numbers and
+      figures (dollar amounts, basis points, milliseconds -- not just "it got
+      worse"), and are in the student's own words: no deduction.
+    - Interpretation is vague, generic, or just restates the question without
+      engaging the results: up to -5 across the whole notebook.
+
+A6. SIGN/ACCOUNTING CONVENTIONS AND A FIXED EVALUATION WINDOW
+    - PnL sign convention (buy = inventory up/cash down, sell = inventory
+      down/cash up), the markout sign convention (price moving in your favor
+      after a fill is positive), and the edge-equation bookkeeping (rebates add,
+      fees and adverse-selection cost subtract) are each stated explicitly once
+      and held consistently across every section; every strategy variant
+      compared anywhere in the notebook (fee levels, latency levels, fill
+      models, skew strategies) is evaluated over the same slice of the tape
+      (same max_messages / time window), per the prompt's explicit warning
+      against comparing variants on different slices: no deduction.
+    - A sign flipped in one section (e.g. markout reported with the wrong sign
+      for sell fills) or a convention silently swapped mid-notebook: -3 here
+      (plus any per-section correctness loss).
+    - Two variants are compared on visibly different amounts of tape (different
+      max_messages, different wall-clock cutoff) without acknowledgment: -3,
+      and flagged per A8.
+
+A7. CODE HYGIENE
+    - Reasonably organized; the notebook extends FakeBroker/handle_next_tick
+      (subclassing, new book fields, helper functions) rather than copy-pasting
+      main.py's loop body seven times with small edits; no dead cells that
+      error: no deduction.
+    - Egregiously disorganized, or near-duplicated event loops where a
+      parameterized function was clearly intended: -2.
+
+A8. RED FLAGS (the "rookie mistakes" from the prompt) -- checked in context of
+    the relevant section, deducted there, but flag them explicitly in feedback:
+    - Reporting the zero-latency, zero-fee, optimistic-queue backtest's P&L as
+      a final answer anywhere outside of Section 7's explicit baseline
+      comparison.
+    - Treating the Level-1 bid_size/ask_size as if it were true queue position,
+      without acknowledging (in Section 4) that this is an approximation of
+      unknowable information.
+    - Look-ahead / peeking: strategy logic at tick t using information from a
+      message not yet returned by broker.poll() (e.g. using a trade print's
+      size to size an order sent before that print was read).
+    - Counting captured spread or rebates without ever netting fees and
+      adverse-selection cost (the full edge equation) by Section 6/7.
+    - A skew/quoting variant that lets inventory drift unmanaged with no
+      discussion of the resulting directional risk.
+    - Treating "profitable at the fill" as the final word on strategy quality,
+      i.e. skipping or hand-waving Section 6's markout analysis.
+    - Quotes resting or trading outside 9:30-4:00 in any modified version of
+      the loop.
+    - Comparing strategy variants (fee levels, latency levels, fill models,
+      skew strategies) on different slices of the tape.
+
+MAXIMUM TOTAL PART A DEDUCTION: -15 (A1 hard caps apply on top of this).
+
+================================================================================
+SECTION 1 -- CALIBRATING THE MODEL TO REAL DATA   (10 points)
+================================================================================
+
+1a. Volatility (sigma) estimation .......................................... 3
+    Full: sigma estimated from the realized volatility of the SPY midprice
+          over the trading day; units (annualized vs. native tape units)
+          stated explicitly and held consistent for the rest of the notebook.
+    Partial: computed but units left ambiguous, or mixed later with a
+             differently-scaled sigma without reconciliation (1.5).
+
+1b. Fill-intensity parameters (k, A) estimation ............................ 4
+    Full: trades bucketed by distance from the prevailing midpoint at trade
+          time (or an equivalent approach); the exponential intensity form
+          lambda(delta) = A * exp(-k*delta) fit to the resulting counts; the
+          estimation approach described and justified in a prose cell.
+    Partial: bucketing/fitting attempted but the functional form is misapplied
+             (e.g. fit to raw counts with no bucketing by distance), or no
+             justification given for the method chosen (2).
+    None: k and A left at simulate_as's assumed defaults with no attempt to
+          estimate them from the tape (0-1).
+
+1c. simulate_as vs. real backtest comparison ............................... 3
+    Full: a simulate_as run using the calibrated sigma/k/A compared against a
+          real main.py backtest over the same session; prose explicitly
+          addresses whether PnL, inventory, and drawdown behavior agree in
+          shape, and gives a specific account of where/why they diverge.
+    Partial: comparison run but only one of {PnL, inventory, drawdown}
+             discussed, or divergence noted with no attempted explanation (1.5).
+
+================================================================================
+SECTION 2 -- TRADING FEES AND REBATES   (15 points)
+================================================================================
+
+2a. Maker rebate implementation and attribution ............................ 4
+    Full: every OrderFilled books a maker rebate of rho dollars/share; total
+          rebate revenue over the session reported and expressed as a fraction
+          of gross P&L, using a realistic rho (~$0.0020-0.0028/share) as the
+          starting point.
+    Partial: rebate implemented but applied inconsistently (e.g. only to buy
+             fills), or reported in dollars with no fraction-of-gross-P&L
+             framing (2).
+
+2b. Rebate sweep and breakeven ............................................. 4
+    Full: rho swept across a grid spanning zero, the realistic range, and a
+          negative (inverted-venue) value, holding everything else fixed; the
+          rho at which net P&L crosses zero is identified.
+    Partial: sweep run but no explicit breakeven value stated, or the negative
+             (inverted) case omitted (2).
+
+2c. End-of-day taker flattening fee ......................................... 3
+    Full: remaining inventory at the end of the day is flattened via a taker
+          (spread-crossing) trade with a realistic taker fee (~$0.0030/share)
+          applied only to that trade; the resulting hit to the day's rebate
+          revenue is quantified.
+    Partial: flattening trade modeled but the taker fee omitted or applied to
+             more than the single flattening trade (1.5); flattening skipped
+             entirely with end-of-day inventory left unaccounted for (1).
+
+2d. Net-P&L-vs-rho plot and head-trader-facing conclusion .................. 4
+    Full: at least one labeled plot of net P&L as a function of rho; a prose
+          paragraph directly answers "how much do fees and rebates actually
+          matter," citing the breakeven rho and the flattening-fee hit from
+          2b/2c.
+    Partial: plot present but the paragraph doesn't connect back to the
+             specific numbers (2).
+
+================================================================================
+SECTION 3 -- LATENCY: HOW MUCH DOES SPEED COST YOU?   (15 points)
+================================================================================
+
+3a. Latency model (outbound + market-data) .................................. 6
+    Full: a fixed latency L is applied to both legs -- outgoing
+          send_limit_order/cancel_order calls take effect L ms later in
+          tape-time, and/or incoming messages are delayed L ms before the
+          strategy can react to them; the race condition this creates (a stale
+          resting order the market has already moved past before a cancel
+          lands) is explicitly modeled and described in prose.
+    Partial: latency applied to only one leg (outbound or market-data, not
+             both), or the stale-order race condition is not addressed in
+             code or in prose (3).
+    None: latency "implemented" as a cosmetic delay that does not actually
+          change which fills occur relative to L=0 (0-2).
+
+3b. Latency grid and metrics ................................................. 4
+    Full: backtest run at L in {0, 1, 5, 20, 100, 500} ms (or an equivalent
+          grid spanning colocated to meaningfully slow); net P&L, fill count,
+          and average markout-free realized spread capture computed at each L.
+    Partial: fewer than four latency levels tested, or one of the three
+             required metrics omitted (2).
+
+3c. Plots .................................................................... 2
+    Full: net P&L, fill count, and realized spread capture each plotted as a
+          function of L, labeled.
+    Partial: fewer than three metrics plotted, or plots unlabeled (1).
+
+3d. Breakeven latency and Module 8 connection ................................ 3
+    Full: the latency at which the strategy stops being profitable is
+          identified from the grid/plots; prose explicitly connects this value
+          to Module 8's latency table (colocated direct feed vs. a human
+          noticing a quote change, or similar reference points).
+    Partial: breakeven latency identified with no connection back to Module 8's
+             latency categories (1.5).
+
+================================================================================
+SECTION 4 -- QUEUE PRIORITY: HOW IMPORTANT IS IT REALLY?   (15 points)
+================================================================================
+
+4a. Pessimistic (queue-aware) fill model ..................................... 6
+    Full: a second fill model is built in which a newly-posted order joins the
+          back of the queue behind the displayed bid_size/ask_size at that
+          price; the size ahead is depleted via the sequence of trade prints
+          and quote-size changes before the order can fill; simplifying
+          assumptions required to approximate this from Level-1 data are
+          clearly documented, with explicit acknowledgment that no fully
+          correct reconstruction is possible from this data.
+    Partial: a pessimistic model is built but queue depletion is approximated
+             too crudely to be defensible (e.g. a fixed delay with no relation
+             to actual trade/quote-size flow), or the simplifying assumptions
+             are not documented (3).
+    None: "pessimistic" model is cosmetic and produces materially the same
+          fills as the optimistic baseline with no explanation (0-2).
+
+4b. Head-to-head run, same configuration otherwise ........................... 5
+    Full: the same strategy configuration (fees, latency, quoting logic held
+          fixed) run under both the optimistic baseline and the pessimistic
+          model; fill count, fill rate as a function of quoted distance from
+          the touch, and net P&L reported and plotted for both.
+    Partial: one of the three required metrics omitted, or fees/latency not
+             actually held fixed across the two runs (2.5).
+
+4c. Interpretation: where does the truth sit? ................................ 4
+    Full: prose gives a specific estimate of how much of the baseline
+          strategy's apparent profitability was an artifact of assumed perfect
+          queue priority, referencing the 4b numbers, and states a reasoned
+          position on where the truth likely sits between the two bounds.
+    Partial: the two models are compared with no attempt to estimate where the
+             true answer lies between them (2).
+
+================================================================================
+SECTION 5 -- ALTERNATIVE QUOTING STRATEGIES   (15 points)
+================================================================================
+
+5a. Alternative skew signal implemented ....................................... 6
+    Full: at least one alternative to the linear inventory skew (order-flow
+          imbalance, volatility-adaptive spread, quote-depth skew, or a
+          reasonable variant) implemented as a clean variant of
+          handle_next_tick, with the signal's construction (window length,
+          lookback, etc.) clearly documented.
+    Partial: signal implemented but trivially degenerate (e.g. order-flow
+             imbalance that reduces to a constant, or a vol-adaptive spread
+             that barely moves) with no acknowledgment of the issue (3).
+
+5b. Three-way comparison, same evaluation window .............................. 5
+    Full: the alternative strategy run over the same evaluation window as the
+          baseline (fees, latency, fill model held fixed at whatever
+          configuration was settled on in Sections 2-4), and compared against
+          both the baseline linear inventory skew and a naive symmetric
+          (no-skew) strategy.
+    Partial: only two of the three variants compared, or the evaluation window
+             differs across variants (2.5, and flagged per A6/A8 if the window
+             differs).
+
+5c. Metrics and interpretation .................................................. 4
+    Full: net P&L, inventory path (time series) and summary statistics (mean
+          |inventory|, max |inventory|), and fill count reported for all three
+          variants; prose explicitly states whether the alternative signal
+          helped, hurt, or mostly traded off average P&L against inventory
+          risk, citing the numbers.
+    Partial: metrics reported with no explicit help/hurt/tradeoff verdict (2).
+
+================================================================================
+SECTION 6 -- MARKOUT: ARE YOU GETTING PICKED OFF?   (15 points)
+================================================================================
+
+6a. Markout computation ......................................................... 5
+    Full: markout computed for every fill from the Section 5 strategy (or a
+          chosen configuration) at several horizons (e.g. 1s, 5s, 30s, 5min);
+          sign convention stated explicitly and applied consistently for buys
+          and sells.
+    Partial: markout computed at only one or two horizons, or the sign
+             convention is inconsistent between buy and sell fills (2.5, and
+             flagged per A6 if inconsistent).
+
+6b. Markout curve with confidence band .......................................... 3
+    Full: average signed markout plotted as a function of horizon with a
+          confidence band (standard error across fills, or bootstrap),
+          labeled.
+    Partial: curve plotted with no uncertainty band, or band present but
+             unlabeled (1.5).
+
+6c. Cross-variant comparison ..................................................... 3
+    Full: markout curves compared across at least two variants built earlier
+          in the notebook (e.g. optimistic vs. pessimistic fill models, or
+          baseline vs. alternative skew); prose addresses whether a larger
+          QUOTE_OFFSET produces a less toxic markout profile at the cost of
+          fewer fills, and whether markout stabilizes at some horizon or keeps
+          drifting.
+    Partial: curves compared with no explicit statement on offset-vs-toxicity
+             or on whether markout stabilizes (1.5).
+
+6d. Edge equation, filled in with real numbers .................................. 4
+    Full: edge = captured spread + rebates - fees - adverse selection cost is
+          explicitly filled in using the notebook's own numbers from Sections
+          2 (fees/rebates), 3 (at the chosen latency), 4 (at the chosen fill
+          model), and 6 (markout-derived adverse selection cost); prose states
+          how much of the gross spread captured survives once adverse
+          selection is netted out.
+    Partial: equation stated but one or more terms left as a placeholder or
+             pulled from a different configuration than the rest of the
+             notebook settled on (2).
+
+================================================================================
+SECTION 7 -- FULL BACKTEST AND PERFORMANCE TEARSHEET   (15 points)
+================================================================================
+
+7a. Combined configuration with rolling re-calibration .......................... 5
+    Full: a single configuration combining the notebook's best-supported fee,
+          latency, fill-model, and skew choices; Section 1's parameters (and/or
+          the Section 5 signal's own parameters) are re-calibrated on a rolling
+          basis through the day (e.g. refit every 30 minutes using only data
+          seen so far so far) rather than fixed all-day; refit frequency
+          justified in a prose cell.
+    Partial: configuration combined but calibration left fixed all-day with no
+             rolling refit (2.5); refit frequency not justified (1).
+
+7b. Tearsheet metrics table ...................................................... 4
+    Full: all eleven rows filled from the full strategy's run -- gross P&L,
+          rebates earned, fees paid, net P&L, estimated adverse selection cost
+          (from markout), fill count (buy/sell), mean |inventory|, max
+          |inventory|, end-of-day inventory, intraday P&L volatility, and max
+          intraday drawdown.
+    Partial: -0.4 per missing or incorrect row.
+
+7c. Required plot ................................................................ 2
+    Full: mark-to-market P&L over the day plotted for the full strategy against
+          the zero-latency/optimistic-queue/no-fee main.py-as-is baseline, and
+          against a naive symmetric (no-skew) benchmark; labeled.
+    Partial: one comparison series missing, or plot unlabeled (1).
+
+7d. Desk-facing recommendation ................................................... 2
+    Full: 3-5 sentences addressed to the head trader, grounded in the tearsheet
+          numbers, on whether to give the strategy a live allocation and under
+          what conditions/caveats.
+    Partial: present but hand-wavy or not decision-oriented (1).
+
+7e. Interpretation ................................................................ 2
+    Full credit on each requires a specific, evidence-referenced answer:
+      - Ranks fees, latency, queue priority, and adverse selection/markout by
+        how much each cut into gross P&L, and says whether the ranking
+        surprised the student relative to their prior intuition ............. 0.7
+      - States whether the Section 5 alternative skew survived contact with
+        realistic fees/latency/fill modeling or whether its edge mostly
+        evaporated ............................................................ 0.7
+      - Names one specific change (wider quotes, a hard inventory limit, a
+        different skew signal, avoiding certain times of day) the student
+        would make first with real money, pointing to specific tearsheet/
+        markout numbers ....................................................... 0.6
+
+================================================================================
+SECTION 8 -- BONUS: PUSH THE STRATEGY FURTHER   (up to +5 points, optional)
+================================================================================
+
+  +3  One of {hard inventory kill-switch, toxicity-aware quoting rule using the
+      Section 6 markout analysis, a fitted fill-probability model compared to
+      the parametric Avellaneda-Stoikov intensity} correctly implemented and
+      run against the Section 7 configuration.
+  +2  Clear explanation of what the extension revealed relative to the Section
+      7 strategy, supported with numbers and/or figures.
+
+  Partial bonus is allowed. There is no penalty for skipping this section.
+
+================================================================================
+SCORE SUMMARY
+================================================================================
+
+  Section 1  (Calibration to real data) ............  ____ / 10
+  Section 2  (Fees and rebates) ....................  ____ / 15
+  Section 3  (Latency) .............................  ____ / 15
+  Section 4  (Queue priority) ......................  ____ / 15
+  Section 5  (Alternative quoting/skew strategy) ...  ____ / 15
+  Section 6  (Markout / adverse selection) .........  ____ / 15
+  Section 7  (Full backtest, tearsheet) ............  ____ / 15
+                                                     ------------
+  Subtotal ........................................  ____ / 100
+
+  Part A deductions (Presentation & Reproducibility)  - ____   (max -15;
+                                                               A1 hard caps
+                                                               may also apply)
+  Section 8 bonus ..................................  + ____   (max +5)
+                                                     ------------
+  FINAL ..........................................  ____ / 100 (+ bonus)
+
+================================================================================
