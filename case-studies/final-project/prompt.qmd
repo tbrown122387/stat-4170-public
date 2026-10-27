@@ -1,0 +1,178 @@
+---
+title: "Final Project: Push a Case Study Past Where the Semester Left It"
+subtitle: "{{< var course.code >}} – {{< var course.title >}}"
+author: "Due: see Gradescope"
+format:
+  html:
+    theme: default
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    math: mathjax
+    self-contained: true
+execute:
+  echo: true
+  eval: false
+---
+
+## Overview
+
+Each case study this semester ended with a limitation stated out loud instead of
+swept under the rug: CS 1's optimizer is only as trustworthy as an estimate of
+$\boldsymbol{\mu}$ that Section 2 showed is genuinely hard to pin down. CS 2's
+basket has a real, basket-wide edge, but it comes bundled with the crash risk
+the lecture warned about from the start. CS 3's market maker has to be fast
+enough to survive contact with latency and queue priority, and even then is
+quoting under an assumption — driftless, Gaussian midprice moves — that the
+real tape doesn't always honor. CS 4's hedge is built on a single volatility
+that the market's own smile proves doesn't exist.
+
+**The final project asks you to pick exactly one of these four open problems
+and take a serious run at it.** Not a cosmetic extension — more tickers, a
+longer backtest window, a nicer plot — but a focused piece of work whose whole
+point is the difficulty itself: what would it actually take to estimate
+$\boldsymbol{\mu}$ well enough to trust, to make carry survive its own crashes,
+to make market making robust to speed and a changing market, or to hedge
+honestly against a smile that a single $\sigma$ can't capture?
+
+This is deliberately open-ended. Per the syllabus, the final project is "an
+open-ended quantitative analysis of a financial question of your choosing,
+ideally drawing on at least one case study methodology and its supporting
+mathematical framework," presented live during the final class session, with
+the detailed rubric posted on Canvas. This document exists to help you pick a
+good question — specifically, to name the hard problem inside each case study
+precisely enough that you can recognize whether your proposed project is
+actually attacking it, or just circling it.
+
+---
+
+## The Open Problem in Each Case Study
+
+Pick **one**. You are not required to have used that case study's exact data
+or code as your starting point, but your project should engage with the
+problem as stated below, not a watered-down version of it.
+
+### Case Study 1 — Mean-Variance Portfolios: $\boldsymbol{\mu}$ Is the Bottleneck
+
+Section 2 made the uncomfortable point as directly as possible: $\mathbf{w}^*
+\propto \hat{\boldsymbol{\Sigma}}^{-1}\hat{\boldsymbol{\mu}}$ needs
+$\hat{\boldsymbol{\mu}}$, and $\hat{\boldsymbol{\mu}}$ is estimated so poorly,
+at realistic sample sizes, that the "optimal" portfolio is often mostly noise
+dressed up as a formula. $\hat{\boldsymbol{\Sigma}}$ is comparatively
+well-behaved; $\hat{\boldsymbol{\mu}}$ is the genuine bottleneck. Having a
+trustworthy $\boldsymbol{\mu}$ is exactly what would make mean-variance theory
+live up to its promise — the theory was never the weak link, the input was.
+
+A project here takes on the estimation problem directly: shrinkage toward a
+structured target (Black-Litterman, James-Stein, a factor-implied prior),
+robust or Bayesian estimation that explicitly represents estimation
+uncertainty instead of plugging in a point estimate, a factor model that
+estimates fewer, more stable quantities instead of $k$ noisy means, or a
+robust/minimax formulation of the optimizer itself that hedges against
+$\boldsymbol{\mu}$ being wrong. Whatever you choose, the project only counts
+if you show — out-of-sample, against the plug-in sample-mean baseline from CS
+1 — that your approach actually produces a more trustworthy
+$\hat{\boldsymbol{\mu}}$ or a portfolio that is less damaged by
+$\boldsymbol{\mu}$ risk.
+
+### Case Study 2 — The Carry Basket: The Edge Is Real, the Drawdowns Are the Problem
+
+Section 3's basket-wide Fama regressions confirmed the forward premium puzzle
+holds across G10, not just for one lucky pair — the carry edge is not a
+fluke. But Section 5 also made unavoidable what the literature has always
+said about carry: it is "picking up nickels in front of a steamroller,"
+negatively skewed, prone to sudden, correlated unwinds (2008, the SNB peg
+break, the August 2024 JPY unwind). The idea is sound; what carry actually
+needs is a way to keep collecting the differential without being destroyed
+the one time in twenty the trade unwinds all at once. CS 2's own Section 6
+bonus (a trend filter) was one modest attempt at this — the final project is
+the chance to take that problem seriously rather than as an optional add-on.
+
+A project here builds and honestly evaluates a real defense against carry's
+tail risk: a regime-detection overlay that de-risks ahead of (or quickly
+after) a crash signal, a volatility- or correlation-based dynamic leverage
+rule, an explicit options-based tail hedge (and its cost), or a systematic
+comparison of several such defenses against more crash episodes than CS 2's
+original window covered. The bar for success is explicit: does your defense
+measurably improve the basket's skewness, max drawdown, or crash-episode
+behavior, and how much of the average carry return did you give up to get
+that improvement?
+
+### Case Study 3 — Market Making: Fast Enough, and Right About the Market
+
+CS 3 split the head trader's question into frictions (fees, latency, queue
+priority, adverse selection) and showed each one eats into a zero-friction
+backtest's P&L. But there's a second, deeper issue underneath "can you be
+fast enough": the Avellaneda-Stoikov policy itself assumes the midprice moves
+like driftless Brownian motion. Real tape doesn't always cooperate — trends,
+news, regime shifts, and the very "toxic" windows Section 6's markout
+analysis is built to detect are all departures from that assumption. Being
+fast enough to execute the policy and having a policy that still makes sense
+once the market stops being driftless Brownian motion are two different
+problems, and CS 3 left the second one almost entirely unaddressed.
+
+A project here goes after either side, or both: deepen the microstructure
+realism (a better queue-position model, latency compensation that adapts
+rather than just measures the damage, adverse-selection-aware order sizing),
+or relax the driftless-Brownian-motion assumption directly — a
+regime-switching or jump-aware reservation price, a trend/momentum-adjusted
+midprice forecast feeding into the AS formula, or a toxicity-aware rule
+(building on CS 3 Section 8's suggestion) that widens or steps aside during
+exactly the windows your markout analysis flags. Show, on the real tape, that
+your version holds up where the baseline AS policy would have gotten picked
+off or priced out.
+
+### Case Study 4 — Options Hedging: One $\sigma$ Can't Describe the Market
+
+CS 4 Sections 3 and 6 demonstrated the smile is not a synthetic artifact — a
+real SPX chain genuinely cannot be matched by one Black-Scholes $\sigma$
+across every strike, and Section 4's two-$\sigma$ comparison showed that
+mismatch isn't academic: a hedger whose $\sigma$ doesn't match the market's
+own view carries real, quantifiable Vega exposure that a delta-only hedge
+never touches, by construction, no matter how often you rebalance or how
+carefully you account for transaction costs. Black-Scholes is useful; it is
+also, provably on your own data, wrong in a specific and structural way, and
+a delta-only hedge leaves exactly that wrongness unmanaged.
+
+A project here either fixes the pricing side or the hedging side of that gap.
+On pricing: calibrate a genuinely smile-consistent model to your real chain
+(local volatility, a simple stochastic-volatility model like SABR, or a
+jump-diffusion model) and show it prices away-from-the-money strikes
+meaningfully better than a flat-$\sigma$ Black-Scholes fit, out of sample
+across your data window. On hedging: build the Vega-neutral, two-option hedge
+that CS 4 Section 8 only sketched, and quantify — on a real historical path,
+not just a simulated one — how much hedging-P&L variance it removes relative
+to the delta-only hedge from Section 4/5, and at what transaction-cost
+tradeoff.
+
+---
+
+## What Counts as Embellishment (and What Doesn't)
+
+**Not acceptable:** re-running your chosen case study's existing sections
+with a longer window, more tickers, or a different random seed. That's
+repetition, not research.
+
+**Acceptable:** a focused attack on the specific difficulty named above, with
+its own well-defined baseline (almost always: the relevant case study's own
+original approach), its own comparison, and an honest verdict on whether your
+idea actually worked — including the real possibility that it didn't, or
+that it helped less than you expected. A project that tries something
+reasonable and reports "this didn't actually fix the problem, and here's
+why" is worth more than one that quietly cherry-picks a flattering result.
+
+You do not need to reuse your original case study's code verbatim, and you
+are welcome to pull additional data if your chosen direction needs it — just
+document your pipeline and caching with the same rigor CS 1–4 required.
+
+---
+
+## Deliverables
+
+Per the syllabus: a written report and a live presentation during the final
+class session. Hold yourself to the same standards the case studies did —
+reproducible code, an explicit accounting of frictions and uncertainty where
+relevant, honestly labeled figures, and a closing recommendation paragraph
+addressed to whichever stakeholder (PM, head trader, desk head) your chosen
+case study's scenario was written for. The detailed rubric is posted on
+Github.
