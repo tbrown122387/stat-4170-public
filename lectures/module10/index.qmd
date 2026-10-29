@@ -124,26 +124,32 @@ plt.show()
 
 Which ones would you buy or sell and why?
 
-## TLDR
+## TLDR (for Gamblers/Traders/Investors)
 
 The price of a European option is the **present value of its expected payoff at expiration**.
 
-1. If you are a gambler/investor who buys once and holds until expiration,
+If you hold the position until expiration,
 
  - this is a formula of $\mu$ and $\sigma$;
  - if your model is correct, your average profit will converge to the expected profit **by the law of large numbers;**
- - so you will use it mostly to screen for what options are expensive and which are cheap;
- - you need another tool for risk management.
+ - so you will use it mostly to screen for what options are expensive and which are cheap,
 
-2. If you are a market-maker, or someone who plans on continuously hedging with stock, 
- 
+If you plan on selling the position before expiration: 
+
+ - you can take some derivatives of this function and plug it into Itô's lemma;
+ - Itô's lemma will tell you what happens in the short term.
+
+## TLDR (for Market-Makers/Hedgers)
+
+The price of a European option is (still) the **present value of its expected payoff at expiration**.
+
  - your $\mu$ is not estimated because **it must be set to the risk-neutral rate**;
  - this makes the discounted stock and option price both martingales;
- - it also precludes the possibility of arbitrage;
+ - this precludes the possibility of arbitrage;
  - your profits are coming from collecting the bid-ask spread, and maybe attempting that arb;  
  - you don't estimate $\sigma$ from historical data; instead you choose the value that explains the current price;
  - different derivatives of the price formula give you decision-making tools for your automated trading system;
- - you are not forecasting--you're reacting.
+ - you are not forecasting and you're not assuming any risk (if GBM is the true model for stock).
 
 
 ## Two Routes to the Same Answer
