@@ -1647,6 +1647,13 @@ W_t^{\mathbb{Q}} = W_t^{\mathbb{P}} + \theta t
 </span></p>
 <p>Same randomness (the variance doesn’t change), but a nonzero mean — exactly the drift that Girsanov’s theorem swaps between <span class="math inline">\mu</span> and <span class="math inline">r</span>.</p>
 </section>
+<section id="checking-mathbbe_mathbbqdw_tmathbbq-0-directly" class="slide level2">
+<h2>Checking <span class="math inline">\mathbb{E}_{\mathbb{Q}}[dW_t^{\mathbb{Q}}] = 0</span> Directly</h2>
+<p><span class="math display">
+\mathbb{E}_{\mathbb{Q}}[dW_t^{\mathbb{Q}}] = \mathbb{E}_{\mathbb{Q}}\!\left[dW_t^{\mathbb{P}} + \theta\,dt\right] = \mathbb{E}_{\mathbb{P}}\!\left[\left(dW_t^{\mathbb{P}} + \theta\,dt\right)\frac{f_{\mathbb{Q}}}{f_{\mathbb{P}}}\right] = -\theta\,dt + \theta\,dt\cdot 1 = 0
+</span></p>
+<p>where <span class="math inline">f_{\mathbb{Q}}/f_{\mathbb{P}} = \exp\!\left(-\theta\,dW_t^{\mathbb{P}} - \tfrac12\theta^2\,dt\right)</span> is the Radon–Nikodym factor (this is just the change-of-measure identity <span class="math inline">\mathbb{E}_{\mathbb{Q}}[X] = \mathbb{E}_{\mathbb{P}}[X f_{\mathbb{Q}}/f_{\mathbb{P}}]</span>), and the two pieces are a Gaussian moment calculation (<span class="math inline">\mathbb{E}_{\mathbb{P}}[dW_t^{\mathbb{P}} \cdot f_{\mathbb{Q}}/f_{\mathbb{P}}] = -\theta\,dt</span>) and the fact that any valid density ratio integrates to <span class="math inline">1</span>.</p>
+</section>
 <section id="the-risk-neutral-measure-4" class="slide level2">
 <h2>The “Risk-Neutral” measure</h2>
 <p>Substitute <span class="math inline">dW_t^{\mathbb{P}} = dW_t^{\mathbb{Q}} - \theta\,dt</span> into the stock’s <span class="math inline">\mathbb{P}</span>-dynamics and watch the drift change:</p>
@@ -1695,11 +1702,19 @@ dY_t &amp;= \left(\frac{\partial Y}{\partial t} + rS\frac{\partial Y}{\partial S
 <p><span class="math display">
 V(t, S) = e^{-r(T-t)}\, E^{\mathbb{Q}}\!\left[V(T, S) \mid S(t) = S\right]
 </span></p>
-<p>— literally “discount the expected payoff,” but under <span class="math inline">\mathbb{Q}</span>, not the real-world measure. Since <span class="math inline">dS = rS\,dt + \sigma S\,dW^{\mathbb{Q}}</span> is GBM with drift <span class="math inline">r</span>, Module 9’s closed form applies directly:</p>
+<p>— literally “discount the expected payoff,” but under <span class="math inline">\mathbb{Q}</span>, not the real-world measure. Equivalently: this is exactly the equation you’d check satisfies the Black-Scholes PDE from Part 3, with the same terminal condition <span class="math inline">V(T,S)=\max(S-K,0)</span>.</p>
+</section>
+<section id="why-this-formula-holds-e-rtv-is-a-martingale" class="slide level2">
+<h2>Why This Formula Holds: <span class="math inline">e^{-rt}V</span> Is a Martingale</h2>
+<p>Let <span class="math inline">\tilde{\Pi}(t) = \Delta(t) S(t) + B(t)</span> be the self-financing replicating portfolio from Part 3 (<span class="math inline">\Delta</span> shares of stock, <span class="math inline">B</span> in cash earning <span class="math inline">r</span>, no outside cash added or removed): <span class="math inline">d\tilde{\Pi} = \Delta\,dS + rB\,dt</span>. Substituting <span class="math inline">B = \tilde{\Pi} - \Delta S</span> and <span class="math inline">dS = rS\,dt + \sigma S\,dW^{\mathbb{Q}}</span>:</p>
 <p><span class="math display">
-S(T) = S(t)\exp\!\left[\left(r - \tfrac{1}{2}\sigma^2\right)(T-t) + \sigma\sqrt{T-t}\, Z\right], \qquad Z \sim N(0,1)
+d\tilde{\Pi} = \Delta\left(dS - rS\,dt\right) + r\tilde{\Pi}\,dt = \Delta\sigma S\,dW^{\mathbb{Q}} + r\tilde{\Pi}\,dt
 </span></p>
-<p>Computing this expectation in closed form (a standard, if tedious, Normal-integral calculation) gives the Black-Scholes formula.</p>
+<p>Discount it, exactly like the last slide did for the stock:</p>
+<p><span class="math display">
+d(e^{-rt}\tilde{\Pi}) = -re^{-rt}\tilde{\Pi}\,dt + e^{-rt}\,d\tilde{\Pi} = e^{-rt}\Delta\sigma S\,dW^{\mathbb{Q}}
+</span></p>
+<p>No drift term survives — <span class="math inline">e^{-rt}\tilde{\Pi}(t)</span> is a <span class="math inline">\mathbb{Q}</span>-martingale, same as <span class="math inline">e^{-rt}S(t)</span>. Since <span class="math inline">V(t,S(t)) = \tilde{\Pi}(t)</span> by replication, <span class="math inline">e^{-rt}V(t,S(t))</span> is a <span class="math inline">\mathbb{Q}</span>-martingale too. Applying the martingale property between <span class="math inline">t</span> and <span class="math inline">T</span> — current discounted value equals expected future discounted value — <em>is</em> the pricing formula on the previous slide.</p>
 </section>
 <section id="why-mu-never-appears" class="slide level2">
 <h2>Why <span class="math inline">\mu</span> Never Appears</h2>

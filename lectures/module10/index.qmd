@@ -366,6 +366,15 @@ $$
 Same randomness (the variance doesn't change), but a nonzero mean — exactly the drift that Girsanov's theorem swaps between $\mu$ and $r$.
 
 
+## Checking $\mathbb{E}_{\mathbb{Q}}[dW_t^{\mathbb{Q}}] = 0$ Directly
+
+$$
+\mathbb{E}_{\mathbb{Q}}[dW_t^{\mathbb{Q}}] = \mathbb{E}_{\mathbb{Q}}\!\left[dW_t^{\mathbb{P}} + \theta\,dt\right] = \mathbb{E}_{\mathbb{P}}\!\left[\left(dW_t^{\mathbb{P}} + \theta\,dt\right)\frac{f_{\mathbb{Q}}}{f_{\mathbb{P}}}\right] = -\theta\,dt + \theta\,dt\cdot 1 = 0
+$$
+
+where $f_{\mathbb{Q}}/f_{\mathbb{P}} = \exp\!\left(-\theta\,dW_t^{\mathbb{P}} - \tfrac12\theta^2\,dt\right)$ is the Radon–Nikodym factor (this is just the change-of-measure identity $\mathbb{E}_{\mathbb{Q}}[X] = \mathbb{E}_{\mathbb{P}}[X f_{\mathbb{Q}}/f_{\mathbb{P}}]$), and the two pieces are a Gaussian moment calculation ($\mathbb{E}_{\mathbb{P}}[dW_t^{\mathbb{P}} \cdot f_{\mathbb{Q}}/f_{\mathbb{P}}] = -\theta\,dt$) and the fact that any valid density ratio integrates to $1$.
+
+
 ## The "Risk-Neutral" measure
 
 Substitute $dW_t^{\mathbb{P}} = dW_t^{\mathbb{Q}} - \theta\,dt$ into the stock's $\mathbb{P}$-dynamics and watch the drift change:
@@ -424,13 +433,23 @@ $$
 V(t, S) = e^{-r(T-t)}\, E^{\mathbb{Q}}\!\left[V(T, S) \mid S(t) = S\right]
 $$
 
-— literally "discount the expected payoff," but under $\mathbb{Q}$, not the real-world measure. Since $dS = rS\,dt + \sigma S\,dW^{\mathbb{Q}}$ is GBM with drift $r$, Module 9's closed form applies directly:
+— literally "discount the expected payoff," but under $\mathbb{Q}$, not the real-world measure. Equivalently: this is exactly the equation you'd check satisfies the Black-Scholes PDE from Part 3, with the same terminal condition $V(T,S)=\max(S-K,0)$.
+
+## Why This Formula Holds: $e^{-rt}V$ Is a Martingale
+
+Let $\tilde{\Pi}(t) = \Delta(t) S(t) + B(t)$ be the self-financing replicating portfolio from Part 3 ($\Delta$ shares of stock, $B$ in cash earning $r$, no outside cash added or removed): $d\tilde{\Pi} = \Delta\,dS + rB\,dt$. Substituting $B = \tilde{\Pi} - \Delta S$ and $dS = rS\,dt + \sigma S\,dW^{\mathbb{Q}}$:
 
 $$
-S(T) = S(t)\exp\!\left[\left(r - \tfrac{1}{2}\sigma^2\right)(T-t) + \sigma\sqrt{T-t}\, Z\right], \qquad Z \sim N(0,1)
+d\tilde{\Pi} = \Delta\left(dS - rS\,dt\right) + r\tilde{\Pi}\,dt = \Delta\sigma S\,dW^{\mathbb{Q}} + r\tilde{\Pi}\,dt
 $$
 
-Computing this expectation in closed form (a standard, if tedious, Normal-integral calculation) gives the Black-Scholes formula.
+Discount it, exactly like the last slide did for the stock:
+
+$$
+d(e^{-rt}\tilde{\Pi}) = -re^{-rt}\tilde{\Pi}\,dt + e^{-rt}\,d\tilde{\Pi} = e^{-rt}\Delta\sigma S\,dW^{\mathbb{Q}}
+$$
+
+No drift term survives — $e^{-rt}\tilde{\Pi}(t)$ is a $\mathbb{Q}$-martingale, same as $e^{-rt}S(t)$. Since $V(t,S(t)) = \tilde{\Pi}(t)$ by replication, $e^{-rt}V(t,S(t))$ is a $\mathbb{Q}$-martingale too. Applying the martingale property between $t$ and $T$ — current discounted value equals expected future discounted value — *is* the pricing formula on the previous slide.
 
 ## Why $\mu$ Never Appears
 

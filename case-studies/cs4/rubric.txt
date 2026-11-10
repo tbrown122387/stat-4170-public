@@ -1,0 +1,441 @@
+================================================================================
+CASE STUDY 4 - GRADING RUBRIC
+Pricing, Hedging, and Calibrating a Real Option
+DS 5005
+================================================================================
+
+Total: 100 points, plus up to 5 bonus points (Section 8).
+
+--------------------------------------------------------------------------------
+HOW TO USE THIS RUBRIC
+--------------------------------------------------------------------------------
+- Section point totals (1=15, 2=15, 3=15, 4=25, 5=10, 6=10, 7=10) match the
+  assignment prompt exactly.
+- Part A (Presentation & Reproducibility) is scored as DEDUCTIONS from the
+  earned section total, capped at -15 points overall. The hard caps in A1
+  (non-running notebook) apply on top of that cap.
+- Within each section, every row lists the criterion, its point value, and what
+  full / partial / no credit looks like. Partial credit is assessed per row.
+- An attempted-but-flawed answer always scores higher than a skipped one. A
+  section left blank earns 0; the same section attempted badly earns something.
+- Grading is done on a fresh kernel: "Restart & Run All," against the
+  instructor's own OPRA.PILLAR pull for the announced date range (per Section
+  1.1, students buy their own copy of the same window, so the grader's copy is
+  substitutable for the student's, column-for-column) read in via the path
+  variable near the top of the notebook. Do not expect, and do not penalize
+  the absence of, the student's raw Databento files in the submission -- per
+  the prompt's licensing note, those must NOT be redistributed; only the
+  notebook and its (student-local) cache are expected.
+- Because every student's exact strikes/expirations/contracts differ (chosen
+  from their own first/last day's chain per Section 1.2), grade the underlying
+  METHOD at each step, not specific numeric answers.
+
+================================================================================
+PART A -- PRESENTATION & REPRODUCIBILITY  (cross-cutting; deductions, max -15)
+================================================================================
+
+A1. NOTEBOOK RUNS TOP-TO-BOTTOM WITHOUT ERROR
+    - Clean run against a same-format OPRA panel, no errors: no deduction.
+    - Runs with harmless warnings only (brentq convergence chatter, pandas
+      dtype notices that don't change results): no deduction.
+    - One or two cells raise errors but the rest of the notebook is
+      independent and gradeable: -5, and the failing section(s) are graded on
+      their visible saved output only.
+    - Notebook errors early and large portions cannot execute: FINAL SCORE
+      CAPPED AT 60% of otherwise-earned points.
+    - Not submitted as a single .ipynb (PDF only, .py only, bare Colab link
+      with no notebook file): not accepted for full credit; see syllabus
+      format/late policy.
+
+A2. SELF-CONTAINED AND REPRODUCIBLE (within the licensing constraint)
+    - Raw OPRA data is read from a path set in a single variable near the top
+      of the notebook (not hard-coded inline, not an absolute path that only
+      exists on the student's own machine); the caching pipeline (Section 1.4)
+      is implemented in code, not hand-run once and pasted in as numbers; a
+      grader with their own same-format panel at that path can run the
+      notebook end to end: no deduction.
+    - Path variable exists but other hard-coded absolute paths remain
+      elsewhere in the notebook: -3.
+    - No path variable; raw data location hard-coded inline in multiple
+      places: -5.
+    - Random seeds are set (or results are shown to be stable without them)
+      for the Section 4.1 GBM simulation: -2 if missing AND results are
+      visibly seed-sensitive.
+    - Raw Databento files, or a derived cache built from them, are included in
+      the submission in violation of the prompt's licensing note: flag for
+      the instructor; not itself a numeric deduction but must be addressed
+      before any grade is finalized.
+
+A3. SECTION HEADINGS AND NAVIGATION
+    - Every section and subsection from the prompt appears as a markdown
+      header, in order, labeled so it is immediately obvious which question is
+      being answered (e.g. "## Section 4.2 - Real Lifecycle Hedge"): no
+      deduction.
+    - Headers present but some sub-parts are buried in code comments or not
+      clearly delineated: -3.
+    - No markdown structure; grader has to hunt for where each answer is: -6.
+
+A4. FIGURES
+    - All plots render inline after a clean run: no deduction.
+    - Titles, axis labels, and legends (the smile plot by expiration, the
+      hedging P&L distribution, the cost/frequency tradeoff plot, etc.) are
+      present on every figure: up to -5 total, scaled to how many plots are
+      unlabeled. Per the prompt, unlabeled plots do not receive full credit.
+    - Figures illegible (smile plotted with no moneyness/strike axis label, a
+      P&L histogram with no marked real-path outcome, default styling that
+      hides the point being made): -2.
+
+A5. WRITTEN INTERPRETATION QUALITY
+    - Prose cells actually answer what was asked, cite specific numbers and
+      figures (dollar mispricings, implied vols, P&L means/stds -- not just
+      "it's different"), and are in the student's own words: no deduction.
+    - Interpretation is vague, generic, or just restates the question without
+      engaging the results: up to -5 across the whole notebook.
+
+A6. CONVENTIONS: mu vs. r, mid vs. last trade, day-count tau
+    - The risk-free rate r (never the underlying's real-world mu) is used in
+      every pricing/Delta/implied-vol calculation; the bid-ask mid (not last
+      trade) is the stated default quote source for every comparison, with any
+      deviation justified; the day-count convention for tau is stated once and
+      held consistent everywhere it affects sigma*sqrt(tau): no deduction.
+    - One of the three conventions is violated in a single, otherwise-isolated
+      spot: -3 here (plus any per-section correctness loss).
+    - mu and r are conflated anywhere results are reported, or tau's
+      convention silently changes between sections: -3, and flagged per A8.
+
+A7. CODE HYGIENE
+    - Reasonably organized; the notebook extends the Module 10/11
+      black_scholes / greeks / implied_vol / simulate_hedge_pnl functions
+      rather than reimplementing them from scratch or copy-pasting hedge-loop
+      logic repeatedly where a parameterized function was clearly intended; no
+      dead cells that error: no deduction.
+    - Egregiously disorganized, or near-duplicated hedge loops where a
+      function was clearly intended: -2.
+
+A8. RED FLAGS (the "rookie mistakes" from the prompt) -- checked in context of
+    the relevant section, deducted there, but flagged explicitly in feedback:
+    - Confusing mu and r anywhere in pricing, Delta, or the hedge loop.
+    - Using one strike's implied vol to price or hedge a materially different
+      strike without acknowledging the smile (the exact failure Section 6
+      quantifies).
+    - Quoting "the market price" ambiguously -- not stating whether mid, bid,
+      or ask is in use in a given comparison.
+    - A day-count convention for tau that silently changes between sections.
+    - Declaring a put-call-parity "arbitrage" that disappears once bid-ask
+      spreads are properly subtracted (Section 2.2).
+    - Delta-only hedging P&L reported with no acknowledgment of the
+      uncompensated Vega exposure (Section 4/6).
+    - Look-ahead bias: calibrating or selecting an implied vol using data from
+      after the point in (real or simulated) time the hedge is being run,
+      most specifically using a later day's implied vol in Section 4.2 instead
+      of the contract's first available day.
+    - Hedging P&L reported without transaction costs anywhere it's used to
+      support a real recommendation (Section 5/7).
+
+MAXIMUM TOTAL PART A DEDUCTION: -15 (A1 hard caps apply on top of this).
+
+================================================================================
+SECTION 1 -- DATA PIPELINE   (15 points)
+================================================================================
+
+1a. Working universe selection ............................................ 4
+    Full: near-dated contract identified whose lifecycle falls (fully or
+          partly) inside the data window, OR the nearest available expiration
+          on the last day used instead with mark-to-market noted as the plan;
+          a further-dated expiration (several months to ~1 year out, present
+          across the whole window) chosen separately; both restricted to a
+          reasonable moneyness band (~±15%); the choice is justified in prose,
+          not just asserted.
+    Partial: universe chosen but the near/far distinction is blurred, or the
+             moneyness band is unstated (2).
+
+1b. AM-settlement / contract lifecycle confirmed in the data ............... 2
+    Full: the "last live quote is the day before nominal expiration" wrinkle
+          is checked directly against the student's own data (e.g., a
+          day-by-day row count for the chosen contract) rather than assumed
+          from the prompt's description.
+    Partial: handled correctly but asserted without checking the student's
+             own data (1).
+
+1c. Underlying, SPY hedge instrument, and rate pulled correctly ............ 3
+    Full: SPX (or GSPC, with the ^SPX-vs-^GSPC distinction noted) pulled with
+          enough trailing history for a realized-vol estimate; SPY price
+          history AND trailing dividend yield pulled over the same span; a
+          short-term risk-free rate pulled over the same span.
+    Partial: one of the three (SPX/proxy, SPY+dividend, rate) missing or
+             pulled over a mismatched span (1.5).
+
+1d. Panel-construction pipeline ............................................ 4
+    Full: filtering to the working universe happens before expensive
+          processing; one snapshot per contract per day is kept at a stated,
+          consistent time; the symbol column is correctly parsed into
+          expiration/type/strike; tau is computed with an explicitly stated
+          day-count convention; the final panel has one row per
+          (contract, day) with a clean, documented column set.
+    Partial: pipeline works but filters after loading the full file
+             (performance, not correctness, issue) (2.5); symbol parsing or
+             tau computation has a clear bug (2).
+
+1e. Caching and prose ....................................................... 2
+    Full: filtered daily results cached to disk (e.g. Parquet) so re-running
+          the notebook does not require re-reading the raw files; a prose cell
+          explains the caching design and why it matters at this data's scale.
+    Partial: caches but the design/rationale isn't explained in prose (1).
+
+================================================================================
+SECTION 2 -- PRICING AND NO-ARBITRAGE CHECKS   (15 points)
+================================================================================
+
+------------------------------- 2.1  BS price vs. market quote  (7) -----------
+2.1a Computation and comparison table ...................................... 4
+     Full: Black-Scholes price computed with a single, stated sigma for
+           strikes spanning ITM, ATM, and OTM on the nearer expiration;
+           results tabulated against market bid, ask, and mid.
+     Partial: fewer than three moneyness regions covered, or compared to only
+              one of {bid, ask, mid} with no mid-vs-bid/ask framing (2).
+
+2.1b Where price falls inside/outside the spread, and why ................. 3
+     Full: table explicitly identifies where the model price falls outside
+           the bid-ask spread vs. comfortably inside it; a prose answer
+           engages with why a market-implied volatility might differ from
+           trailing realized volatility (forward-looking pricing vs.
+           backward-looking estimation), not just that they differ.
+     Partial: the inside/outside-spread comparison is made but the "why"
+              prose is generic or skipped (1.5).
+
+------------------------------- 2.2  Put-call parity  (8) ---------------------
+2.2a Bid-ask-bounded parity check ........................................... 5
+     Full: C - P = S - K*exp(-r*tau) checked using bid-ask bounds (buy the
+           cheap side at its ask, sell the expensive side at its bid) rather
+           than a single midpoint number, for ATM-ish strikes with both a call
+           and put quote.
+     Partial: parity checked only at the midpoint, with bid-ask bounds not
+              actually used to test tradeability (2.5).
+
+2.2b Interpretation tied to Module 9 ........................................ 3
+     Full: correctly concludes whether any apparent violation survives both
+           spreads being crossed; explicitly connects parity to the
+           no-arbitrage/martingale argument from Module 9.
+     Partial: conclusion stated with no connection back to the no-arbitrage
+              argument (1.5).
+
+================================================================================
+SECTION 3 -- IMPLIED VOLATILITY AND THE SMILE   (15 points)
+================================================================================
+
+3a. Implied vol back-out, with failures handled explicitly .................. 5
+    Full: implied_vol run across every strike on both expirations from market
+          mid prices; strikes that fail to solve cleanly are explicitly
+          dropped (with a stated reason) or flagged and discussed, rather than
+          silently erroring or producing nonsense plotted points.
+    Partial: back-out run but solver failures are silently dropped with no
+             acknowledgment (2.5).
+
+3b. Smile plots across both expirations ...................................... 5
+    Full: implied vol plotted against strike or moneyness, separately for each
+          expiration, labeled; prose correctly characterizes the shape (smile/
+          skew vs. flat) and compares it across the two expirations, including
+          whether the smile flattens at the longer maturity.
+    Partial: plots present but the cross-expiration comparison is missing or
+             incorrect (2.5).
+
+3c. Realized vs. implied vol and the variance risk premium ................... 5
+    Full: trailing realized volatility computed over a stated window,
+          annualized consistently with the tau convention; compared to ATM
+          implied vol; the variance risk premium is named, its typical
+          direction stated with a brief reason, and the student's own data
+          checked against that expectation.
+    Partial: the two vols are compared but the variance-risk-premium framing
+             is missing or the direction/reason is not addressed (2.5).
+
+================================================================================
+SECTION 4 -- DELTA HEDGING: SIMULATED AND REAL   (25 points)
+================================================================================
+
+4pre. Setup and conventions ................................................... 3
+      Full: true-world sigma and hedging sigma kept conceptually and
+            numerically distinct throughout; SPX Delta converted to an SPY
+            share count via the dollar-delta-preserving ratio
+            h = Delta_SPX * S_SPX/S_SPY; SPY's dividend yield handled (credited
+            to cash, or explicitly noted as ignored) per the prompt.
+      Partial: SPY conversion present but the dividend treatment is silently
+               dropped with no mention (1.5); true-world/hedging-sigma roles
+               conflated anywhere in the writeup (1).
+
+------------------------------- 4.1  Simulated distribution  (10) -------------
+4.1a Simulation mechanics ...................................................... 4
+     Full: real market mid price used as the starting premium (not a model
+           price); S(t) simulated under GBM to the further-dated contract's
+           expiration using the Section 3 realized-vol estimate as the
+           true-world sigma; for the simulated path, the SPX/SPY ratio is held
+           fixed at today's value with that simplification stated explicitly.
+     Partial: simulation runs but uses a model price instead of the real mid
+              as the starting premium, or doesn't state the fixed-ratio
+              assumption (2).
+
+4.1b Two hedging-sigma variants, frequency sweep ............................... 3
+     Full: hedge run with hedging sigma = realized-vol estimate AND hedging
+           sigma = contract's market-implied vol; rebalancing frequency swept
+           (daily/weekly/biweekly/monthly or similar, adapted to this
+           contract's tau).
+     Partial: only one hedging-sigma variant run, or the frequency grid has
+              only one or two points (1.5).
+
+4.1c Reporting .................................................................. 3
+     Full: mean and standard deviation of terminal hedging P&L reported for
+           every (hedging-sigma, frequency) combination.
+     Partial: reported for only some combinations, or std omitted everywhere
+              (1.5).
+
+------------------------------- 4.2  Real lifecycle  (9) ----------------------
+4.2a Daily walk-forward mechanics ................................................ 4
+     Full: Delta recomputed each real trading day using that day's real tau and
+           real SPX close; converted to an SPY share count using that day's
+           real SPX/SPY ratio; cash and shares tracked day by day consistent
+           with simulate_hedge_pnl's internal logic; both hedging-sigma
+           variants run, using the contract's implied vol from its FIRST
+           available day only (not a later day).
+     Partial: mechanics correct but implied vol pulled from a day other than
+              the first available one -- look-ahead (2), flagged per A8;
+              SPX/SPY ratio held fixed instead of updated daily (2).
+
+4.2b Terminal payoff / mark-to-market handling ................................... 3
+     Full: if the full lifecycle is inside the window, position closed out at
+           the real terminal payoff using the real closing SPX level on the
+           contract's last live day; if not, position explicitly marked to
+           market at the last available quoted mid, with the limitation stated
+           plainly rather than papered over.
+     Partial: one case handled correctly but the other (if applicable) is
+              mishandled or unacknowledged (1.5).
+
+4.2c Percentile placement in the 4.1 distribution ................................ 2
+     Full: both real-path outcomes located within the matching (or closest)
+           4.1 simulated distribution, with an explicit percentile or
+           equivalent statement, and the n=1 caveat (a single path can't prove
+           which hedging sigma is "better") acknowledged.
+     Partial: real outcome compared qualitatively to the distribution with no
+              percentile or specific placement (1).
+
+4.3. Interpretation: hedging-sigma choice and Vega .............................. 3
+     Full: paragraph states whether hedging with implied vs. realized vol
+           produced a meaningfully different result in both 4.1 and 4.2, and
+           explicitly connects the mechanism to Vega from Module 11.
+     Partial: difference described without the Vega connection (1.5).
+
+================================================================================
+SECTION 5 -- TRANSACTION COSTS   (10 points)
+================================================================================
+
+5a. Cost model .................................................................. 4
+    Full: Section 4.1 simulator extended so every rebalance incurs a cost
+          proportional to shares traded, in bps of trade dollar value; several
+          cost levels tested across the 1-20 bps range.
+    Partial: cost applied but only a single cost level tested, or cost is
+             computed on the wrong base (e.g. flat per-trade fee instead of
+             proportional to traded value) (2).
+
+5b. Net-of-cost reporting ....................................................... 3
+    Full: mean and standard deviation of net-of-cost hedging P&L reported for
+          every (frequency, cost level) combination from the Section 4.1 grid.
+    Partial: reported for only some combinations (1.5).
+
+5c. Tradeoff plot and interpretation ............................................ 3
+    Full: a plot makes the frequency/cost tradeoff visible (e.g. net Sharpe or
+          net P&L std vs. frequency, by cost level); prose identifies an
+          approximate sweet spot and states whether it shifts at a higher cost
+          level.
+    Partial: plot present but no sweet-spot identified, or the cost-level
+             sensitivity not addressed (1.5).
+
+================================================================================
+SECTION 6 -- MODEL LIMITATIONS   (10 points)
+================================================================================
+
+6a. Two-sigma mispricing on one away-from-ATM strike ............................ 5
+    Full: one strike away from ATM on the nearer expiration priced two ways --
+          using the ATM implied vol and using that strike's own smile implied
+          vol; the resulting price difference reported in both dollars and
+          percent; the cost of the "one vol for the whole expiration" shortcut
+          is stated concretely for this specific strike.
+    Partial: both prices computed but the difference not expressed in both
+             dollar and percent terms, or not tied to a specific strike (2.5).
+
+6b. Why the smile exists, and one alternative model ............................. 5
+    Full: prose connects the mispricing back to Module 11's explanation (a
+          constant-sigma GBM cannot represent strike-dependent risk like
+          skew/crash risk); one alternative (local volatility, stochastic
+          volatility, or jump-diffusion) named and described in 2-3 sentences
+          at the conceptual level requested.
+    Partial: mispricing shown but the "why" / alternative-model discussion is
+             missing or superficial (2.5).
+
+================================================================================
+SECTION 7 -- FULL REPORT AND INTERPRETATION   (10 points)
+================================================================================
+
+7a. Report table .................................................................. 4
+    Full: all nine rows filled with real, internally-consistent numbers drawn
+          from Sections 2-6, for the Section 4.1 further-dated contract.
+    Partial: -0.5 per missing or inconsistent row.
+
+7b. Required plots ................................................................. 2
+    Full: (i) the Section 3 smile plot with this contract's strike marked, and
+          (ii) the Section 5 net-of-cost hedging P&L distribution at the
+          chosen frequency/cost level with the Section 4.2 real-path outcome
+          marked on it. Both labeled.
+    Partial: one of the two plots missing, or present but unlabeled/unmarked
+             (1).
+
+7c. Desk-facing recommendation ...................................................... 2
+    Full: 3-5 sentences addressed to a desk head: is the delta hedge, at the
+          chosen frequency and realistic costs, reasonable for this position;
+          names the single biggest unmanaged risk; states what the student
+          would want in place before trading this at real size.
+    Partial: present but hand-wavy or not decision-oriented (1).
+
+7d. Interpretation .................................................................. 2
+    Full credit on each requires a specific, evidence-referenced answer:
+      - Did spread-adjusted put-call parity hold, and if there was a genuine
+        violation, a specific candidate explanation (liquidity, stale quotes,
+        dividend/borrow effects) ............................................ 0.7
+      - Which mattered more to final hedging P&L -- hedging-sigma choice or
+        transaction costs -- with a stated verdict on whether that ranking
+        was surprising ........................................................ 0.7
+      - A specific first change the student would make with real money
+        (frequency, a Vega hedge, strike-specific vol, something else),
+        justified with numbers from the student's own Section 7 table .... 0.6
+
+================================================================================
+SECTION 8 -- BONUS: PUSH THE ANALYSIS FURTHER   (up to +5 points, optional)
+================================================================================
+
+  +3  One of {Vega-hedge with a second option, implied-vol term structure
+      across 3+ expirations, dividend-adjusted Black-Scholes pricing/Delta}
+      correctly implemented and compared against the Section 7 baseline.
+  +2  Clear explanation of what the extension revealed relative to the
+      Section 7 delta-only analysis, supported with numbers and/or figures.
+
+  Partial bonus is allowed. There is no penalty for skipping this section.
+
+================================================================================
+SCORE SUMMARY
+================================================================================
+
+  Section 1  (Data pipeline) .......................  ____ / 15
+  Section 2  (Pricing & no-arbitrage checks) .......  ____ / 15
+  Section 3  (Implied volatility & the smile) ......  ____ / 15
+  Section 4  (Delta hedging: simulated & real) .....  ____ / 25
+  Section 5  (Transaction costs) ...................  ____ / 10
+  Section 6  (Model limitations) ...................  ____ / 10
+  Section 7  (Full report & interpretation) ........  ____ / 10
+                                                     ------------
+  Subtotal ........................................  ____ / 100
+
+  Part A deductions (Presentation & Reproducibility)  - ____   (max -15;
+                                                               A1 hard caps
+                                                               may also apply)
+  Section 8 bonus .................................  + ____   (max +5)
+                                                     ------------
+  FINAL ..........................................  ____ / 100 (+ bonus)
+
+================================================================================
