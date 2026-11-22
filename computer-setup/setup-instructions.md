@@ -67,10 +67,12 @@ Optional but useful:
 
 Use one of these methods:
 
-1. Clone with Git.
+1. Clone with Git (requires that `git` is installed on your machine).
 2. Download a zip and extract it.
 
 You should end up with a local folder named ds-5005 containing files like environment.yml and the lectures folder.
+
+I recommend taking the first approach, even if you don't have `git` installed already. To install `git`, just search the internet, and click the first link, and follow the instructions. 
 
 ## 6) Create the class environment
 

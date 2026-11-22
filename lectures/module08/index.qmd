@@ -38,9 +38,9 @@ Today fills in that institutional plumbing — the market microstructure CS 3 as
 
 ## Why Isn't There Just "The Stock Market"?
 
-There is no single place SPY trades. U.S. equity trading is legally required to be **fragmented and competing**:
+There is no single place SPY trades. U.S. equity trading is **fragmented and competing** by design: in 1975 Congress directed the SEC to build a national market system that assures "fair competition among brokers and dealers, among exchange markets, and between exchange markets and markets other than exchange markets" (Securities Exchange Act §11A(a)(1)(C)(ii), 15 U.S.C. §78k-1). Competition among many linked venues is the mandate; fragmentation is what it looks like in practice.
 
-- **16 registered national securities exchanges** (NYSE, Nasdaq, Cboe's four venues, IEX, MEMX, MIAX Pearl, LTSE, ...), plus dozens of **Alternative Trading Systems (ATSs)**, i.e. "dark pools"
+- **16 registered national securities exchanges** (NYSE, Nasdaq, Cboe's four venues, IEX, MEMX, MIAX Pearl, LTSE, ...), plus dozens of **Alternative Trading Systems (ATSs)** — most of which are "dark pools" (related, but not synonyms — see two slides ahead)
 - **Regulation NMS** (2005) requires that a trade execute at the **best displayed price available anywhere** (the Order Protection Rule) — no exchange can trade through a better price posted on a competitor
 - Result: exchanges must be electronically linked and constantly race each other on price, speed, and fees to attract order flow
 
@@ -83,7 +83,9 @@ Real trades in a single, heavily-traded ETF, printed across a dozen-plus distinc
 ## Lit Exchanges vs. Dark Pools
 
 - **Lit exchanges** (NYSE, Nasdaq, Cboe BZX/BYX/EDGX/EDGA, IEX, MEMX, MIAX Pearl, ...) post **public, displayed** bid/ask quotes. These quotes are what combine to form the **NBBO** (National Best Bid and Offer).
-- **Dark pools / ATSs** and off-exchange internalizers take orders **without displaying a quote**. A trade happens, then gets reported after the fact to a **FINRA Trade Reporting Facility (TRF)** — this is the `DARK` tag in the data above.
+- **ATS vs. dark pool — not quite the same thing.** An **ATS** is a *regulatory category*: a venue that matches buyers and sellers but is registered as a broker-dealer under Regulation ATS rather than as an exchange. A **dark pool** is an ATS that **doesn't display quotes**. Nearly every equity ATS today is dark, which is why the terms get used interchangeably — but an ATS can be lit (the ECNs of the 1990s–2000s, such as Island and Archipelago, were ATSs with displayed books).
+- **Wholesalers / internalizers** (Citadel Securities, Virtu, ...) are a third thing: also off-exchange and undisplayed, but they are dealers filling orders against their own inventory, not ATSs — and they handle more off-exchange volume than the dark pools do.
+- All of these trade **without displaying a quote**. A trade happens, then gets reported after the fact to a **FINRA Trade Reporting Facility (TRF)** — this is the `DARK` tag in the data above, which lumps dark-pool and wholesaler prints together.
 - Roughly **40–50% of U.S. equity volume** trades off-exchange in a given period. Dark venues exist because large or informed traders don't want to reveal size and intent by resting a visible order.
 
 For a market maker quoting on a lit exchange, this matters: displayed liquidity is only part of the picture, and a meaningful share of flow never has a chance to interact with your quote at all.
@@ -97,7 +99,19 @@ Within a single exchange's order book, resting orders are ranked by two rules, a
 
 Implication: two market makers quoting the *identical* price are not equally likely to get filled. The one who arrived first is at the front of the queue and gets executed first. This is why speed and queue position — not just where you quote — determine realized fill rates, and why the fill-rate functions $\lambda_{\text{buy}}(\cdot), \lambda_{\text{sell}}(\cdot)$ we'll keep using implicitly bake in "you got to the front of the queue."
 
-**Exception worth knowing:** IEX deliberately adds a 350-microsecond "speed bump" to every incoming order, specifically to blunt the advantage of the fastest participants. It's a design choice, not an accident — evidence that queue position and speed are seen as a real economic advantage worth regulating around.
+## Exceptions to Price-Time Priority
+
+Price-time is the default for U.S. stocks, but it is a design choice, and some venues choose differently:
+
+**Price-size (pro-rata) priority.** Price still comes first, but orders at the *same* price share an incoming trade **in proportion to their size** instead of first-come-first-served. If you rest 800 shares and a competitor rests 200 at the same price, an incoming 100-share order gives you 80 and them 20, no matter who arrived first. The race is to post *size*, not to arrive early.
+
+- **Options exchanges** are where this is common: Cboe Options, Nasdaq PHLX, Nasdaq ISE, NYSE American Options, and MIAX Options all allocate pro rata (usually with customer orders first in line).
+- **Futures:** CME uses pro-rata-style allocation for some short-term interest rate contracts.
+- **Stocks:** Nasdaq PSX launched in 2010 as a price-size equity exchange, and ran pro-rata variants on and off until 2019. Today every U.S. stock exchange is price-time (NYSE's "parity" allocation among floor participants is the closest thing to an exception).
+
+**Speed bumps.** IEX deliberately adds a 350-microsecond "speed bump" to every incoming order, specifically to blunt the advantage of the fastest participants. It keeps price-time ordering but makes being *slightly* faster worth less.
+
+Both are deliberate designs, not accidents — evidence that queue position and speed are seen as a real economic advantage worth designing (and regulating) around.
 
 ## Market Data Feeds: How Much of the Book Can You See?
 
@@ -109,15 +123,17 @@ Price-time priority only matters to you insofar as your data lets you *observe* 
 | **Level 2** | Market by price (MBP) | Every resting price level and the *aggregated* size at each, but not the individual orders behind it |
 | **Level 3** | Market by order (MBO) | The full order book: every individual resting order, its size, and its exact queue position at each price level |
 
+**MBO is order-level, not identity-level.** On U.S. equity feeds each resting order shows up with an anonymous order ID — you see *that* there are five separate orders ahead of you and how big each is, but not *who* sent them. (You can find your own, because you know your own order IDs.) Attribution is the exception: Nasdaq lets a firm opt in to showing its market participant ID on an order, and some non-U.S. markets publish broker codes, but anonymity is the norm.
+
 Only **MBO/Level 3** actually lets you observe time priority directly — it's the sole feed where "who's first in the queue at this price" is a visible fact rather than an inference. It's also the most expensive and highest-bandwidth product on the market, for the same reason direct feeds beat the SIP: more (and faster) information costs money.
 
-**Where our data sits:** the SPY file we've been using all module (`bid=`, `ask=`, `bid_size=`, `ask_size=`, `last=`) is **Level 1** — top-of-book only. We can see *that* the touch has 320 shares bid, but not *whose* 320 shares, or in what order they'll fill. That's a real limitation worth remembering when building CS 3's simulator: the fill-rate functions $\lambda_{\text{buy}}(\cdot), \lambda_{\text{sell}}(\cdot)$ have to *model* queue-position effects that MBO data would let you observe directly.
+**Where our data sits:** the SPY file we've been using all module (`bid=`, `ask=`, `bid_size=`, `ask_size=`, `last=`) is **Level 1** — top-of-book only. We can see *that* the touch has 320 shares bid, but not how many separate orders make up those 320 shares, or in what order they'll fill. That's a real limitation worth remembering when building CS 3's simulator: the fill-rate functions $\lambda_{\text{buy}}(\cdot), \lambda_{\text{sell}}(\cdot)$ have to *model* queue-position effects that MBO data would let you observe directly.
 
 ## Maker-Taker: The Rebate Model
 
 Exchanges don't just match orders — they charge for the privilege, and the pricing is asymmetric:
 
-- **Takers** (orders that execute immediately against a resting quote — "aggressive" orders) pay a **fee**, e.g. roughly \$0.0030/share
+- **Takers** (orders that execute immediately against a resting quote — think market orders; "aggressive" orders) pay a **fee**, e.g. roughly \$0.0030/share
 - **Makers** (resting limit orders that get executed against — "liquidity providers") earn a **rebate**, e.g. roughly \$0.0020–0.0028/share
 
 This is the **maker-taker model**, and it's why posting passive quotes is attractive beyond just capturing the spread. Some venues **invert** this (pay the taker, charge the maker) to attract a different mix of order flow.
@@ -140,6 +156,46 @@ A liquidity provider's real enemy isn't the bid-ask spread being too thin — it
 
 Why retail flow is prized: a retail investor buying 10 shares of SPY for a brokerage account is very unlikely to be acting on short-lived information that moves the price against the fill a moment later. An institutional order working a large position, or a fast proprietary trading firm's order, is far more likely to be — so wholesalers and market makers price (and compete for) flow differently based on how toxic it tends to be.
 
+## Decomposing a Limit Order's Expected Value: Setup
+
+Rest a limit **sell** for one share at price $P_a$, above the best ask.
+
+- $P_t$ is the true fair value, with $P_0 < P_a$ when we place the order
+- $\tau$ is the (random) time we get filled; $T$ is the time we cancel if still unfilled
+- Marked at fair value at time $T$, the order earns $(P_a - P_T)\,\mathbf{1}\{\tau \le T\}$ — nothing if it never fills
+
+**Assumption:** fair value is a **martingale** — $E[P_t \mid \mathcal{F}_s] = P_s$ for $s \le t$, where $\mathcal{F}_s$ is everything known at time $s$, including our own fills. No predictable drift. (Module 9 makes this precise.)
+
+**Tool:** the **optional stopping theorem**. Two consequences we'll use:
+
+$$
+\underbrace{E[P_T \mid \mathcal{F}_\tau] = P_\tau \ \text{ on } \{\tau \le T\}}_{\sigma = \tau,\ \rho = T}, \qquad \underbrace{E[P_{\tau \wedge T}] = P_0}_{\sigma = 0,\ \rho = \tau \wedge T}
+$$
+
+## Decomposing a Limit Order's Expected Value: The Math
+
+$$
+\begin{aligned}
+E\big[(P_a - P_T)\,\mathbf{1}\{\tau \le T\}\big]
+&= E\Big[\,E\big[(P_a - P_T)\,\mathbf{1}\{\tau \le T\} \,\big|\, \mathcal{F}_\tau\big]\Big]
+&& \text{iterated expectations: condition on the fill time} \\
+&= E\Big[\mathbf{1}\{\tau \le T\}\,\big(P_a - E[P_T \mid \mathcal{F}_\tau]\big)\Big]
+&& P_a \text{ and } \mathbf{1}\{\tau \le T\} \text{ are known at } \tau \\
+&= E\big[\mathbf{1}\{\tau \le T\}\,(P_a - P_\tau)\big]
+&& \text{optional stopping theorem (two-stopping-time form; beyond our scope today)} \\
+&= P(\tau \le T)\,\big(P_a - E[P_\tau \mid \tau \le T]\big)
+&& \text{iterated expectations: condition on being filled} \\
+&= \underbrace{P(\tau \le T)}_{\text{fill probability}} \times \Big[\,\underbrace{(P_a - P_0)}_{\text{quoted edge}} - \underbrace{\big(E[P_\tau \mid \tau \le T] - P_0\big)}_{\text{adverse selection}}\,\Big]
+&& \text{add and subtract } P_0
+\end{aligned}
+$$
+
+- **Quoted edge vs. fill probability** is the trade-off behind the half-spread $\delta$: quote farther from fair value and you earn more per fill, but fill less often.
+- **Adverse selection** is how far fair value has already moved *toward your price* by the instant you're filled. It is selection, not drift: since $E[P_{\tau \wedge T}] = P_0$, the paths where you fill are the ones where fair value rose, offset by the unfilled paths where it fell.
+- **Worst case:** if you only ever fill when fair value itself has reached $P_a$, then $P_\tau = P_a$ and the expected value is **zero**, however wide you quote. Profit requires someone to pay $P_a$ while fair value is still below it — benign flow, which is why it's worth paying for.
+
+Add the rebate inside the bracket and this is the per-share edge equation from the maker-taker slide, with each term now defined.
+
 ## Payment for Order Flow (PFOF)
 
 Retail brokers (Robinhood, Schwab, ...) mostly do **not** send your market order to a lit exchange. Instead:
@@ -156,22 +212,71 @@ Why is retail flow worth paying for? Per the previous slide, it's about as **non
 
 With 16+ lit venues each publishing their own quotes, who computes the single "best bid and offer" you see on a screen or news ticker?
 
-- The **SIP** (Securities Information Processor) — operated under the CTA/UTP plans — collects quotes from every lit exchange and disseminates the **consolidated NBBO**
+- The **SIP** (Securities Information Processor) collects quotes from every lit exchange and disseminates the **consolidated NBBO**
+- There are actually two SIPs, each run under a joint plan of the exchanges and FINRA that the SEC oversees:
+    - the **CTA** plans ([Consolidated Tape Association](https://www.ctaplan.com), with its companion Consolidated Quotation plan) cover stocks listed on NYSE and on other non-Nasdaq exchanges — "Tape A" and "Tape B". SPY is listed on NYSE Arca, so it is a Tape B security
+    - the **UTP** plan ([Unlisted Trading Privileges](https://www.utpplan.com) — the right of one exchange to trade a stock listed on another) covers Nasdaq-listed stocks — "Tape C"
 - The catch: the SIP has always run **slower** than each exchange's own **direct proprietary feed**. Direct feeds are faster (and cost extra) precisely because firms are willing to pay for a head start
 - Even after the 2020s SIP modernization narrowed this considerably, a firm paying for colocated direct feeds still sees exchange-level price changes measurably before the consolidated SIP tape updates
 
-This latency gap is the source of the "latency arbitrage" critique of HFT: a fast firm with direct feeds can, in principle, trade against a slower participant who is still looking at a now-stale SIP-based NBBO. It's also the direct motivation for IEX's speed bump from a few slides ago.
+This latency gap is the source of the "latency arbitrage" critique of HFT: a fast firm with direct feeds can, in principle, trade against a slower participant who is still looking at a now-stale SIP-based NBBO.
 
-## Arbitrage in a Fragmented Market
+## Two Books, One Stock: When Is It an Arbitrage?
 
-Fragmentation (16+ separately-operated books) and latency (different participants see price changes at different times) together create several distinct, fleeting arbitrage opportunities — all of which get competed away in microseconds by whoever is fastest:
+```{python}
+#| label: module08-two-books
+#| eval: true
+#| echo: false
+BID, ASK, INK, MUTED = "#2a78d6", "#eb6834", "#0b0b0b", "#52514e"
 
-- **Latency / SIP arbitrage** (previous slide): trade against a stale consolidated NBBO before it catches up to what direct feeds already show.
-- **Cross-venue arbitrage**: the *same* security, quoted on two different exchanges, briefly shows inconsistent prices because a quote update propagates to one venue before another. A firm watching both can buy where it's momentarily cheap and sell where it's momentarily rich.
-- **Locked/crossed markets**: propagation delay can transiently produce a bid on one venue equal to (locked) or above (crossed) the ask on another — a state the rules say shouldn't persist, but which exists for microseconds before it's arbitraged or corrected.
-- **ETF/basket arbitrage** (different flavor, slower): SPY tracks a basket of 500 stocks plus futures on that basket. If SPY's price drifts from the fair value implied by the futures or the underlying basket, authorized participants can arbitrage the two back into line — this operates on a slightly longer timescale (milliseconds to seconds) than pure cross-venue quote arbitrage.
+# prices in cents above $500.00; each book is (bids, asks) as {price: shares}
+scenarios = [
+    ("Near-arbitrage: the books disagree, but don't cross\n"
+     "best bid \\$500.11 (on B)  <  best ask \\$500.12 (on A)",
+     {"Exchange A": ({10: 300, 9: 500, 8: 700}, {12: 200, 13: 400, 14: 600}),
+      "Exchange B": ({11: 200, 10: 400, 9: 600}, {13: 300, 14: 500, 15: 700})}),
+    ("Arbitrage: B's quotes moved up, A's haven't yet\n"
+     "bid \\$500.13 on B  >  ask \\$500.12 on A",
+     {"Exchange A": ({10: 300, 9: 500, 8: 700}, {12: 200, 13: 400, 14: 600}),
+      "Exchange B": ({13: 200, 12: 400, 11: 600}, {15: 300, 16: 500, 17: 700})}),
+]
 
-The common thread: none of these is really "predicting the market." They're all forms of *enforcing consistency* — between venues, between a consolidated feed and its faster inputs, or between a derivative and its underlying — and speed is what lets a firm capture the gap before it closes on its own.
+fig, axes = plt.subplots(1, 2, figsize=(11, 5.2), sharey=True)
+for ax, (title, books) in zip(axes, scenarios):
+    for x0, (name, (bids, asks)) in zip([0.0, 1.5], books.items()):
+        for side, color in [(bids, BID), (asks, ASK)]:
+            for price, size in side.items():
+                ax.barh(price, size / 800, left=x0, height=0.72, color=color)
+                ax.text(x0 + size / 800 + 0.04, price, str(size), va="center", fontsize=9, color=MUTED,
+                        bbox=dict(facecolor="white", edgecolor="none", pad=1))
+    best_bid = max(max(b) for b, _ in books.values())
+    best_ask = min(min(a) for _, a in books.values())
+    for level, label in [(best_bid, "best bid"), (best_ask, "best ask")]:
+        ax.axhline(level, color=MUTED, lw=1, ls="--", zorder=0)
+        ax.text(2.95, level, label, va="center", ha="right", fontsize=9, color=INK,
+                bbox=dict(facecolor="white", edgecolor="none", pad=1.5))
+    if best_bid > best_ask:
+        ax.axhspan(best_ask, best_bid, color="#e6e4df", zorder=-1)
+        ax.annotate("", xy=(1.47, best_bid), xytext=(0.72, best_ask),
+                    arrowprops=dict(arrowstyle="->", color=INK, lw=1.5))
+        ax.text(0.7, best_bid + 2.6, "buy on A, sell on B:\n+1¢ per share", ha="center", fontsize=9, color=INK)
+    ax.set_title(title, fontsize=11, color=INK)
+    ax.set_xlim(-0.05, 3.0)
+    ax.set_xticks([0.0, 1.5], list(books), ha="left")
+    ax.tick_params(axis="x", length=0)
+    ax.set_yticks(range(8, 18), [f"{500 + c / 100:.2f}" for c in range(8, 18)])
+    for spine in ["top", "right", "bottom"]:
+        ax.spines[spine].set_visible(False)
+axes[0].set_ylabel("price (\\$)")
+fig.legend(handles=[plt.Rectangle((0, 0), 1, 1, color=BID), plt.Rectangle((0, 0), 1, 1, color=ASK)],
+           labels=["resting bids (buy orders)", "resting asks (sell orders)"],
+           loc="lower center", ncol=2, frameon=False)
+fig.text(0.5, 0.085, "bar length and number = shares resting at that price", ha="center", fontsize=9, color=MUTED)
+plt.tight_layout(rect=(0, 0.11, 1, 1))
+plt.show()
+```
+
+**Left:** the two venues quote slightly different prices, but every bid is still below every ask — there is nothing to lock in. Together they form the NBBO: \$500.11 bid (from B) × \$500.12 offered (from A). **Right:** the market is *crossed* — B is bidding more than A is asking — so buying on A and selling on B at the same instant earns 1¢ a share, up to the 200 shares available on each side, before fees.
 
 ## Anchoring the Time Scales
 
@@ -179,17 +284,15 @@ Everything above happens at wildly different clock speeds. Rough orders of magni
 
 | Event | Typical timescale |
 |---|---|
-| Speed of light, one-way, within the *same* datacenter (colocation) | tens to hundreds of **nanoseconds** |
-| Exchange matching engine processes one order | microseconds |
-| Colocated direct-feed one-way latency | low single-digit microseconds |
-| Speed of light, one-way, NY-area to Chicago (~700 miles) — the **physical floor**, not achievable in practice | ~3.8 ms |
-| SIP consolidated NBBO update latency | hundreds of microseconds to low milliseconds |
-| A human noticing a quote change on a screen | ~1 second |
-| Trade settlement (trade date to final settlement, "T+1") | 1 business day |
+| Light in a vacuum travels about 0.3 meters (1 foot) | 1 **nanosecond** |
+| One CPU clock cycle at 3 GHz — enough for a few simple instructions, like adding two integers | ~0.3 nanoseconds |
+| Signal down 100 m of Cat 6 copper Ethernet cable (the longest standard run), at about ⅔ the speed of light | ~0.5 **microseconds** |
+| SIP consolidated NBBO update latency | hundreds of microseconds to low **milliseconds** |
+| Light in a vacuum, one-way, NY-area to Chicago (~700 miles) — the **physical floor**, not achievable in practice | ~3.8 milliseconds |
 
-Light in a vacuum covers about **1 foot per nanosecond**; in fiber (slowed to roughly two-thirds $c$) it's closer to 5 microseconds per kilometer. That's why NY-to-Chicago round trips — the route linking equity/options venues to CME futures — can never beat about 8 ms round-trip over any real fiber path, no matter how much money is spent: it's a hard lower bound set by physics, not engineering. (This exact constraint is *why* firms paid to build microwave and laser links between NY and Chicago — air is closer to a vacuum than glass fiber is, so a "slower medium, shorter path" swap can still buy back a couple of milliseconds. It's also why colocation — renting rack space *inside* the exchange's own datacenter — exists at all: the only way to beat this floor is to make the physical distance nearly zero.) Every latency number above it in the table is real engineering trying to approach a limit it can never cross.
+Signals in copper and in glass fiber both travel at only about two-thirds of $c$, so no amount of money gets a message from New York to Chicago faster than physics allows. That is why firms built microwave links along that route (air is faster than glass), and why **colocation** — renting rack space inside the exchange's own datacenter — exists: the only way to beat distance is to remove it.
 
-The case study lives in the **milliseconds-to-seconds** band — far below settlement and human-decision timescales, but well above the microsecond electronics layer. This is *exactly* why Module 7 reached for continuous-time tools (Poisson arrivals, Brownian motion) instead of once-a-day models: at this timescale, "once a day" throws away almost everything that matters.
+The case study lives in the **milliseconds-to-seconds** band — slow enough that we can ignore the nanosecond hardware layer, but far too fast for once-a-day models. This is *exactly* why Module 7 reached for continuous-time tools (Poisson arrivals, Brownian motion): at this timescale, "once a day" throws away almost everything that matters.
 
 ## Why This Matters for CS 3
 
@@ -207,7 +310,7 @@ None of this replaces the modeling tools from Module 7 — it's the institutiona
 
 ## The Avellaneda-Stoikov Model
 
-Following Avellaneda & Stoikov (2008), with midprice $s$, inventory $q$, time-to-horizon $\tau$:
+Following Avellaneda & Stoikov (2008), with midprice $s$, inventory $q$, time-to-horizon $\tau$, risk aversion $\gamma$, and volatility $\sigma$:
 
 $$
 \text{reservation price: } r = s - q\gamma\sigma^2\tau, \qquad
@@ -215,6 +318,21 @@ $$
 $$
 
 Quotes are $\text{bid} = r - \delta$, $\text{ask} = r + \delta$. The reservation price is an **inventory skew**: as $q$ grows, $r$ shifts below $s$, making the bid less attractive (harder to buy more) and the ask more attractive (easier to sell) — the market maker leans against its own position. Left unmanaged, inventory that fills roughly symmetrically just drifts like a random walk toward whatever hard risk limit is in place; this skew is what keeps it from doing that. This is a preview: a full derivation and justification of why this particular skew stabilizes inventory is part of what the case study asks you to investigate.
+
+## Where Do $A$ and $k$ Come From?
+
+The half-spread formula has a $k$ in it we haven't explained yet. The model assumes orders arrive to **hit your quote** at a rate that decays the farther your quote sits from the mid:
+
+$$
+\lambda(\delta) = Ae^{-k\delta}
+$$
+
+where $\delta$ is the distance from the mid and $\lambda(\delta)$ is fills per unit time at that distance.
+
+- $A$ is the fill-intensity **at the touch** ($\delta = 0$)
+- $k$ is **how fast** that intensity decays as you quote farther away — a bigger $k$ means moving away from the mid costs you fill probability faster
+
+Both are properties of *market* order flow, not something the market maker chooses — which is why $k$ appears in the half-spread formula on the previous slide but has to be **estimated from data** rather than picked. Part 4 shows how.
 
 ## Simulating the Full Model
 
@@ -323,6 +441,98 @@ python main.py ../../../data/20260812_spy.txt --plot
 
 The market maker's edge isn't just "the spread" — it's the spread plus rebates, minus fees and adverse selection, earned within the rules of a fragmented, priority-driven market. Today's tools let us reason about that institutional layer precisely; CS 3 is where you build the full inventory-aware policy on top of it.
 
+# Part 4: Some Hints on Case Study 3
+
+## Hint 1: Collecting Trade Deltas from the Tape
+
+CS 3 Section 1 asks you to calibrate $k$ and $A$ by relating *how far a trade's price sits from the prevailing mid* to *how often trades happen there*. Step one is just collecting those distances, $\delta = |\text{trade price} - \text{mid}|$, off the real tape:
+
+```{python}
+#| label: module08-cs3-deltas
+#| eval: true
+#| output-location: slide
+import sys
+sys.path.append("backtest")
+from fake_broker import _parse_line, QuoteUpdate, TradePrint
+
+MAX_MESSAGES = 300_000  # same cap backtest/main.py defaults to, keeps this demo fast
+
+bid = ask = None
+deltas = []
+first_time = last_time = None
+with open("../../data/20260812_spy.txt") as f:
+    for i, line in enumerate(f):
+        if i >= MAX_MESSAGES:
+            break
+        msg = _parse_line(line)
+        first_time = first_time or msg.time
+        last_time = msg.time
+        if isinstance(msg, QuoteUpdate):
+            bid, ask = msg.bid, msg.ask
+        elif isinstance(msg, TradePrint) and bid is not None:
+            deltas.append(abs(msg.price - (bid + ask) / 2))
+
+deltas = np.array(deltas)
+elapsed_seconds = (last_time - first_time).total_seconds()
+print(f"{len(deltas):,} trades over {elapsed_seconds:,.0f} seconds of tape")
+
+fig, ax = plt.subplots(figsize=(8, 4.5))
+ax.hist(deltas, bins=60, color="C0")
+ax.set_xlabel(r"$\delta$ = |trade price $-$ prevailing midpoint|")
+ax.set_ylabel("trade count")
+ax.set_title("How Far From the Mid Do Trades Actually Happen?")
+plt.tight_layout()
+plt.show()
+```
+
+- Reuses `_parse_line` from `backtest/fake_broker.py` instead of re-deriving tape parsing — the same parser the real backtest runs on.
+- A `QuoteUpdate` tells you the prevailing mid at that instant; the next `TradePrint` is one data point: "a trade happened at distance $\delta$ from the mid."
+- Most trades cluster right at the touch ($\delta$ near zero), thinning out fast as $\delta$ grows — exactly the shape $\lambda(\delta) = Ae^{-k\delta}$ is meant to capture.
+- `deltas` and `elapsed_seconds` are what Hint 2 buckets and fits.
+
+## Hint 2: Estimating $A$ and $k$, Conceptually
+
+The fill-intensity model says trades happen at distance $\delta$ from the mid at rate $\lambda(\delta) = Ae^{-k\delta}$. Taking logs turns this into something you can fit with a straight line:
+
+$$
+\log \lambda(\delta) = \log A - k\delta
+$$
+
+**The recipe:**
+
+1. **Bucket** the $\delta$'s from Hint 1 into bins.
+2. **Count** trades per bin, divide by the elapsed tape time to get an observed rate $\hat\lambda(\delta)$ per bin (trades per second at that distance).
+3. **Fit a line** to $\log \hat\lambda(\delta)$ vs. the bin's $\delta$ — the slope is $-k$, the intercept is $\log A$.
+
+```{python}
+#| label: module08-cs3-ak-fit
+#| eval: true
+#| output-location: slide
+bins = np.linspace(0, np.quantile(deltas, 0.95), 15)
+bin_mids = 0.5 * (bins[:-1] + bins[1:])
+counts, _ = np.histogram(deltas, bins=bins)
+rate = counts / elapsed_seconds
+
+keep = rate > 0  # log is undefined at zero -- drop empty bins
+k_hat, log_A_hat = np.polyfit(bin_mids[keep], np.log(rate[keep]), 1)
+k_hat = -k_hat
+A_hat = np.exp(log_A_hat)
+print(f"k_hat = {k_hat:.2f}, A_hat = {A_hat:.2f}")
+
+fig, ax = plt.subplots(figsize=(8, 4.5))
+ax.scatter(bin_mids, np.log(rate), color="C1", label="observed log-intensity")
+ax.plot(bin_mids, log_A_hat - k_hat * bin_mids, color="black", label=r"fitted $\log A - k\delta$")
+ax.set_xlabel(r"$\delta$")
+ax.set_ylabel(r"$\log \hat\lambda(\delta)$")
+ax.legend()
+plt.tight_layout()
+plt.show()
+```
+
+- This fits the *market's* aggregate trade intensity as a function of distance from the mid — you don't have a history of fills on your own resting orders, so the whole tape's trade arrivals are the standard stand-in for "how likely is an order resting at distance $\delta$ to get hit."
+- The real tape won't sit as neatly on the line as the simulator does — bucket counts get noisy once $\delta$ is large and trades there are rare. That's expected; say so in your prose cell rather than hiding it.
+- Once you have $\hat k, \hat A$ (and $\hat\sigma$ from realized volatility), plug them into `simulate_as` and compare against the real `main.py` backtest, per the case study prompt.
+
 ## What We Learned: Module 8 Summary
 
 | Concept | Role |
@@ -330,7 +540,7 @@ The market maker's edge isn't just "the spread" — it's the spread plus rebates
 | Fragmentation / Reg NMS | Why "the market" is really 16+ linked venues, not one book |
 | Lit exchanges vs. dark pools | Displayed quotes vs. off-exchange internalized/negotiated trades |
 | Price-time priority | Within a price level, first-in-first-out; speed buys queue position |
-| Market data tiers (L1/L2/L3, MBP/MBO) | How much of the book — and whose orders — you can actually observe |
+| Market data tiers (L1/L2/L3, MBP/MBO) | How much of the book — down to individual (anonymous) orders — you can actually observe |
 | Maker-taker rebates | A real, per-share revenue stream on top of the quoted spread |
 | Order flow toxicity / adverse selection | Why not all liquidity-taking flow is equally profitable to fill |
 | Payment for order flow | Why much retail flow never reaches a lit exchange at all |
@@ -346,4 +556,5 @@ Next module: **Itô's lemma** — the calculus rule for transforming functions o
 - Avellaneda, M. & Stoikov, S. (2008). *High-frequency trading in a limit order book*. Quantitative Finance, 8(3), 217–224.
 - Baxter, M. & Rennie, A. (1996). *Financial Calculus: An Introduction to Derivative Pricing*. Cambridge University Press.
 - Harris, L. (2003). *Trading and Exchanges: Market Microstructure for Practitioners*. Oxford University Press.
-- U.S. Securities and Exchange Commission. *Regulation NMS*, 17 CFR Part 242.
+- Securities Exchange Act of 1934, §11A (added by the Securities Acts Amendments of 1975), 15 U.S.C. §78k-1.
+- U.S. Securities and Exchange Commission. *Regulation NMS*, 17 CFR Part 242; adopting release No. 34-51808 (June 9, 2005), 70 FR 37496.

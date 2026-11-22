@@ -41,7 +41,7 @@ Pricing an option isn't just "simulate the stock price and average the payoff." 
 
 We can already simulate $W(t)$. But two questions block us from pricing options with it:
 
-- If a stock price follows $X(t) = X(0) + \mu t + \sigma W(t)$, what does $\ln X(t)$ look like? Ordinary calculus says "just apply the chain rule" — but $W(t)$ is nowhere differentiable, so the ordinary chain rule doesn't apply.
+- If a stock's *log-price* follows $X(t) = X(0) + \mu t + \sigma W(t)$, what does the price itself, $S(t) = e^{X(t)}$, look like? Ordinary calculus says "just exponentiate" — but $W(t)$ is nowhere differentiable, so the ordinary chain rule doesn't apply.
 - What does it even mean for a price to be "fairly priced" with no free lunch? We need a precise definition of a fair game.
 
 This module builds both tools. Module 10 uses them to derive Black-Scholes; Module 11 implements it and studies where it fails.
@@ -59,18 +59,62 @@ In words: **given everything known up to now, the best forecast of the future va
 
 This is exactly the property an arbitrage-free, discounted asset price must have under the right probability measure — the idea Module 10 builds on directly.
 
-## Examples We Already Know
+## Example: Symmetric Random Walk
 
-- **Symmetric random walk** $S_n = \sum_{i=1}^n Z_i$, $Z_i \in \{-1, +1\}$ with equal probability: $E[S_{n+1} \mid S_n] = S_n$.
-- **Standard Brownian motion** $W(t)$: independent, mean-zero increments give $E[W(t+s) \mid \mathcal{F}_t] = W(t) + E[W(t+s) - W(t)] = W(t)$.
-- **Compensated Poisson process** $N(t) - \lambda t$: subtracting off the deterministic drift $\lambda t$ turns the (non-martingale) Poisson counting process into a martingale.
-- **Brownian motion with drift is *not* one:** $X(t) = \mu t + \sigma W(t)$ has $E[X(t+s)\mid\mathcal{F}_t] = X(t) + \mu s \neq X(t)$ unless $\mu = 0$.
+$S_n = \sum_{i=1}^n Z_i$, $Z_i \in \{-1, +1\}$ with equal probability, independent of $\mathcal{F}_n$:
 
-The last bullet matters: a real stock price has drift, so it *isn't* a martingale — but a specific transformation of it will be, and that transformation is what pricing formulas are built on.
+$$
+\begin{aligned}
+E[S_{n+1} \mid \mathcal{F}_n] &= S_n + E[Z_{n+1} \mid \mathcal{F}_n] \\
+&= S_n + E[Z_{n+1}] \\
+&= S_n
+\end{aligned}
+$$
+
+## Example: Standard Brownian Motion
+
+$W(t)$ has independent, mean-zero increments:
+
+$$
+\begin{aligned}
+E[W(t+s) \mid \mathcal{F}_t] &= W(t) + E[W(t+s) - W(t) \mid \mathcal{F}_t] \\
+&= W(t) + E[W(t+s) - W(t)] \\
+&= W(t)
+\end{aligned}
+$$
+
+## Example: Compensated Poisson Process
+
+$N(t) - \lambda t$ uses independent increments with $E[N(t+s) - N(t)] = \lambda s$:
+
+$$
+\begin{aligned}
+E[N(t+s) - \lambda(t+s) \mid \mathcal{F}_t] &= N(t) + E[N(t+s) - N(t) \mid \mathcal{F}_t] - \lambda(t+s) \\
+&= N(t) + \lambda s - \lambda(t+s) \\
+&= N(t) - \lambda t
+\end{aligned}
+$$
+
+Subtracting off the deterministic drift $\lambda t$ turns the (non-martingale) Poisson counting process into a martingale.
+
+## Counterexample: Brownian Motion with Drift
+
+$X(t) = \mu t + \sigma W(t)$ is **not** a martingale:
+
+$$
+\begin{aligned}
+E[X(t+s)\mid\mathcal{F}_t] &= \mu(t+s) + \sigma E[W(t+s)\mid\mathcal{F}_t] \\
+&= \mu(t+s) + \sigma W(t) \\
+&= X(t) + \mu s \\
+&\neq X(t) \text{ unless } \mu = 0
+\end{aligned}
+$$
+
+This matters: a real stock (log-)price has drift, so it *isn't* a martingale — but a specific transformation of it will be, and that transformation is what pricing formulas are built on.
 
 ## Checking It by Simulation
 
-If $M(t)$ is a martingale, $E[M(t)] = E[M(0)]$ for every $t$ — the average across many simulated paths should stay flat, even though any single path wanders.
+If $M(t)$ is a martingale, $E[M(t)] = E[M(0)]$ for every $t$: by the law of total expectation, $E[M(t)] = E\big[E[M(t) \mid \mathcal{F}_0]\big] = E[M(0)]$, since the martingale property gives $E[M(t) \mid \mathcal{F}_0] = M(0)$. So the average across many simulated paths should stay flat, even though any single path wanders.
 
 ```{python}
 #| label: module09-martingale-check
@@ -105,15 +149,13 @@ Individual paths of $W(t)^2 - t$ wander all over the place (thin lines) — but 
 
 ## Gambler's Ruin: A Classic Application
 
-Martingales aren't just bookkeeping — they solve real problems. A gambler starts with \$$i$ (out of a total \$$N$ in play with an opponent) and makes fair \$1 bets until someone hits \$0 or \$$N$. Since $S_n$ (the gambler's wealth) is a martingale, $E[S_n] = i$ for every $n$ — including at the (random) stopping time $\tau$ when the game ends:
+A gambler starts with \$$i$ and makes fair \$1 bets until someone hits \$0 or \$$N$. Since $S_n$ (the gambler's wealth) is a martingale, we already proved $E[S_n] = i$ for every *fixed* $n$ (the "Checking It by Simulation" slide). But the game actually ends at a *random*, albeit bounded, time $\tau$ — and $E[S_n]=i$ for fixed $n$ doesn't by itself tell us $E[S_\tau] = i$ too. The **optional stopping theorem** (Module 8's tool, reused here) is exactly the statement that it's still true for such random times: $E[S_\tau] = E[S_0] = i$. So:
 
 $$
 i = E[S_\tau] = N \cdot P(\text{gambler wins everything}) + 0 \cdot P(\text{gambler is ruined})
 \quad\Longrightarrow\quad
 P(\text{win everything}) = \frac{i}{N}
 $$
-
-No need to solve a difference equation — the martingale property alone pins down the answer.
 
 ```{python}
 #| label: module09-gamblers-ruin
@@ -137,18 +179,74 @@ print(f"martingale prediction i/N   = {i0 / N:.3f}")
 
 # Part 3: Itô's Lemma
 
+## What Is an SDE?
+
+Two terms we're about to use constantly, and it's worth being precise about which is which — starting with the equation itself:
+
+- **SDE (stochastic differential equation)** — the *equation*: a recipe for how an infinitesimal change in $X$ decomposes into a drift term and a noise term.
+
+$$
+dX(t) = \underbrace{\mu(X,t)\,dt}_{\text{drift: deterministic trend}} + \underbrace{\sigma(X,t)\,dW(t)}_{\text{diffusion: random noise}}
+$$
+
+- $\mu(X,t)$ — the **drift coefficient**: the deterministic rate of change you'd expect on average, per unit time.
+- $\sigma(X,t)$ — the **diffusion (volatility) coefficient**: how much the random noise $dW(t)$ gets scaled, i.e. how uncertain the path is.
+- Both coefficients are allowed to depend on the current value $X$ and on time $t$ — they don't have to be constants.
+- On its own, an SDE is just a *specification* — a rule — not yet a process you can plug a value of $t$ into. The next slides make that distinction precise.
+
+## Example: Standard Brownian Motion
+
+$$
+dW(t)
+$$
+
+Here $\mu = 0$ (no drift term) and $\sigma = 1$ (a volatility coefficient of 1). The diffusion this SDE generates is just $W(t)$ itself:
+
+$$
+W(t) = \int_0^t dW(s)
+$$
+
+This integral is an **Itô integral** — integrating against $dW(s)$, not against ordinary $ds$. That's special: as we'll see in Part 3, Itô integrals are always martingales, with no $dt$ drift term left over.
+
+## Example: Brownian Motion with Drift
+
+$$
+dX(t) = \mu\,dt + \sigma\,dW(t)
+$$
+
+Constant drift $\mu$ and constant volatility $\sigma$. Integrate both sides from $0$ to $t$ to find the diffusion that solves this SDE:
+
+$$
+\begin{aligned}
+\int_0^t dX(s) &= \int_0^t \mu\,ds + \int_0^t \sigma\,dW(s) \\
+X(t) - X(0) &= \mu t + \sigma \big(W(t) - W(0)\big) \\
+X(t) &= X(0) + \mu t + \sigma W(t)
+\end{aligned}
+$$
+
 ## SDEs vs. Diffusions
 
-Two terms we're about to use constantly, and it's worth being precise about which is which:
-
-- **SDE (stochastic differential equation)** — the *equation*: a recipe of the form $dX(t) = \mu(X,t)\,dt + \sigma(X,t)\,dW(t)$, describing how an infinitesimal change in $X$ decomposes into a drift term and a noise term. On its own it's a specification, not a process.
 - **Diffusion** — the *process*: the actual random function $\{X(t)\}_{t \geq 0}$ that solves the SDE. A diffusion is a continuous-path, (strong) Markov process whose local behavior is fully described by a drift coefficient and a diffusion (volatility) coefficient — exactly what an SDE like the one above generates.
 
 Rough analogy: an SDE is to a diffusion as an ODE is to its solution curve. $dS = \mu S\,dt + \sigma S\,dW$ is the SDE from Module 7; the GBM path $S(t) = S(0)e^{(\mu-\sigma^2/2)t+\sigma W(t)}$ we'll derive shortly is the diffusion it defines.
 
-## The Problem With Ordinary Calculus
+## Recap: The Ordinary Chain Rule
 
-For an ordinary smooth function $g(t)$, the chain rule says $d\,g(W(t))$ can be computed by a first-order Taylor expansion: terms of order $(dt)^2$ and higher vanish.
+For $X(t)$ following a smooth (deterministic) path and $f(t,x)$ differentiable, Taylor expand $f(t,X(t))$ around a small step:
+
+$$
+df = \frac{\partial f}{\partial t}\,dt + \frac{\partial f}{\partial x}\,dX + \frac{1}{2}\frac{\partial^2 f}{\partial x^2}\,(dX)^2 + \cdots
+$$
+
+Since $X(t)$ is smooth, $dX \approx \dot{X}(t)\,dt$ shrinks at the same rate as $dt$ itself, so $(dX)^2$ shrinks like $(dt)^2$ — *much* faster than $dt$ (e.g. $dt=0.01 \Rightarrow (dt)^2 = 0.0001$). Dropping that negligible term leaves the familiar chain rule:
+
+$$
+df(t,X(t)) = \frac{\partial f}{\partial t}\,dt + \frac{\partial f}{\partial x}\,dX
+$$
+
+Keep this exact form in mind — Itô's lemma, coming up next, looks identical except for **one extra term**.
+
+## The Problem With Ordinary Calculus
 
 Brownian motion breaks this. Over a small step $dW$:
 
@@ -196,19 +294,37 @@ The right-hand side is an **Itô integral**, and Itô integrals are always marti
 
 ## Example: Geometric Brownian Motion
 
-Model a stock price as $dS = \mu S\, dt + \sigma S\, dW$ — proportional (percentage) drift and volatility, so $S(t) > 0$ always. Apply Itô's lemma to $f(S) = \ln S$, with $\dfrac{\partial f}{\partial x} = 1/x$, $\dfrac{\partial^2 f}{\partial x^2} = -1/x^2$:
+Model a stock price as
+
+$$
+dS = \mu S\, dt + \sigma S\, dW
+$$
+
+— proportional (percentage) drift and volatility, so $S(t) > 0$ always. This SDE is itself what's called **Geometric Brownian Motion (GBM)**. To find the diffusion it generates, apply Itô's lemma to $f(S) = \ln S$, with $\dfrac{\partial f}{\partial x} = 1/x$, $\dfrac{\partial^2 f}{\partial x^2} = -1/x^2$:
 
 $$
 d(\ln S) = \left(\mu - \frac{1}{2}\sigma^2\right) dt + \sigma\, dW
 $$
 
-The $-\tfrac{1}{2}\sigma^2$ term is the Itô correction — ordinary calculus would predict $d(\ln S) = \mu\,dt + \sigma\,dW$ and miss it entirely. Integrating gives the closed-form solution:
+The $-\tfrac{1}{2}\sigma^2$ term is the Itô correction — ordinary calculus would predict $d(\ln S) = \mu\,dt + \sigma\,dW$ and miss it entirely.
+
+## Integrating Gives the Closed-Form Solution
+
+Integrate both sides of $d(\ln S) = \left(\mu - \frac{1}{2}\sigma^2\right) dt + \sigma\, dW$ from $0$ to $t$:
+
+$$
+\begin{aligned}
+\int_0^t d(\ln S(s)) &= \int_0^t \left(\mu - \frac{1}{2}\sigma^2\right) ds + \int_0^t \sigma\, dW(s) \\
+\ln S(t) - \ln S(0) &= \left(\mu - \frac{1}{2}\sigma^2\right) t + \sigma \big(W(t) - W(0)\big) \\
+\ln S(t) &= \ln S(0) + \left(\mu - \frac{1}{2}\sigma^2\right) t + \sigma W(t)
+\end{aligned}
+$$
+
+Exponentiating both sides gives the diffusion that solves the GBM SDE:
 
 $$
 S(t) = S(0)\exp\!\left[\left(\mu - \frac{1}{2}\sigma^2\right)t + \sigma W(t)\right]
 $$
-
-This is **Geometric Brownian Motion (GBM)** — the process underlying Black-Scholes.
 
 ## Simulating GBM
 
@@ -293,7 +409,7 @@ Syllabus preview for CS 4: **calibration and model limitations**. GBM assumes co
 |---|---|
 | Martingale | Precise definition of a "fair game" — no predictable drift given current information |
 | Compensated Poisson process, $W(t)$, $W(t)^2-t$ | Concrete martingale examples built from Modules 7–9's tools |
-| Gambler's ruin | A classic problem solved directly by the martingale property, no difference equations needed |
+| Gambler's ruin | A classic problem solved directly by the optional stopping theorem, no difference equations needed |
 | Quadratic variation, $dW\cdot dW = dt$ | The reason ordinary calculus fails for Brownian motion |
 | Itô's lemma | The corrected chain rule; produces an extra $\frac{1}{2}\sigma^2\, \partial^2 f/\partial x^2\,dt$ term |
 | Geometric Brownian Motion | $dS = \mu S\,dt + \sigma S\,dW \Rightarrow S(t) = S(0)e^{(\mu-\sigma^2/2)t + \sigma W(t)}$ |

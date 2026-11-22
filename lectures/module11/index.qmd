@@ -98,26 +98,26 @@ for name, value in g.items():
 import numpy as np
 import matplotlib.pyplot as plt
 
-K, r, sigma, tau = 100.0, 0.05, 0.25, 1.0
-S_grid = np.linspace(50, 150, 200)
-deltas = [greeks(S, K, r, sigma, tau, "call")["delta"] for S in S_grid]
-gammas = [greeks(S, K, r, sigma, tau, "call")["gamma"] for S in S_grid]
+S, r, sigma, tau = 100.0, 0.05, 0.25, 1.0
+K_grid = np.linspace(50, 200, 200)
+deltas = [greeks(S, K, r, sigma, tau, "call")["delta"] for K in K_grid]
+gammas = [greeks(S, K, r, sigma, tau, "call")["gamma"] for K in K_grid]
 
 fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-axes[0].plot(S_grid, deltas, color="C0")
-axes[0].axvline(K, color="grey", ls="--", lw=1)
-axes[0].set_title(r"Call $\Delta$ vs. Underlying Price")
-axes[0].set_xlabel("S"); axes[0].set_ylabel(r"$\Delta$")
+axes[0].plot(K_grid, deltas, color="C0")
+axes[0].axvline(S, color="grey", ls="--", lw=1)
+axes[0].set_title(r"Call $\Delta$ vs. Strike")
+axes[0].set_xlabel("K"); axes[0].set_ylabel(r"$\Delta$")
 
-axes[1].plot(S_grid, gammas, color="C1")
-axes[1].axvline(K, color="grey", ls="--", lw=1)
-axes[1].set_title(r"$\Gamma$ vs. Underlying Price")
-axes[1].set_xlabel("S"); axes[1].set_ylabel(r"$\Gamma$")
+axes[1].plot(K_grid, gammas, color="C1")
+axes[1].axvline(S, color="grey", ls="--", lw=1)
+axes[1].set_title(r"$\Gamma$ vs. Strike")
+axes[1].set_xlabel("K"); axes[1].set_ylabel(r"$\Gamma$")
 plt.tight_layout()
 plt.show()
 ```
 
-$\Delta$ rises smoothly from 0 (deep out-of-the-money) to 1 (deep in-the-money). $\Gamma$ peaks right at the strike — exactly where the hedge needs to change fastest, and exactly where discrete hedging will hurt the most in Part 3.
+$\Delta$ falls smoothly from 1 (deep in-the-money, low $K$) to 0 (deep out-of-the-money, high $K$). $\Gamma$ peaks near the money — exactly where the hedge needs to change fastest, and exactly where discrete hedging will hurt the most in Part 3.
 
 # Part 3: Discrete Hedging in Practice
 
