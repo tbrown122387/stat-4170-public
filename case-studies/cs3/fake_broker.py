@@ -58,7 +58,7 @@ def _parse_line(line):
     time = datetime.strptime(fields["local_time"], "%Y-%m-%d %H:%M:%S.%f")
     if "bid" in fields:
         return QuoteUpdate(time, float(fields["bid"]), float(fields["ask"]))
-    return TradePrint(time, float(fields["last"]), int(fields["size"]))
+    return TradePrint(time, float(fields["last"]), int(float(fields["size"])))
 
 
 class FakeBroker:
