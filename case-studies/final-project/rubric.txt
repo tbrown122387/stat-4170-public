@@ -1,0 +1,342 @@
+================================================================================
+FINAL PROJECT - GRADING RUBRIC
+Push a Case Study Past Where the Semester Left It
+DS 5005
+================================================================================
+
+Total: 100 points, plus up to 5 bonus points (Section 6).
+
+--------------------------------------------------------------------------------
+HOW TO USE THIS RUBRIC
+--------------------------------------------------------------------------------
+- Unlike CS 1-4, every submission attacks a different open problem (CS 1's mu,
+  CS 2's crash risk, CS 3's driftless-Brownian-motion assumption, or CS 4's
+  single-sigma smile), on data the student may have pulled themselves. This
+  rubric is deliberately topic-agnostic: every row below is a property any
+  serious quantitative attack on ANY of the four named problems must have, not
+  a checklist tied to one case study's specific formulas. Map the generic
+  language onto the student's specific choice of method before scoring.
+- Section point totals (1=15, 2=25, 3=30, 4=15, 5=15) match the written report
+  and live presentation described in the prompt's Deliverables section.
+- Part A (Presentation & Reproducibility) is scored as DEDUCTIONS from the
+  earned section total, capped at -15 points overall. The hard caps in A1
+  (non-running code) apply on top of that cap.
+- Within each section, every row lists the criterion, its point value, and what
+  full / partial / no credit looks like. Partial credit is assessed per row.
+- An attempted-but-flawed answer always scores higher than a skipped one. A
+  criterion left unaddressed earns 0; the same criterion attempted badly earns
+  something.
+- Grading draws on both the written report and the live presentation; a claim
+  made in one but not supported in the other (a number quoted live that
+  doesn't appear in the report, or vice versa) is graded on whichever source
+  actually substantiates it.
+- This is a project about a genuine difficulty. A negative or mixed result,
+  honestly reported, is NOT penalized anywhere in this rubric relative to a
+  positive one — see 3d and A8. Penalize spin, not disappointing results.
+
+================================================================================
+PART A -- PRESENTATION & REPRODUCIBILITY  (cross-cutting; deductions, max -15)
+================================================================================
+
+A1. CODE RUNS TOP-TO-BOTTOM WITHOUT ERROR
+    - Clean run, no errors: no deduction.
+    - Runs with harmless warnings only (deprecation notices, solver
+      convergence chatter that does not change results): no deduction.
+    - One or two cells/scripts raise errors but the rest is independent and
+      gradeable: -5, and the failing part is graded on its visible saved
+      output only.
+    - Code errors early and large portions cannot execute: FINAL SCORE CAPPED
+      AT 60% of otherwise-earned points.
+    - No runnable code submitted at all (report only, with no way to verify
+      any reported number): not accepted for full credit; see syllabus
+      format/late policy.
+
+A2. SELF-CONTAINED AND REPRODUCIBLE
+    - Data is obtained programmatically (via a documented API/download call or
+      a cached file shipped with the submission) and a grader with a clean
+      environment can reproduce every reported number: no deduction.
+    - Depends on a local file or manual step that cannot be regenerated or
+      wasn't shipped with the submission: -5.
+    - Requires undocumented manual steps: -3.
+    - Random seeds are set (or results are shown to be stable without them)
+      for every stochastic step (simulation, bootstrap, resampling, MCMC,
+      random initialization): -2 if missing AND results are visibly
+      seed-sensitive.
+
+A3. SECTION HEADINGS AND NAVIGATION
+    - The report has a clear structure that makes it obvious where the
+      problem statement, baseline, method, and evaluation each live, in that
+      logical order: no deduction.
+    - Structure present but some parts are buried or not clearly delineated:
+      -3.
+    - No real structure; grader has to hunt for where each piece of the
+      argument lives: -6.
+
+A4. FIGURES
+    - All plots render and are present in the final report: no deduction.
+    - Titles, axis labels, and legends (wherever more than one series or
+      variant is shown) are present on every figure: up to -5 total, scaled to
+      how many plots are unlabeled.
+    - Figures illegible (too small, overlapping, default styling that hides
+      the point being made): -2.
+
+A5. WRITTEN INTERPRETATION QUALITY
+    - Prose actually answers what the student set out to show, cites specific
+      numbers and figures, and is in the student's own words: no deduction.
+    - Interpretation is vague, generic, or just restates the setup without
+      engaging the results: up to -5 across the whole report.
+
+A6. CONSISTENT CONVENTIONS AND A FIXED, APPLES-TO-APPLES EVALUATION WINDOW
+    - Units, sign conventions, and cost/friction assumptions are each stated
+      explicitly once and held consistent everywhere; the baseline and the
+      student's new method are evaluated over the identical data window and
+      cost assumptions (per Section 3b): no deduction.
+    - A convention switched partway through, or the baseline and new method
+      silently evaluated on different data/windows/assumptions: -3 here (plus
+      any Section 3 correctness loss), and flagged per A8.
+
+A7. CODE HYGIENE
+    - Reasonably organized; repeated logic is factored into functions; no dead
+      cells/scripts that error; the student's new method is built as an
+      actual extension of (or a clean alternative to) the original case
+      study's code rather than an unrelated one-off script: no deduction.
+    - Egregiously disorganized, or no discernible connection to the case
+      study's own framework at all: -2.
+
+A8. RED FLAGS (checked in context of Sections 2-3, deducted there, but flagged
+    explicitly in feedback):
+    - Lookahead bias / data leakage: fitting anything (the new method's
+      parameters, a regime label, a hedge ratio) on data the method could not
+      have seen at that point in time.
+    - Cherry-picking the flattering metric or the flattering time window, with
+      an unfavorable result quietly omitted or buried.
+    - Comparing the new method against the baseline on different data,
+      different frictions, or a different evaluation period without
+      disclosure.
+    - Treating "it worked once, on one run/seed/window" as a general
+      conclusion, with no robustness check at all (see 3c).
+    - Submitting a cosmetic extension of the original case study (more
+      tickers, a longer window, a different seed) dressed up as a new method
+      -- this is the specific failure mode the prompt's "What Counts as
+      Embellishment" section warns against, and should be caught in Section 1
+      before it costs the student in Section 2-3.
+
+MAXIMUM TOTAL PART A DEDUCTION: -15 (A1 hard caps apply on top of this).
+
+================================================================================
+SECTION 1 -- PROBLEM SELECTION AND FRAMING   (15 points)
+================================================================================
+
+1a. Names the specific open problem being attacked ....................... 4
+    Full: report states, in the first page, which of the four named open
+          problems (or a pre-approved alternative) is being attacked, and
+          restates precisely what the difficulty is in the student's own
+          words -- not a restatement of the assignment prompt's text.
+    Partial: topic is named but the specific difficulty (as opposed to the
+             case study's topic generally) is not clearly stated (2).
+
+1b. Explicit, well-defined baseline ....................................... 4
+    Full: the comparison point for the whole project is named up front and is
+          the relevant case study's own original approach (sample-mean mu,
+          the undefended carry basket, the zero-friction/driftless AS policy,
+          or the single flat-sigma Black-Scholes hedge), reproduced rather
+          than assumed.
+    Partial: a baseline is named but is not actually the case study's original
+             method, with no justification for the substitution (2).
+    None: no baseline identified at all; "improvement" asserted with nothing
+          to improve on (0).
+
+1c. Hypothesis / mechanism for why the method should help ................ 4
+    Full: report states, before showing results, a specific mechanical reason
+          the chosen method should address the stated difficulty (e.g. "a
+          regime overlay should reduce drawdown because it cuts exposure
+          before/during the correlated-unwind episodes that make carry's skew
+          negative" -- not just "this method is known to be better").
+    Partial: a method is chosen with no stated mechanism connecting it to the
+             specific difficulty (2).
+
+1d. Appropriate scope (not a cosmetic extension) .......................... 3
+    Full: the project is a focused attack on the stated difficulty, matching
+          the prompt's "Acceptable" bar -- a genuinely different estimator,
+          overlay, policy, or pricing model, not the original case study
+          re-run with more data, more tickers, or a different seed.
+    Partial: scope is borderline -- a real methodological change, but a small
+             one relative to the difficulty of the stated problem (1.5).
+    None: scope is a re-run of the case study's existing sections with more
+          data/tickers/seeds and no new method: 0, and flagged per A8.
+
+================================================================================
+SECTION 2 -- DATA AND METHODOLOGY   (25 points)
+================================================================================
+
+2a. Data pipeline ......................................................... 5
+    Full: data (reused from the case study, or newly pulled) is obtained and
+          cached with the same rigor CS 1-4 required: programmatic
+          acquisition, a documented caching/invalidation scheme, a portable
+          path.
+    Partial: data pipeline works but cache invalidation or portability is
+             undocumented or broken (2.5).
+
+2b. Correct implementation of the chosen method ........................... 10
+    Full: the method is implemented in a way that matches its own stated
+          mathematics/statistics (e.g., a Bayesian approach has specified and
+          justified priors; a shrinkage estimator states its target and
+          shrinkage intensity; a regime model states its states and
+          transition assumptions; SABR/local-vol states its calibration
+          objective and fitted parameters) -- not a plausible-looking black
+          box with unstated internals.
+    Partial: method runs and produces plausible output, but one or more key
+             modeling choices are unstated or unjustified (5); method is
+             implemented in a way that doesn't actually match its own
+             standard formulation (3).
+
+2c. No leakage; correct in-sample/out-of-sample discipline ................ 5
+    Full: whatever the new method estimates, calibrates, or fits is fit only
+          on information available at that point in (simulated or real) time;
+          the same discipline is enforced for both the baseline and the new
+          method.
+    Partial: leakage present in a minor or clearly-caveated way (2.5).
+    None: leakage drives the headline result and is not acknowledged (0), and
+          flagged per A8.
+
+2d. Assumptions and limitations stated .................................... 5
+    Full: the report explicitly states what the new method assumes that the
+          original case study's method did not (or vice versa), and what
+          would have to be true for the method's advantage to hold up outside
+          the tested window/data.
+    Partial: assumptions are implicit in the code but never stated in prose
+             (2.5).
+
+================================================================================
+SECTION 3 -- EVALUATION AGAINST THE BASELINE   (30 points)
+================================================================================
+
+3a. Baseline faithfully reproduced ......................................... 5
+    Full: the Section 1b baseline is actually run (not quoted from memory or
+          from the original case study's writeup) on the same data window
+          used to evaluate the new method, and its results are reported in
+          full.
+    Partial: baseline numbers are reused from the original case study on a
+             different data window instead of being re-run on the project's
+             own window (2.5), and flagged per A6.
+
+3b. Apples-to-apples comparison ............................................ 8
+    Full: baseline and new method are compared on identical data, identical
+          cost/friction assumptions, and identical evaluation metrics; any
+          difference in setup between the two is explicitly justified rather
+          than incidental.
+    Partial: comparison is mostly fair but one dimension (costs, window, or
+             metric set) differs without full justification (4), and flagged
+             per A6/A8.
+    None: baseline and method are compared on visibly different data or
+          assumptions with no acknowledgment (0-2), and flagged per A8.
+
+3c. Statistical rigor of the comparison .................................... 10
+    Full: the verdict rests on more than a single point estimate from a
+          single run -- uncertainty is quantified via at least one of:
+          multiple seeds/replicates, a bootstrap or resampling scheme, out-of-
+          sample testing across more than one sub-period, or an explicit
+          hypothesis test; the comparison reports a measure of spread/
+          significance, not just a headline number.
+    Partial: some robustness check attempted but it's thin (e.g. one extra
+             sub-period, no formal uncertainty measure) (5).
+    None: the entire verdict rests on one run with one number and no
+          uncertainty quantification at all (0-2), and flagged per A8.
+
+3d. Honest verdict and tradeoff ............................................. 7
+    Full: the report states plainly whether the method helped, by
+          approximately how much (in the units relevant to the chosen
+          problem -- Sharpe, drawdown, hedging P&L variance, pricing error),
+          and what was given up to get it (lower average return, added
+          complexity, calibration risk, fewer fills). A result that is
+          negative or weaker than hoped is reported with the same rigor as a
+          positive one and is NOT penalized for being negative.
+    Partial: a verdict is given but the tradeoff/cost side is missing or
+             hand-waved (3.5).
+    None: result is reported as unambiguously positive with no discussion of
+          cost or a counterfactual where it might not hold (0-1), and flagged
+          per A8 if this looks like cherry-picking.
+
+================================================================================
+SECTION 4 -- INTERPRETATION AND STAKEHOLDER RECOMMENDATION   (15 points)
+================================================================================
+
+4a. Specific, evidence-referenced interpretation ........................... 8
+    Full: at least one paragraph per major result that cites the actual
+          numbers and figures produced (not restated from the method
+          description), explaining what they mean for the stated open
+          problem specifically.
+    Partial: interpretation present but generic, or disconnected from the
+             specific figures/numbers it should be citing (4).
+
+4b. Stakeholder-facing recommendation ....................................... 7
+    Full: 3-5 sentences addressed to the same stakeholder the chosen case
+          study was written for (PM for CS 1/2, head trader for CS 3, desk
+          head for CS 4), grounded in the Section 3 results, stating whether
+          and under what conditions/caveats the new method should be adopted
+          in place of the original case study's approach.
+    Partial: present but generic, not decision-oriented, or not grounded in
+             the specific numbers produced (3.5).
+
+================================================================================
+SECTION 5 -- LIVE PRESENTATION   (15 points)
+================================================================================
+
+5a. Clear problem/approach/result arc within the time limit ................ 6
+    Full: the talk states the open problem being attacked, the baseline, the
+          method, and the headline result clearly enough that an audience
+          member who hasn't read the report can follow it, within the
+          allotted time.
+    Partial: covers the material but runs significantly over/under time or
+             skips one of the four elements (3).
+
+5b. Supporting visuals ....................................................... 4
+    Full: slides/figures used in the talk are legible, labeled, and match
+          what's in the written report (no numbers quoted live that
+          contradict or aren't supported by the report).
+    Partial: visuals present but hard to read live, or a live claim isn't
+             backed by the report (2).
+
+5c. Handles questions ......................................................... 5
+    Full: can explain and defend specific methodological choices (why this
+          baseline, why this robustness check, why this metric) when asked,
+          rather than restating the slide.
+    Partial: answers questions but mostly by restating prepared material
+             rather than engaging with the specific question asked (2.5).
+
+================================================================================
+SECTION 6 -- BONUS   (up to +5 points, optional)
+================================================================================
+
+  +3  A genuinely additional robustness check beyond what Section 3c already
+      required: a second, independent baseline; testing the method across
+      more than one case study's worth of data/assets; or an explicit
+      sensitivity analysis showing how the headline result changes as a key
+      assumption (cost level, prior strength, calibration window) is varied.
+  +2  Clear discussion of what would be needed to take the method from this
+      project to something a real desk could actually deploy (monitoring,
+      a kill-switch, retraining/recalibration cadence, or similar), grounded
+      in the project's own findings rather than generic boilerplate.
+
+  Partial bonus is allowed. There is no penalty for skipping this section.
+
+================================================================================
+SCORE SUMMARY
+================================================================================
+
+  Section 1  (Problem selection and framing) .......  ____ / 15
+  Section 2  (Data and methodology) ................  ____ / 25
+  Section 3  (Evaluation against the baseline) .....  ____ / 30
+  Section 4  (Interpretation and recommendation) ...  ____ / 15
+  Section 5  (Live presentation) ...................  ____ / 15
+                                                     ------------
+  Subtotal ........................................  ____ / 100
+
+  Part A deductions (Presentation & Reproducibility)  - ____   (max -15;
+                                                               A1 hard caps
+                                                               may also apply)
+  Section 6 bonus .................................  + ____   (max +5)
+                                                     ------------
+  FINAL ..........................................  ____ / 100 (+ bonus)
+
+================================================================================
